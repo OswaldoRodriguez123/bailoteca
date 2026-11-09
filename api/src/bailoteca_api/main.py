@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from bailoteca_api.config import Settings, get_settings
 from bailoteca_api.db import DatabaseUnavailable
-from bailoteca_api.routers import health
+from bailoteca_api.routers import academies, health
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     app.include_router(health.router)
+    app.include_router(academies.router)
     return app
 
 
