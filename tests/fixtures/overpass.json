@@ -1,0 +1,23 @@
+{
+  "elements": [
+    {
+      "type": "node",
+      "tags": {
+        "name": "Academia OSM",
+        "amenity": "dancing_school",
+        "addr:street": "Av. Test",
+        "addr:housenumber": "123",
+        "addr:city": "Providencia",
+        "website": "https://osm.cl",
+        "contact:instagram": "osmacademia"
+      }
+    },
+    {
+      "type": "node",
+      "tags": {
+        "amenity": "dancing_school",
+        "addr:city": "Santiago"
+      }
+    }
+  ]
+}
