@@ -34,6 +34,8 @@ def _open_conn(config):
 def _print_summary(summary) -> None:
     print(
         f"descubiertos={summary.discovered} "
+        f"filtrados_reglas={summary.filtered_rules} "
+        f"filtrados_clef={summary.filtered_clef} "
         f"nuevos={summary.new_candidates} "
         f"propuestas={summary.proposals} "
         f"dudosas={summary.needs_review} "

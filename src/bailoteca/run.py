@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from bailoteca.classify import classify
+from bailoteca.clef import ClefTriage
 from bailoteca.config import Config
 from bailoteca.db import (
     academy_id_by_slug,
@@ -38,6 +39,8 @@ from bailoteca.sources.seed import load_seed
 class RunSummary:
     discovered: int = 0
     filtered_rules: int = 0
+    filtered_clef: int = 0
+    clef_errors: int = 0
     new_candidates: int = 0
     proposals: int = 0
     needs_review: int = 0
@@ -167,6 +170,7 @@ def run(
     sources: list[Source] | None = None,
     fetcher=None,
     llm=None,
+    triage=None,
 ) -> RunSummary:
     started = time.monotonic()
     if sources is None:
@@ -175,6 +179,16 @@ def run(
         fetcher = CachedFetcher(HttpxFetcher(), config.cache_dir)
     if llm is None and config.gemini_api_key:
         llm = GeminiLLM(config.gemini_api_key, HttpxPost())
+    if (
+        triage is None
+        and config.cloudflare_account_id
+        and config.cloudflare_token
+    ):
+        triage = ClefTriage(
+            HttpxPost(timeout=30),
+            config.cloudflare_account_id,
+            config.cloudflare_token,
+        )
 
     collected = collect(sources)
     candidates = collected.candidates
@@ -184,6 +198,7 @@ def run(
     drafts: list[tuple] = []
     dead: list[dict] = []
     stale: list[dict] = []
+    kept: list[Candidate] = []
 
     conn = None
     if not dry_run:
@@ -195,6 +210,8 @@ def run(
 
     try:
         for candidate in candidates:
+            existing_candidate = None
+            candidate_id = None
             if conn is not None:
                 key = candidate_key(
                     candidate.name, candidate.url, candidate.handle, candidate.comuna
@@ -206,13 +223,22 @@ def run(
                     candidate_id = existing_candidate["id"]
                     if existing_candidate["status"] in ("published", "rejected"):
                         continue
-                else:
-                    candidate_id = upsert_candidate(conn, candidate)
-                    summary.new_candidates += 1
-            else:
-                candidate_id = None
 
             enriched = enrich(candidate, fetcher)
+
+            if triage is not None:
+                verdict = triage.evaluate(candidate, enriched)
+                if verdict.error:
+                    summary.clef_errors += 1
+                if not verdict.accepted:
+                    summary.filtered_clef += 1
+                    continue
+
+            kept.append(candidate)
+            if conn is not None and existing_candidate is None:
+                candidate_id = upsert_candidate(conn, candidate)
+                summary.new_candidates += 1
+
             hits = classify(_text_for_classification(enriched), llm)
 
             existing = None
@@ -283,7 +309,7 @@ def run(
         if conn is not None:
             conn.close()
 
-    _write_reports(config, summary, candidates, drafts, dead, stale)
+    _write_reports(config, summary, kept, drafts, dead, stale)
     summary.duration_s = round(time.monotonic() - started, 3)
     return summary
 

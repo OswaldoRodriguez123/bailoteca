@@ -127,3 +127,47 @@ class _Source2:
 
     def discover(self):
         return [self.candidate]
+
+
+def _fake_triage(accepted: bool):
+    class _Triage:
+        def evaluate(self, candidate, enriched):
+            from bailoteca.clef import Triage
+
+            return Triage(accepted=accepted, score=0.9 if accepted else 0.1)
+
+    return _Triage()
+
+
+def test_run_drops_candidate_rejected_by_clef(tmp_path):
+    summary = run(
+        Config.from_env({"BAILOTECA_REPORTS_DIR": str(tmp_path)}),
+        dry_run=True,
+        sources=[_Source()],
+        fetcher=_Fetcher(),
+        llm=None,
+        triage=_fake_triage(False),
+    )
+    assert summary.discovered == 1
+    assert summary.filtered_clef == 1
+    assert summary.proposals == 0
+
+
+def test_run_keeps_candidate_on_clef_error(tmp_path):
+    class _ErrTriage:
+        def evaluate(self, candidate, enriched):
+            from bailoteca.clef import Triage
+
+            return Triage(accepted=True, score=None, error="timeout")
+
+    summary = run(
+        Config.from_env({"BAILOTECA_REPORTS_DIR": str(tmp_path)}),
+        dry_run=True,
+        sources=[_Source()],
+        fetcher=_Fetcher(),
+        llm=None,
+        triage=_ErrTriage(),
+    )
+    assert summary.clef_errors == 1
+    assert summary.filtered_clef == 0
+    assert summary.proposals == 1
