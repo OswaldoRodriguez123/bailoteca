@@ -1,7 +1,8 @@
 """Publica las academias validadas manualmente en la base.
 
 Uso único: toma los 28 candidatos que pasaron el filtro de ruido, los cruza
-con la caché local y publica las 14 academias con datos verificables.
+con la caché local y publica las academias con datos verificables. No exige
+página web: basta una red social (Instagram/Facebook) para aceptarlas.
 
 Es idempotente: si la academia ya existe (mismo slug), actualiza sus datos en
 lugar de crear un duplicado.
@@ -478,12 +479,39 @@ ACADEMIES: list[dict] = [
         ],
         "styles": [],
     },
+    {
+        "name": "SBS Estudio",
+        "description": "Clases de salsa y bachata.",
+        "candidate_url": "https://www.instagram.com/sbsestudio_cl/?hl=es-la",
+        "locations": [],
+        "links": [
+            {"kind": "instagram", "url": "https://instagram.com/sbsestudio_cl"}
+        ],
+        "styles": [],
+    },
+    {
+        "name": "Bailemos Todos Chile",
+        "description": None,
+        "candidate_url": "https://www.instagram.com/bailemostodos_chile/?hl=es",
+        "locations": [
+            {
+                "label": "Providencia",
+                "comuna": "Providencia",
+                "source_url": "https://www.instagram.com/bailemostodos_chile/?hl=es",
+            }
+        ],
+        "links": [
+            {
+                "kind": "instagram",
+                "url": "https://instagram.com/bailemostodos_chile",
+            }
+        ],
+        "styles": [],
+    },
 ]
 
 
 EXCLUDED_NAMES = {
-    "sbs estudio | clases de salsa y bachata (@sbsestudio_cl)",
-    "bailemos todos chile (@bailemostodos_chile) · providencia",
     "academia mc | danza, teatro, artes marciales y más en ...",
     "clases de salsa en puente alto",
     "cursos - sonarte",

@@ -60,6 +60,37 @@ def test_approve_create_publishes_and_verifies(conn):
     assert [r["slug"] for r in styles] == ["salsa-cubana"]
 
 
+def test_approve_create_accepts_social_only_academy(conn):
+    cand = Candidate("Academia Solo IG", "https://instagram.com/soloig2", "soloig2", "serpapi")
+    cid = upsert_candidate(conn, cand)
+    pid = insert_proposal(
+        conn,
+        candidate_id=cid,
+        academy_id=None,
+        kind="create",
+        payload={
+            "name": "Academia Solo IG",
+            "links": [
+                {"kind": "instagram", "url": "https://instagram.com/soloig2"}
+            ],
+        },
+        evidence={},
+        confidence=1.0,
+    )
+    aid = approve(conn, pid)
+
+    locations = conn.execute(
+        "select count(*) from academy_locations where academy_id = %s", (aid,)
+    ).fetchone()
+    assert locations["count"] == 0
+    links = conn.execute(
+        "select kind, url from academy_links where academy_id = %s", (aid,)
+    ).fetchall()
+    assert [(row["kind"], row["url"]) for row in links] == [
+        ("instagram", "https://instagram.com/soloig2")
+    ]
+
+
 def test_approve_edit_records_rejection(conn):
     cand = Candidate("Academia Edit", "https://edit.cl", None, "seed")
     cid = upsert_candidate(conn, cand)
