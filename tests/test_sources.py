@@ -1,9 +1,9 @@
 import json
 from pathlib import Path
 
-from directorio_baile.sources.osm import parse_overpass
-from directorio_baile.sources.search import build_queries, parse_ddg_html
-from directorio_baile.sources.seed import load_seed
+from bailoteca.sources.osm import parse_overpass
+from bailoteca.sources.search import build_queries, parse_ddg_html
+from bailoteca.sources.seed import load_seed
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -38,3 +38,24 @@ def test_parse_overpass_maps_fields_and_skips_unnamed():
     assert candidates[0].raw["address"] == "Av. Test 123"
     assert candidates[0].raw["comuna"] == "Providencia"
     assert candidates[0].handle == "osmacademia"
+
+
+def test_ddg_source_enforces_delay_between_queries(monkeypatch):
+    from bailoteca.sources.search import DuckDuckGoSource
+
+    class _Response:
+        status_code = 200
+        text = ""
+
+    class _Http:
+        def get(self, url, params=None):
+            return _Response()
+
+    sleeps = []
+    monkeypatch.setattr(
+        "bailoteca.sources.search.time.sleep",
+        lambda seconds: sleeps.append(seconds),
+    )
+    DuckDuckGoSource(["uno", "dos"], _Http(), delay=1.0).discover()
+    assert len(sleeps) == 1
+    assert 0.9 <= sleeps[0] <= 1.0

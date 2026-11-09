@@ -8,8 +8,8 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from directorio_baile.models import Candidate
-from directorio_baile.normalize import candidate_key, payload_hash
+from bailoteca.models import Candidate
+from bailoteca.normalize import candidate_key, payload_hash
 
 
 def connect(database_url: str) -> psycopg.Connection:

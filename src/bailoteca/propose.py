@@ -6,11 +6,11 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 
-from directorio_baile.classify import REVIEW_CONFIDENCE, needs_review
-from directorio_baile.enrich import Enriched
-from directorio_baile.llm import StyleHit
-from directorio_baile.models import Candidate
-from directorio_baile.normalize import candidate_key, payload_hash
+from bailoteca.classify import REVIEW_CONFIDENCE, needs_review
+from bailoteca.enrich import Enriched
+from bailoteca.llm import StyleHit
+from bailoteca.models import Candidate
+from bailoteca.normalize import candidate_key, payload_hash
 
 
 @dataclass(frozen=True)
@@ -99,6 +99,7 @@ def _build_payload(
     enriched: Enriched | None,
     hits: list[StyleHit],
     rejections: set[tuple[str, str]],
+    existing: dict | None = None,
 ) -> dict:
     payload: dict = {"name": candidate.name}
 
@@ -117,15 +118,28 @@ def _build_payload(
 
     if enriched.description:
         payload["description"] = enriched.description
+    elif existing and existing.get("description"):
+        payload["description"] = existing["description"]
 
     location: dict = {}
-    if enriched.address and (
+    addr_rejected = (
         "address",
-        field_value_hash("address", enriched.address),
-    ) not in rejections:
+        field_value_hash("address", enriched.address) if enriched.address else "",
+    ) in rejections
+    if enriched.address and not addr_rejected:
         location["address"] = enriched.address
-    if enriched.comuna:
+    elif existing and existing.get("address"):
+        location["address"] = existing["address"]
+
+    comuna_rejected = (
+        "comuna",
+        field_value_hash("comuna", enriched.comuna) if enriched.comuna else "",
+    ) in rejections
+    if enriched.comuna and not comuna_rejected:
         location["comuna"] = enriched.comuna
+    elif existing and existing.get("comuna"):
+        location["comuna"] = existing["comuna"]
+
     payload["locations"] = [location] if location else []
 
     links = []
@@ -135,14 +149,21 @@ def _build_payload(
                 continue
             links.append({"kind": kind, "url": url})
     links.sort(key=lambda link: (link["kind"], link["url"]))
-    payload["links"] = links
+    if links:
+        payload["links"] = links
+    elif existing and existing.get("links"):
+        payload["links"] = existing["links"]
 
     styles = []
     for style in style_payload(hits):
-        if ("style:" + style["slug"], field_value_hash("style:" + style["slug"], style["slug"])) in rejections:
+        slug = style["slug"]
+        if ("style:" + slug, field_value_hash("style:" + slug, slug)) in rejections:
             continue
         styles.append(style)
-    payload["styles"] = styles
+    if styles:
+        payload["styles"] = styles
+    elif existing and existing.get("styles"):
+        payload["styles"] = existing["styles"]
 
     return payload
 
@@ -154,7 +175,7 @@ def build_proposal(
     existing: dict | None,
     rejections: set[tuple[str, str]],
 ) -> ProposalDraft | None:
-    payload = _build_payload(candidate, enriched, hits, rejections)
+    payload = _build_payload(candidate, enriched, hits, rejections, existing)
     proposed = _payload_view(payload)
 
     if existing is not None:

@@ -1,10 +1,10 @@
-from directorio_baile.classify import (
+from bailoteca.classify import (
     classify,
     merge_hits,
     needs_review,
     rule_hits,
 )
-from directorio_baile.llm import StyleHit
+from bailoteca.llm import StyleHit
 
 
 def test_salsa_as_food_is_not_a_dance_style():

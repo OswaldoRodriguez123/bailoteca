@@ -1,4 +1,4 @@
-name: Actualizar directorio
+name: Actualizar Bailoteca
 
 on:
   schedule:
@@ -27,9 +27,9 @@ jobs:
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
-            python -m directorio_baile run --dry-run
+            python -m bailoteca run --dry-run
           else
-            python -m directorio_baile run
+            python -m bailoteca run
           fi
       - uses: actions/upload-artifact@v4
         with:

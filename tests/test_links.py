@@ -1,4 +1,4 @@
-from directorio_baile.links import check_link
+from bailoteca.links import check_link
 
 
 class _Response:

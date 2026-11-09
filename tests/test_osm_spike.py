@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 
-from directorio_baile.osm_spike import summarize
-from directorio_baile.sources.osm import parse_overpass
+from bailoteca.osm_spike import summarize
+from bailoteca.sources.osm import parse_overpass
 
 
 def test_summarize_counts_fields():

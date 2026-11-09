@@ -1,6 +1,6 @@
 import pytest
 
-from directorio_baile.normalize import (
+from bailoteca.normalize import (
     candidate_key,
     domain_of,
     normalize_handle,
@@ -44,3 +44,7 @@ def test_candidate_key_uses_handle_when_no_url():
 def test_payload_hash_ignores_dict_order():
     assert payload_hash({"a": 1, "b": 2}) == payload_hash({"b": 2, "a": 1})
     assert payload_hash({"a": 1}) != payload_hash({"a": 2})
+
+
+def test_domain_lowercases_host():
+    assert domain_of("HTTPS://WWW.Academia.CL/x") == "academia.cl"

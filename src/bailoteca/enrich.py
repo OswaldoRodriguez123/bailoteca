@@ -13,7 +13,7 @@ from urllib.parse import urljoin, urlsplit
 
 from bs4 import BeautifulSoup
 
-from directorio_baile.models import Candidate
+from bailoteca.models import Candidate
 
 MAX_DESCRIPTION = 300
 MAX_BYTES = 5 * 1024 * 1024
@@ -230,6 +230,19 @@ def _text_from_html(html: str) -> str:
     return " ".join(soup.get_text(" ", strip=True).split())
 
 
+def _is_instagram_profile(url: str) -> bool:
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return False
+    host = (parts.hostname or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+    return host == "instagram.com" and parts.path and not parts.path.startswith(
+        ("/p/", "/reel/", "/tv/", "/stories/")
+    )
+
+
 def enrich(candidate: Candidate, fetcher: Fetcher) -> Enriched:
     links: dict[str, list[str]] = {}
     if candidate.handle:
@@ -242,7 +255,9 @@ def enrich(candidate: Candidate, fetcher: Fetcher) -> Enriched:
     description = None
     evidence: dict = {"name": {"source_url": candidate.url, "method": candidate.source}}
 
-    if candidate.url and safe_url(candidate.url):
+    if candidate.url and safe_url(candidate.url) and not _is_instagram_profile(
+        candidate.url
+    ):
         page = fetcher.get(candidate.url)
         page_url = page.url or page_url
         text = page.text or _text_from_html(page.html)
@@ -327,10 +342,12 @@ class HttpxFetcher:
         self,
         timeout: float = TIMEOUT_SECONDS,
         min_interval: float = 1.0,
+        stream_fn=None,
     ):
         self.timeout = timeout
         self.min_interval = min_interval
         self._last_request: dict[str, float] = {}
+        self._stream_fn = stream_fn or (lambda *a, **k: __import__("httpx").stream(*a, **k))
 
     def get(self, url: str) -> Page:
         import httpx
@@ -342,13 +359,16 @@ class HttpxFetcher:
         self._last_request[host] = time.monotonic()
 
         try:
-            with httpx.stream(
+            with self._stream_fn(
                 "GET",
                 url,
                 timeout=self.timeout,
                 follow_redirects=True,
                 headers={"User-Agent": "directorio-baile/0.1"},
             ) as response:
+                final_url = str(response.url)
+                if not safe_url(final_url):
+                    return Page(url=final_url, status=0, html="", text="")
                 chunks: list[bytes] = []
                 total = 0
                 for chunk in response.iter_bytes():
@@ -359,7 +379,7 @@ class HttpxFetcher:
                 body = b"".join(chunks)
                 html = body.decode(response.encoding or "utf-8", errors="replace")
                 return Page(
-                    url=str(response.url),
+                    url=final_url,
                     status=response.status_code,
                     html=html,
                     text=_text_from_html(html),

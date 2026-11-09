@@ -2,15 +2,15 @@ import os
 
 import pytest
 
-from directorio_baile.db import (
+from bailoteca.db import (
     connect,
     insert_proposal,
     rejected_values,
     upsert_candidate,
 )
-from directorio_baile.models import Candidate
-from directorio_baile.propose import field_value_hash
-from directorio_baile.publish import approve, reject
+from bailoteca.models import Candidate
+from bailoteca.propose import field_value_hash
+from bailoteca.publish import approve, reject
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("TEST_DATABASE_URL"),

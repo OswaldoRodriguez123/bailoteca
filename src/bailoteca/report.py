@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from directorio_baile.run import RunSummary
+    from bailoteca.run import RunSummary
 
 
 def render_weekly_report(
@@ -46,3 +47,29 @@ def render_weekly_report(
         lines.append("Todas las academias están verificadas.")
 
     return "\n".join(lines)
+
+
+def stale_academies(
+    academies: list[dict],
+    days: int = 90,
+    now: datetime | None = None,
+) -> list[dict]:
+    reference = now or datetime.now(timezone.utc)
+    limit = reference - timedelta(days=days)
+    stale: list[dict] = []
+    for academy in academies:
+        verified = academy.get("verified_at")
+        if verified is None:
+            stale.append(academy)
+            continue
+        if isinstance(verified, str):
+            try:
+                verified = datetime.fromisoformat(verified.replace("Z", "+00:00"))
+            except ValueError:
+                stale.append(academy)
+                continue
+        if verified.tzinfo is None:
+            verified = verified.replace(tzinfo=timezone.utc)
+        if verified < limit:
+            stale.append(academy)
+    return stale

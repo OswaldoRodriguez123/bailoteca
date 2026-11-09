@@ -8,8 +8,8 @@ import json
 import sys
 from pathlib import Path
 
-from directorio_baile.osm_spike import summarize
-from directorio_baile.sources.osm import (
+from bailoteca.osm_spike import summarize
+from bailoteca.sources.osm import (
     GRAN_SANTIAGO_BBOX,
     OVERPASS_ENDPOINTS,
     build_query,

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import time
+
 from typing import Protocol
 from urllib.parse import parse_qs, urlsplit
 
 from bs4 import BeautifulSoup
 
-from directorio_baile.models import Candidate
+from bailoteca.models import Candidate
 
 SEARCH_DOMAINS = {
     "duckduckgo.com",
@@ -85,10 +87,16 @@ class DuckDuckGoSource:
 
     def discover(self) -> list[Candidate]:
         candidates: list[Candidate] = []
+        last_request: float | None = None
         for query in self.queries:
+            if last_request is not None:
+                wait = self.delay - (time.monotonic() - last_request)
+                if wait > 0:
+                    time.sleep(wait)
             response = self.http.get(
                 "https://html.duckduckgo.com/html/", params={"q": query}
             )
+            last_request = time.monotonic()
             if response.status_code == 200:
                 candidates.extend(parse_ddg_html(response.text))
         return candidates

@@ -1,6 +1,6 @@
-from directorio_baile.propose import field_value_hash
-from directorio_baile.publish import replaced_pairs
-from directorio_baile.review import render_review
+from bailoteca.propose import field_value_hash
+from bailoteca.publish import replaced_pairs
+from bailoteca.review import render_review
 
 
 def test_render_review_flags_doubtful_and_shows_evidence():

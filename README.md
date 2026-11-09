@@ -1,9 +1,9 @@
-# Directorio de baile
+# Bailoteca
 
-Backend de un directorio de academias de baile en Santiago, empezando por salsa.
-Descubre candidatos desde fuentes gratuitas, los clasifica por estilo con
-evidencia y deja propuestas para que una persona las apruebe antes de
-publicarlas.
+**Bailoteca** es el backend de un directorio de academias de baile en Santiago,
+empezando por salsa. Descubre candidatos desde fuentes gratuitas, los clasifica
+por estilo con evidencia y deja propuestas para que una persona las apruebe
+antes de publicarlas.
 
 - **Publicado** = existe en la tabla `academies`. Solo la CLI escribe ahí,
   después de aprobar.
@@ -63,35 +63,35 @@ publicarlas.
 
 ```bash
 # Descubrir y generar propuestas sin tocar la base
-dance run --dry-run
+bailoteca run --dry-run
 
 # Igual, escribiendo propuestas en Postgres
-dance run
+bailoteca run
 
 # Ver propuestas pendientes en Markdown
-dance review
+bailoteca review
 
 # Aprobar una propuesta (fija verified_at)
-dance approve <proposal-id>
+bailoteca approve <proposal-id>
 
 # Aprobar una ficha incompleta sin darla por verificada
-dance approve <proposal-id> --unverified
+bailoteca approve <proposal-id> --unverified
 
 # Corregir y aprobar (abre $EDITOR con el payload JSON)
-dance edit <proposal-id>
+bailoteca edit <proposal-id>
 
 # Descartar una propuesta
-dance reject <proposal-id>
+bailoteca reject <proposal-id>
 
 # Agregar una academia a mano: @handle, URL o nombre
-dance add "@academia_ejemplo"
+bailoteca add "@academia_ejemplo"
 
 # Releer una academia publicada y proponer solo diferencias
-dance refresh academia-ejemplo
+bailoteca refresh academia-ejemplo
 
 # Exportar lo publicado
-dance export
-dance export --csv
+bailoteca export
+bailoteca export --csv
 ```
 
 Cada corrida escribe `reports/<fecha>/` con `candidates.json`,
@@ -107,16 +107,16 @@ Los tests de integración se saltan si no hay `TEST_DATABASE_URL`. Para
 correrlos contra un Postgres de prueba:
 
 ```bash
-docker run -d --name directorio-test-db \
-  -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=directorio_test \
+docker run -d --name bailoteca-test-db \
+  -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=bailoteca_test \
   -p 55432:5432 postgres:16-alpine
 
-docker exec -i directorio-test-db psql -U postgres -d directorio_test \
+docker exec -i bailoteca-test-db psql -U postgres -d bailoteca_test \
   < supabase/migrations/0001_schema.sql
-docker exec -i directorio-test-db psql -U postgres -d directorio_test \
+docker exec -i bailoteca-test-db psql -U postgres -d bailoteca_test \
   < supabase/migrations/0002_rls.sql
 
-TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/directorio_test \
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/bailoteca_test \
   .venv/bin/python -m pytest -q
 ```
 
@@ -126,20 +126,20 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/directorio_test
 
 1. instala dependencias,
 2. corre la suite,
-3. ejecuta `dance run` con los secretos del repositorio,
+3. ejecuta `bailoteca run` con los secretos del repositorio,
 4. sube `reports/` como artifact.
 
 Configurar en GitHub `Settings → Secrets and variables → Actions`:
 `DATABASE_URL`, y opcionalmente `GEMINI_API_KEY` y `SERPAPI_KEY`.
 
 La corrida semanal **no vuelve a descargar** las academias publicadas; solo
-comprueba enlaces. Para releer una ficha concreta, usar `dance refresh <slug>`.
+comprueba enlaces. Para releer una ficha concreta, usar `bailoteca refresh <slug>`.
 
 ### OSM
 
 `OverpassSource` está implementado pero desactivado por defecto. El spike del
 2026-11-09 no pudo medir su cobertura porque la red bloqueó ambos endpoints; ver
-`docs/osm-spike.md`. Se puede activar con `DANCE_SOURCES=seed,search,osm`
+`docs/osm-spike.md`. Se puede activar con `BAILOTECA_SOURCES=seed,search,osm`
 cuando haya red y se valide el criterio de corte.
 
 ## Seguridad
@@ -157,8 +157,8 @@ cuando haya red y se valide el criterio de corte.
 ## Estructura
 
 ```text
-src/directorio_baile/
-  cli.py        # comandos dance
+src/bailoteca/
+  cli.py        # comandos bailoteca
   config.py     # lectura de entorno
   db.py         # SQL y conexión (sin commit; la CLI cierra)
   discover.py   # deduplicación entre fuentes

@@ -7,7 +7,7 @@ activarlo como fuente por defecto.
 
 Criterio de corte del diseño: **se conserva** si aporta al menos 10 academias
 válidas nuevas (o ~30% del tamaño de la semilla); si no, **se descarta** y el
-adaptador queda detrás de `DANCE_SOURCES`.
+adaptador queda detrás de `BAILOTECA_SOURCES`.
 
 ## Bbox consultado
 
@@ -48,9 +48,9 @@ No son datos reales de Santiago; solo prueban que `summarize` cuenta bien.
 **OSM se descarta por ahora.** No se pudo medir su cobertura real y el criterio
 exige datos, no una suposición. Consecuencias:
 
-- `DANCE_SOURCES=seed,search` sigue siendo el valor por defecto.
+- `BAILOTECA_SOURCES=seed,search` sigue siendo el valor por defecto.
 - `OverpassSource` queda implementado pero desactivado; se puede activar con
-  `DANCE_SOURCES=seed,search,osm` cuando haya red.
+  `BAILOTECA_SOURCES=seed,search,osm` cuando haya red.
 - No se bloquea ninguna otra tarea.
 
 ## Cómo reevaluar
@@ -58,10 +58,10 @@ exige datos, no una suposición. Consecuencias:
 Con red disponible:
 
 ```bash
-.venv/bin/python scripts/osm_spike.py
+.venv/bin/python -m bailoteca spike
 ```
 
 Si el resultado trae ≥10 academias con nombre y al menos dirección o
 web/Instagram, actualizar este documento, agregar `osm` al valor por defecto de
-`DANCE_SOURCES` y correr `dance run --dry-run` para revisar la calidad antes de
+`BAILOTECA_SOURCES` y correr `bailoteca run --dry-run` para revisar la calidad antes de
 proponer.

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from directorio_baile.llm import LLM, StyleHit
-from directorio_baile.normalize import strip_accents
+from bailoteca.llm import LLM, StyleHit
+from bailoteca.normalize import strip_accents
 
 AUTO_CONFIDENCE = 0.85
 REVIEW_CONFIDENCE = 0.60

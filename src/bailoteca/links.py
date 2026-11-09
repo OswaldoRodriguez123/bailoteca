@@ -6,7 +6,7 @@ from typing import Protocol
 
 import psycopg
 
-from directorio_baile.db import list_published
+from bailoteca.db import list_published
 
 RETRYABLE_HEAD_STATUS = {405, 501}
 CHECKABLE_KINDS = {"web", "instagram", "facebook", "tiktok", "whatsapp"}

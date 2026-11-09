@@ -4,7 +4,7 @@ import sys
 
 def test_module_help_lists_commands():
     result = subprocess.run(
-        [sys.executable, "-m", "directorio_baile", "--help"],
+        [sys.executable, "-m", "bailoteca", "--help"],
         capture_output=True,
         text=True,
     )

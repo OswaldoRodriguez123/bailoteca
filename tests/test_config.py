@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from directorio_baile.config import Config
+from bailoteca.config import Config
 
 
 def test_defaults_without_environment():
@@ -19,11 +19,12 @@ def test_reads_environment():
             "DATABASE_URL": "postgresql://u:p@host/db",
             "GEMINI_API_KEY": "g-key",
             "SERPAPI_KEY": "s-key",
-            "DANCE_SOURCES": "seed,osm",
-            "DANCE_CACHE_DIR": "/tmp/cache",
-            "DANCE_REPORTS_DIR": "/tmp/reports",
+            "BAILOTECA_SOURCES": "seed,osm",
+            "BAILOTECA_CACHE_DIR": "/tmp/cache",
+            "BAILOTECA_REPORTS_DIR": "/tmp/reports",
         }
     )
     assert cfg.database_url == "postgresql://u:p@host/db"
     assert cfg.sources == ["seed", "osm"]
     assert cfg.cache_dir == Path("/tmp/cache")
+    assert cfg.reports_dir == Path("/tmp/reports")

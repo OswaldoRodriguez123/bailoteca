@@ -1,8 +1,8 @@
 import csv
 from pathlib import Path
 
-from directorio_baile.models import Candidate
-from directorio_baile.normalize import normalize_handle
+from bailoteca.models import Candidate
+from bailoteca.normalize import normalize_handle
 
 
 def load_seed(path: Path) -> list[Candidate]:

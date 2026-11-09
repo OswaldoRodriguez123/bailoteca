@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 
-from directorio_baile.models import Candidate
+from bailoteca.models import Candidate
 
 
 def summarize(candidates: list[Candidate]) -> dict:

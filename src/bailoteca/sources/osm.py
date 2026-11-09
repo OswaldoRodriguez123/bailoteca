@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from typing import Protocol
 
-from directorio_baile.models import Candidate
-from directorio_baile.normalize import normalize_handle
+from bailoteca.models import Candidate
+from bailoteca.normalize import normalize_handle
 
 OVERPASS_ENDPOINTS = [
     "https://overpass-api.de/api/interpreter",

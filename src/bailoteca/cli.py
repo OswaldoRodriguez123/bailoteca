@@ -14,13 +14,13 @@ from pathlib import Path
 
 
 def _load_config():
-    from directorio_baile.config import load
+    from bailoteca.config import load
 
     return load()
 
 
 def _open_conn(config):
-    from directorio_baile.db import connect
+    from bailoteca.db import connect
 
     if not config.database_url:
         print(
@@ -42,7 +42,7 @@ def _print_summary(summary) -> None:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    from directorio_baile.run import run
+    from bailoteca.run import run
 
     summary = run(_load_config(), dry_run=args.dry_run)
     _print_summary(summary)
@@ -50,8 +50,8 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 
 def cmd_review(args: argparse.Namespace) -> int:
-    from directorio_baile.db import pending_proposals
-    from directorio_baile.review import render_review
+    from bailoteca.db import pending_proposals
+    from bailoteca.review import render_review
 
     conn = _open_conn(_load_config())
     try:
@@ -63,7 +63,7 @@ def cmd_review(args: argparse.Namespace) -> int:
 
 
 def cmd_approve(args: argparse.Namespace) -> int:
-    from directorio_baile.publish import approve
+    from bailoteca.publish import approve
 
     conn = _open_conn(_load_config())
     try:
@@ -78,7 +78,7 @@ def cmd_approve(args: argparse.Namespace) -> int:
 
 
 def cmd_edit(args: argparse.Namespace) -> int:
-    from directorio_baile.publish import approve
+    from bailoteca.publish import approve
 
     editor = os.environ.get("EDITOR") or os.environ.get("VISUAL")
     if not editor:
@@ -112,7 +112,7 @@ def cmd_edit(args: argparse.Namespace) -> int:
 
 
 def cmd_reject(args: argparse.Namespace) -> int:
-    from directorio_baile.publish import reject
+    from bailoteca.publish import reject
 
     conn = _open_conn(_load_config())
     try:
@@ -124,11 +124,11 @@ def cmd_reject(args: argparse.Namespace) -> int:
 
 
 def cmd_add(args: argparse.Namespace) -> int:
-    from directorio_baile.classify import classify
-    from directorio_baile.db import insert_proposal, upsert_candidate
-    from directorio_baile.enrich import CachedFetcher, HttpxFetcher, enrich
-    from directorio_baile.propose import build_proposal
-    from directorio_baile.run import parse_add_target
+    from bailoteca.classify import classify
+    from bailoteca.db import insert_proposal, upsert_candidate
+    from bailoteca.enrich import CachedFetcher, HttpxFetcher, enrich
+    from bailoteca.propose import build_proposal
+    from bailoteca.run import parse_add_target
 
     config = _load_config()
     candidate = parse_add_target(args.target)
@@ -165,7 +165,7 @@ def cmd_add(args: argparse.Namespace) -> int:
 
 
 def cmd_refresh(args: argparse.Namespace) -> int:
-    from directorio_baile.run import refresh
+    from bailoteca.run import refresh
 
     summary = refresh(_load_config(), args.slug)
     _print_summary(summary)
@@ -173,7 +173,7 @@ def cmd_refresh(args: argparse.Namespace) -> int:
 
 
 def cmd_export(args: argparse.Namespace) -> int:
-    from directorio_baile.db import list_published
+    from bailoteca.db import list_published
 
     conn = _open_conn(_load_config())
     try:
@@ -230,23 +230,23 @@ def cmd_export(args: argparse.Namespace) -> int:
 
 
 def cmd_spike(args: argparse.Namespace) -> int:
-    try:
-        from directorio_baile.osm_spike import summarize
-    except ImportError:
-        print(
-            "El resumen de OSM vive en scripts/osm_spike.py; "
-            "ejecútalo con --fixture o sin argumentos.",
-            file=sys.stderr,
-        )
-        return 2
-    print(summarize([]))
-    return 0
+    import subprocess
+    import sys
+
+    script = Path(__file__).parent.parent / "scripts" / "osm_spike.py"
+    if not script.exists():
+        script = Path(__file__).parent / "osm_spike.py"
+    cmd = [sys.executable, str(script)]
+    if args.fixture:
+        cmd.extend(["--fixture", args.fixture])
+    result = subprocess.run(cmd)
+    return result.returncode
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="dance",
-        description="Directorio de academias de baile: descubrir, revisar y publicar.",
+        prog="bailoteca",
+        description="Bailoteca: directorio de academias de baile — descubrir, revisar y publicar.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -291,6 +291,7 @@ def build_parser() -> argparse.ArgumentParser:
     export.set_defaults(handler=cmd_export)
 
     spike = subparsers.add_parser("spike", help="Resumir la cobertura de OpenStreetMap")
+    spike.add_argument("--fixture", help="Archivo JSON de Overpass ya descargado")
     spike.set_defaults(handler=cmd_spike)
 
     return parser

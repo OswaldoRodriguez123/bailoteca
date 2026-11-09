@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from directorio_baile.enrich import (
+from bailoteca.enrich import (
     CachedFetcher,
     Page,
     enrich,
@@ -12,7 +12,7 @@ from directorio_baile.enrich import (
     extract_social_links,
     safe_url,
 )
-from directorio_baile.models import Candidate
+from bailoteca.models import Candidate
 
 FIXTURES = Path(__file__).parent / "fixtures"
 HTML = (FIXTURES / "sitio.html").read_text()
@@ -81,3 +81,48 @@ def test_cached_fetcher_only_fetches_once(tmp_path):
     cached.get("https://demo.cl")
     cached.get("https://demo.cl")
     assert fetcher.calls == 1
+
+
+class _FakeStreamResponse:
+    def __init__(self, url, status=200, body=b"contenido"):
+        self.url = url
+        self.status_code = status
+        self.encoding = "utf-8"
+        self._body = body
+        self.read = False
+
+    def iter_bytes(self):
+        self.read = True
+        yield self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+
+def test_redirect_to_private_target_is_not_read():
+    response = _FakeStreamResponse("http://169.254.169.254/latest/meta-data")
+
+    def fake_stream(method, url, **kwargs):
+        return response
+
+    from bailoteca.enrich import HttpxFetcher
+
+    page = HttpxFetcher(stream_fn=fake_stream).get("https://seguro.cl")
+    assert page.status == 0
+    assert page.html == ""
+    assert response.read is False
+
+
+def test_enrich_does_not_fetch_instagram():
+    fetcher = _FakeFetcher(Page("https://instagram.com/soloig", 200, "", ""))
+    enriched = enrich(
+        Candidate(
+            "Solo IG", "https://www.instagram.com/soloig/", "soloig", "seed"
+        ),
+        fetcher,
+    )
+    assert fetcher.calls == 0
+    assert enriched.links["instagram"] == ["https://instagram.com/soloig"]

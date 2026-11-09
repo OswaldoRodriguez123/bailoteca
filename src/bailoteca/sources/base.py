@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from directorio_baile.models import Candidate
+from bailoteca.models import Candidate
 
 COMUNAS = [
     "Santiago",

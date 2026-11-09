@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from directorio_baile.classify import AUTO_CONFIDENCE
+from bailoteca.classify import AUTO_CONFIDENCE
 
 
 def _is_doubtful(proposal: dict) -> bool:

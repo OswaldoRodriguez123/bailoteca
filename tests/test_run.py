@@ -1,7 +1,7 @@
-from directorio_baile.config import Config
-from directorio_baile.enrich import Page
-from directorio_baile.models import Candidate
-from directorio_baile.run import parse_add_target, run
+from bailoteca.config import Config
+from bailoteca.enrich import Page
+from bailoteca.models import Candidate
+from bailoteca.run import parse_add_target, run
 
 
 class _Source:
@@ -30,7 +30,7 @@ def test_parse_add_target():
 def test_run_dry_run_writes_reports(tmp_path):
     summary = run(
         Config.from_env(
-            {"DANCE_REPORTS_DIR": str(tmp_path), "DANCE_SOURCES": "fake"}
+            {"BAILOTECA_REPORTS_DIR": str(tmp_path), "BAILOTECA_SOURCES": "fake"}
         ),
         dry_run=True,
         sources=[_Source()],
@@ -41,3 +41,89 @@ def test_run_dry_run_writes_reports(tmp_path):
     day = next(p for p in tmp_path.iterdir() if p.is_dir())
     assert (day / "candidates.json").exists()
     assert (day / "proposals.json").exists()
+
+
+def test_run_skips_already_published_academy(tmp_path, monkeypatch):
+    import os
+    import uuid
+
+    import pytest
+
+    from bailoteca.db import connect, insert_proposal, upsert_candidate
+    from bailoteca.publish import approve
+
+    url = os.environ.get("TEST_DATABASE_URL")
+    if not url:
+        pytest.skip("TEST_DATABASE_URL not set")
+
+    name = f"Academia Publicada {uuid.uuid4().hex[:8]}"
+    candidate = Candidate(name, "https://publicada.cl", None, "seed")
+
+    conn = connect(url)
+    try:
+        candidate_id = upsert_candidate(conn, candidate)
+        proposal_id = insert_proposal(
+            conn,
+            candidate_id=candidate_id,
+            academy_id=None,
+            kind="create",
+            payload={
+                "name": name,
+                "styles": [{"slug": "salsa-cubana", "confidence": 0.9}],
+            },
+            evidence={},
+            confidence=0.9,
+        )
+        academy_id = approve(conn, proposal_id)
+        conn.commit()
+
+        class _CountingFetcher:
+            calls = 0
+
+            def get(self, page_url):
+                self.calls += 1
+                return Page(page_url, 200, "", "")
+
+        fetcher = _CountingFetcher()
+
+        # Mock httpx used in check_published
+        class _MockResponse:
+            status_code = 200
+
+        class _MockHttp:
+            def head(self, link_url):
+                return _MockResponse()
+
+            def get(self, link_url):
+                return _MockResponse()
+
+        import httpx
+        monkeypatch.setattr(httpx, "head", lambda *a, **k: _MockResponse())
+        monkeypatch.setattr(httpx, "get", lambda *a, **k: _MockResponse())
+
+        summary = run(
+            Config.from_env(
+                {"DANCE_REPORTS_DIR": str(tmp_path), "DATABASE_URL": url}
+            ),
+            dry_run=False,
+            sources=[_Source2(candidate)],
+            fetcher=fetcher,
+            llm=None,
+        )
+        assert summary.proposals == 0
+        assert fetcher.calls == 0
+    finally:
+        conn.execute("delete from academies where id = %s", (academy_id,))
+        conn.execute("delete from candidates where id = %s", (candidate_id,))
+        conn.commit()
+        conn.close()
+
+
+class _Source2:
+    name = "fake"
+
+    def __init__(self, candidate):
+        self.candidate = candidate
+
+    def discover(self):
+        return [self.candidate]

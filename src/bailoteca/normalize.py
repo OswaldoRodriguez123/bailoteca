@@ -44,6 +44,7 @@ def domain_of(url: str | None) -> str | None:
     host = parts.hostname
     if not host:
         return None
+    host = host.lower()
     return host[4:] if host.startswith("www.") else host
 
 

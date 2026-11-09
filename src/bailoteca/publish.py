@@ -7,9 +7,9 @@ from typing import Literal
 import psycopg
 from pydantic import BaseModel, ConfigDict, Field
 
-from directorio_baile.db import record_field_rejections
-from directorio_baile.normalize import slugify
-from directorio_baile.propose import field_value_hash
+from bailoteca.db import record_field_rejections
+from bailoteca.normalize import slugify
+from bailoteca.propose import field_value_hash
 
 LINK_KINDS = (
     "web",

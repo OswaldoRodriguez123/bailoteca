@@ -1,7 +1,7 @@
-from directorio_baile.enrich import Enriched
-from directorio_baile.llm import StyleHit
-from directorio_baile.models import Candidate
-from directorio_baile.propose import build_proposal, field_value_hash, style_payload
+from bailoteca.enrich import Enriched
+from bailoteca.llm import StyleHit
+from bailoteca.models import Candidate
+from bailoteca.propose import build_proposal, field_value_hash, style_payload
 
 
 def _enriched(**overrides):
@@ -77,3 +77,23 @@ def test_disputed_style_needs_review():
         rejections=set(),
     )
     assert draft.needs_review is True
+
+
+def test_rejected_address_on_update_keeps_existing_value():
+    existing = {
+        "name": "Academia X",
+        "description": "Vieja",
+        "address": "Av. X 1",
+        "comuna": "Providencia",
+        "instagram": "https://instagram.com/x",
+        "styles": [{"slug": "salsa-cubana"}],
+    }
+    bad = field_value_hash("address", "Av. X 1")
+    draft = build_proposal(
+        _enriched(description="Nueva").candidate,
+        _enriched(description="Nueva"),
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=existing,
+        rejections={("address", bad)},
+    )
+    assert draft.payload["locations"][0]["address"] == "Av. X 1"

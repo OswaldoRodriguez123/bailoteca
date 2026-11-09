@@ -1,6 +1,6 @@
 import json
 
-from directorio_baile.llm import GeminiLLM, StyleHit
+from bailoteca.llm import GeminiLLM, StyleHit
 
 
 class _Response:

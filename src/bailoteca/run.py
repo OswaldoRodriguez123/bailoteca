@@ -9,9 +9,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from directorio_baile.classify import classify
-from directorio_baile.config import Config
-from directorio_baile.db import (
+from bailoteca.classify import classify
+from bailoteca.config import Config
+from bailoteca.db import (
     academy_id_by_slug,
     connect,
     insert_proposal,
@@ -19,19 +19,19 @@ from directorio_baile.db import (
     rejected_values,
     upsert_candidate,
 )
-from directorio_baile.discover import collect
-from directorio_baile.enrich import CachedFetcher, HttpxFetcher, enrich
-from directorio_baile.links import check_published
-from directorio_baile.llm import GeminiLLM, HttpxPost
-from directorio_baile.models import Candidate
-from directorio_baile.normalize import candidate_key, normalize_handle
-from directorio_baile.propose import build_proposal
-from directorio_baile.report import render_weekly_report
-from directorio_baile.review import render_review
-from directorio_baile.sources.base import COMUNAS, Source
-from directorio_baile.sources.osm import OverpassSource
-from directorio_baile.sources.search import DuckDuckGoSource, build_queries
-from directorio_baile.sources.seed import load_seed
+from bailoteca.discover import collect
+from bailoteca.enrich import CachedFetcher, HttpxFetcher, enrich
+from bailoteca.links import check_published
+from bailoteca.llm import GeminiLLM, HttpxPost
+from bailoteca.models import Candidate
+from bailoteca.normalize import candidate_key, normalize_handle
+from bailoteca.propose import build_proposal
+from bailoteca.report import render_weekly_report, stale_academies
+from bailoteca.review import render_review
+from bailoteca.sources.base import COMUNAS, Source
+from bailoteca.sources.osm import OverpassSource
+from bailoteca.sources.search import DuckDuckGoSource, build_queries
+from bailoteca.sources.seed import load_seed
 
 
 @dataclass
@@ -98,6 +98,7 @@ def _write_reports(
     candidates: list[Candidate],
     drafts: list[tuple],
     dead: list[dict],
+    stale: list[dict] | None = None,
 ) -> None:
     day = datetime.now(timezone.utc).date().isoformat()
     out = Path(config.reports_dir) / day
@@ -138,7 +139,7 @@ def _write_reports(
     ]
     (out / "review.md").write_text(render_review(review_items), encoding="utf-8")
     (out / "summary.md").write_text(
-        render_weekly_report(summary, dead, []), encoding="utf-8"
+        render_weekly_report(summary, dead, stale or []), encoding="utf-8"
     )
 
 
@@ -162,6 +163,7 @@ def run(
     summary = RunSummary(discovered=len(candidates))
     drafts: list[tuple] = []
     dead: list[dict] = []
+    stale: list[dict] = []
 
     conn = None
     if not dry_run:
@@ -173,22 +175,50 @@ def run(
 
     try:
         for candidate in candidates:
-            enriched = enrich(candidate, fetcher)
-            hits = classify(_text_for_classification(enriched), llm)
-
-            candidate_id = None
-            existing = None
-            rejections: set[tuple[str, str]] = set()
             if conn is not None:
                 key = candidate_key(
                     candidate.name, candidate.url, candidate.handle, candidate.comuna
                 )
-                existed = conn.execute(
-                    "select id from candidates where key = %s", (key,)
+                existing_candidate = conn.execute(
+                    "select id, status from candidates where key = %s", (key,)
                 ).fetchone()
-                candidate_id = upsert_candidate(conn, candidate)
-                if existed is None:
+                if existing_candidate:
+                    candidate_id = existing_candidate["id"]
+                    if existing_candidate["status"] in ("published", "rejected"):
+                        continue
+                else:
+                    candidate_id = upsert_candidate(conn, candidate)
                     summary.new_candidates += 1
+            else:
+                candidate_id = None
+
+            enriched = enrich(candidate, fetcher)
+            hits = classify(_text_for_classification(enriched), llm)
+
+            existing = None
+            rejections: set[tuple[str, str]] = set()
+            if conn is not None and candidate_id is not None:
+                existing_row = conn.execute(
+                    """
+                    select a.id, a.name, a.description, a.locations, a.links, a.styles,
+                           a.verified_at
+                    from academies a
+                    join candidates c on c.id = a.id
+                    where c.id = %s
+                    """,
+                    (candidate_id,),
+                ).fetchone()
+                if existing_row:
+                    existing = {
+                        "id": existing_row["id"],
+                        "name": existing_row["name"],
+                        "description": existing_row["description"],
+                        "locations": existing_row["locations"],
+                        "links": existing_row["links"],
+                        "styles": existing_row["styles"],
+                        "verified_at": existing_row["verified_at"],
+                    }
+                    rejections = rejected_values(conn, existing_row["id"])
 
             draft = build_proposal(candidate, enriched, hits, existing, rejections)
             if draft is None:
@@ -228,12 +258,13 @@ def run(
 
             dead = check_published(conn, httpx)
             summary.dead_links = len(dead)
+            stale = stale_academies(list_published(conn))
             conn.commit()
     finally:
         if conn is not None:
             conn.close()
 
-    _write_reports(config, summary, candidates, drafts, dead)
+    _write_reports(config, summary, candidates, drafts, dead, stale)
     summary.duration_s = round(time.monotonic() - started, 3)
     return summary
 

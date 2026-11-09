@@ -15,14 +15,14 @@ class Config:
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "Config":
-        raw_sources = env.get("DANCE_SOURCES", "seed,search")
+        raw_sources = env.get("BAILOTECA_SOURCES", "seed,search")
         sources = [s.strip() for s in raw_sources.split(",") if s.strip()]
         return cls(
             database_url=env.get("DATABASE_URL") or None,
             gemini_api_key=env.get("GEMINI_API_KEY") or None,
             serpapi_key=env.get("SERPAPI_KEY") or None,
-            cache_dir=Path(env.get("DANCE_CACHE_DIR", "data/cache")),
-            reports_dir=Path(env.get("DANCE_REPORTS_DIR", "reports")),
+            cache_dir=Path(env.get("BAILOTECA_CACHE_DIR", "data/cache")),
+            reports_dir=Path(env.get("BAILOTECA_REPORTS_DIR", "reports")),
             sources=sources,
         )
 
