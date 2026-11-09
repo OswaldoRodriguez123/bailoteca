@@ -13,7 +13,7 @@ consume la web Angular; no expone escrituras ni credenciales.
 
 > FastAPI queda pinneado a `<0.137`: desde 0.137 los routers incluidos se
 > anidan y `slowapi` 0.1.10 deja de encontrar el handler, por lo que su
-> middleware **salta el límite en silencio**. El pin está comentado en
+> middleware **salta el límite en silencio**. El pin está en
 > `pyproject.toml`.
 
 ## Estructura
