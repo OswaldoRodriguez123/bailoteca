@@ -70,6 +70,18 @@ def build_sources(config: Config) -> list[Source]:
                     httpx.Client(timeout=10),
                 )
             )
+        elif name == "serpapi":
+            import httpx
+
+            from bailoteca.sources.serpapi import SerpApiSource
+
+            sources.append(
+                SerpApiSource(
+                    build_queries(COMUNAS),
+                    api_key=config.serpapi_key,
+                    http=httpx.Client(timeout=10),
+                )
+            )
         elif name == "osm":
             sources.append(OverpassSource())
     return sources

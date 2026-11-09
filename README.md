@@ -130,7 +130,19 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/bailoteca_test 
 4. sube `reports/` como artifact.
 
 Configurar en GitHub `Settings → Secrets and variables → Actions`:
-`DATABASE_URL`, y opcionalmente `GEMINI_API_KEY` y `SERPAPI_KEY`.
+`DATABASE_URL`, `GEMINI_API_KEY` y `SERPAPI_KEY` (esta última es la
+**recomendada** para descubrimiento web).
+
+Fuentes (`BAILOTECA_SOURCES`):
+
+- `seed,serpapi` (recomendado): CSV curado + Google Search vía SerpApi.
+- `seed,search`: CSV + DuckDuckGo HTML. **DDG suele bloquear** con una página
+  `anomaly.js` (status 202) en IPs datacenter; solo como respaldo manual.
+- `seed,search,osm`: además OSM, desactivado por defecto.
+
+> Nota de cuota: SerpApi free = ~250 req/mes. La corrida semanal completa
+> (15 comunas × 4 variantes = 60 queries) ≈ 240/mes, justo bajo el límite.
+> Si subes la frecuencia, reduce comunas o usa plan pago.
 
 La corrida semanal **no vuelve a descargar** las academias publicadas; solo
 comprueba enlaces. Para releer una ficha concreta, usar `bailoteca refresh <slug>`.

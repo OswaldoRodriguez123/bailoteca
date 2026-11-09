@@ -75,3 +75,40 @@ def test_ddg_source_survives_http_errors_and_passes_timeout():
     assert result == []
     assert all("timeout" in kw for kw in calls)
     assert all(kw["timeout"] == 10 for kw in calls)
+
+
+def test_parse_serpapi_json_maps_organic_results():
+    from bailoteca.sources.serpapi import parse_serpapi_json
+
+    data = {
+        "organic_results": [
+            {"title": "BailaSalsa | Academia", "link": "https://bailasalsa.cl/", "snippet": "Clases en Providencia"},
+            {"title": "Academia X en Instagram", "link": "https://www.instagram.com/bailasalsa/", "snippet": "IG"},
+            {"title": "Post IG", "link": "https://www.instagram.com/p/ABC123/", "snippet": "post"},
+            {"title": "", "link": "https://sin-titulo.cl/", "snippet": ""},
+        ]
+    }
+    cands = parse_serpapi_json(data)
+    assert [c.name for c in cands] == ["BailaSalsa | Academia", "Academia X en Instagram"]
+    assert cands[0].url == "https://bailasalsa.cl/"
+    assert cands[0].source == "serpapi"
+    assert cands[1].handle == "bailasalsa"
+
+
+def test_serpapi_source_survives_errors_and_passes_timeout():
+    from bailoteca.sources.serpapi import SerpApiSource
+
+    calls = []
+
+    class _Http:
+        def get(self, url, params=None, **kwargs):
+            calls.append((url, params, kwargs))
+            raise TimeoutError("red colgada")
+
+    source = SerpApiSource(["uno", "dos"], api_key="key-123", http=_Http(), delay=0)
+    assert source.discover() == []
+    assert len(calls) == 2
+    assert all(kw["timeout"] == 10 for _, _, kw in calls)
+    assert calls[0][1]["api_key"] == "key-123"
+    assert calls[0][1]["engine"] == "google"
+    assert calls[0][1]["gl"] == "cl"
