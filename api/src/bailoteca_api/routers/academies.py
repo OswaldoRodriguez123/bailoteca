@@ -5,13 +5,14 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from bailoteca_api.db import get_conn
-from bailoteca_api.schemas import AcademyPage
+from bailoteca_api.schemas import AcademyPage, ComunaList, StyleList
 from bailoteca_shared.db import (
     get_academy_by_slug,
     list_academies as query_academies,
     list_comunas as query_comunas,
     list_styles as query_styles,
 )
+from bailoteca_shared.schema import Academy
 
 router = APIRouter(tags=["academies"])
 
@@ -63,3 +64,24 @@ def list_academies(
         page_size=page_size,
         total=total,
     )
+
+
+@router.get("/academies/{slug}", response_model=Academy)
+def get_academy(slug: str, conn=Depends(get_conn)) -> Academy:
+    academy = get_academy_by_slug(conn, slug)
+    if academy is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Academia no encontrada",
+        )
+    return Academy.model_validate(academy)
+
+
+@router.get("/styles", response_model=StyleList)
+def list_styles(conn=Depends(get_conn)) -> StyleList:
+    return StyleList(items=query_styles(conn))
+
+
+@router.get("/comunas", response_model=ComunaList)
+def list_comunas(conn=Depends(get_conn)) -> ComunaList:
+    return ComunaList(items=query_comunas(conn))

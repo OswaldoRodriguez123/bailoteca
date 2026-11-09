@@ -115,3 +115,57 @@ def test_missing_database_returns_503():
         response = client.get("/academies")
     assert response.status_code == 503
     assert response.json() == {"detail": "Base de datos no disponible"}
+
+
+def test_get_academy_by_slug(client, monkeypatch):
+    monkeypatch.setattr(
+        "bailoteca_api.routers.academies.get_academy_by_slug",
+        lambda conn, slug: ACADEMY,
+    )
+    _override_conn(client)
+
+    response = client.get("/academies/danson-academy")
+
+    assert response.status_code == 200
+    assert response.json()["slug"] == "danson-academy"
+
+
+def test_get_academy_not_found(client, monkeypatch):
+    monkeypatch.setattr(
+        "bailoteca_api.routers.academies.get_academy_by_slug",
+        lambda conn, slug: None,
+    )
+    _override_conn(client)
+
+    response = client.get("/academies/no-existe")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Academia no encontrada"}
+
+
+def test_styles(client, monkeypatch):
+    monkeypatch.setattr(
+        "bailoteca_api.routers.academies.query_styles",
+        lambda conn: [{"slug": "mambo", "name": "Mambo", "sort": 30}],
+    )
+    _override_conn(client)
+
+    response = client.get("/styles")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "items": [{"slug": "mambo", "name": "Mambo", "sort": 30}]
+    }
+
+
+def test_comunas(client, monkeypatch):
+    monkeypatch.setattr(
+        "bailoteca_api.routers.academies.query_comunas",
+        lambda conn: ["Providencia"],
+    )
+    _override_conn(client)
+
+    response = client.get("/comunas")
+
+    assert response.status_code == 200
+    assert response.json() == {"items": ["Providencia"]}

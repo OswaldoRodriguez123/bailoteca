@@ -10,3 +10,17 @@ class AcademyPage(BaseModel):
     page: int
     page_size: int
     total: int
+
+
+class StyleOption(BaseModel):
+    slug: str
+    name: str
+    sort: int
+
+
+class StyleList(BaseModel):
+    items: list[StyleOption]
+
+
+class ComunaList(BaseModel):
+    items: list[str]
