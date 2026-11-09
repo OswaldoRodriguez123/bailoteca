@@ -19,6 +19,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Cache de búsquedas SerpApi
+        uses: actions/cache@v4
+        with:
+          path: data/cache/serpapi
+          key: serpapi-cache-${{ github.run_id }}
+          restore-keys: |
+            serpapi-cache-
       - run: pip install -e ".[dev]"
       - run: python -m pytest -q
       - name: Correr pipeline

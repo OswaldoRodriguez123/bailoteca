@@ -170,7 +170,9 @@ Fuentes (`BAILOTECA_SOURCES`):
 > 24 h**, por consulta y sin incluir `api_key` en la clave. Repetir una corrida
 > el mismo día no gasta búsquedas; el cron mensual siempre refresca. Si el
 > archivo de caché está corrupto o no se puede escribir, se ignora y se vuelve
-> a consultar la API.
+> a consultar la API. En GitHub Actions `data/cache/serpapi` se restaura con
+> `actions/cache`, así que re-ejecutar el workflow el mismo día tampoco gasta
+> búsquedas; el cron mensual siempre encuentra la caché vencida.
 
 La corrida mensual **no vuelve a descargar** las academias publicadas; solo
 comprueba enlaces. Para releer una ficha concreta, usar `bailoteca refresh <slug>`.
