@@ -80,10 +80,17 @@ def parse_ddg_html(html: str) -> list[Candidate]:
 class DuckDuckGoSource:
     name = "ddg"
 
-    def __init__(self, queries: list[str], http: HttpClient, delay: float = 1.0):
+    def __init__(
+        self,
+        queries: list[str],
+        http: HttpClient,
+        delay: float = 1.0,
+        timeout: float = 10.0,
+    ):
         self.queries = queries
         self.http = http
         self.delay = delay
+        self.timeout = timeout
 
     def discover(self) -> list[Candidate]:
         candidates: list[Candidate] = []
@@ -93,9 +100,16 @@ class DuckDuckGoSource:
                 wait = self.delay - (time.monotonic() - last_request)
                 if wait > 0:
                     time.sleep(wait)
-            response = self.http.get(
-                "https://html.duckduckgo.com/html/", params={"q": query}
-            )
+            try:
+                response = self.http.get(
+                    "https://html.duckduckgo.com/html/",
+                    params={"q": query},
+                    timeout=self.timeout,
+                )
+            except Exception:
+                # Una query caída no mata la corrida: DDG es best-effort.
+                last_request = time.monotonic()
+                continue
             last_request = time.monotonic()
             if response.status_code == 200:
                 candidates.extend(parse_ddg_html(response.text))

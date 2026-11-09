@@ -121,6 +121,8 @@ def _build_payload(
     elif existing and existing.get("description"):
         payload["description"] = existing["description"]
 
+    view = _existing_view(existing) if existing is not None else None
+
     location: dict = {}
     addr_rejected = (
         "address",
@@ -128,8 +130,8 @@ def _build_payload(
     ) in rejections
     if enriched.address and not addr_rejected:
         location["address"] = enriched.address
-    elif existing and existing.get("address"):
-        location["address"] = existing["address"]
+    elif view and view.get("address"):
+        location["address"] = view["address"]
 
     comuna_rejected = (
         "comuna",
@@ -137,8 +139,8 @@ def _build_payload(
     ) in rejections
     if enriched.comuna and not comuna_rejected:
         location["comuna"] = enriched.comuna
-    elif existing and existing.get("comuna"):
-        location["comuna"] = existing["comuna"]
+    elif view and view.get("comuna"):
+        location["comuna"] = view["comuna"]
 
     payload["locations"] = [location] if location else []
 
@@ -163,7 +165,14 @@ def _build_payload(
     if styles:
         payload["styles"] = styles
     elif existing and existing.get("styles"):
-        payload["styles"] = existing["styles"]
+        payload["styles"] = [
+            {
+                "slug": style["slug"],
+                "confidence": style.get("confidence"),
+                "evidence": style.get("evidence"),
+            }
+            for style in existing["styles"]
+        ]
 
     return payload
 

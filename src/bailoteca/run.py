@@ -65,7 +65,10 @@ def build_sources(config: Config) -> list[Source]:
             import httpx
 
             sources.append(
-                DuckDuckGoSource(build_queries(COMUNAS), httpx)
+                DuckDuckGoSource(
+                    build_queries(COMUNAS),
+                    httpx.Client(timeout=10),
+                )
             )
         elif name == "osm":
             sources.append(OverpassSource())
@@ -199,31 +202,26 @@ def run(
             existing = None
             rejections: set[tuple[str, str]] = set()
             if conn is not None and candidate_id is not None:
-                # Check if this candidate is already linked to a published academy
-                cand_row = conn.execute(
-                    "select academy_id from candidates where id = %s",
+                # Find academy published from this candidate via last approved proposal
+                pub_row = conn.execute(
+                    """
+                    select academy_id from proposals
+                    where candidate_id = %s and academy_id is not null
+                      and status = 'approved'
+                    order by reviewed_at desc
+                    limit 1
+                    """,
                     (candidate_id,),
                 ).fetchone()
-                if cand_row and cand_row["academy_id"]:
-                    existing_row = conn.execute(
-                        """
-                        select id, name, description, locations, links, styles, verified_at
-                        from academies
-                        where id = %s
-                        """,
-                        (cand_row["academy_id"],),
-                    ).fetchone()
-                    if existing_row:
-                        existing = {
-                            "id": existing_row["id"],
-                            "name": existing_row["name"],
-                            "description": existing_row["description"],
-                            "locations": existing_row["locations"],
-                            "links": existing_row["links"],
-                            "styles": existing_row["styles"],
-                            "verified_at": existing_row["verified_at"],
-                        }
-                        rejections = rejected_values(conn, existing_row["id"])
+                if pub_row and pub_row["academy_id"]:
+                    published = {
+                        row["id"]: row for row in list_published(conn)
+                    }
+                    existing = published.get(pub_row["academy_id"])
+                    if existing is not None:
+                        rejections = rejected_values(
+                            conn, existing["id"]
+                        )
 
             draft = build_proposal(candidate, enriched, hits, existing, rejections)
             if draft is None:
@@ -261,7 +259,7 @@ def run(
         if conn is not None:
             import httpx
 
-            dead = check_published(conn, httpx)
+            dead = check_published(conn, httpx.Client(timeout=10))
             summary.dead_links = len(dead)
             stale = stale_academies(list_published(conn))
             conn.commit()

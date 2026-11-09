@@ -48,7 +48,7 @@ def test_ddg_source_enforces_delay_between_queries(monkeypatch):
         text = ""
 
     class _Http:
-        def get(self, url, params=None):
+        def get(self, url, params=None, **kwargs):
             return _Response()
 
     sleeps = []
@@ -59,3 +59,19 @@ def test_ddg_source_enforces_delay_between_queries(monkeypatch):
     DuckDuckGoSource(["uno", "dos"], _Http(), delay=1.0).discover()
     assert len(sleeps) == 1
     assert 0.9 <= sleeps[0] <= 1.0
+
+
+def test_ddg_source_survives_http_errors_and_passes_timeout():
+    from bailoteca.sources.search import DuckDuckGoSource
+
+    calls = []
+
+    class _Http:
+        def get(self, url, params=None, **kwargs):
+            calls.append(kwargs)
+            raise TimeoutError("network colgada")
+
+    result = DuckDuckGoSource(["uno", "dos"], _Http(), delay=0).discover()
+    assert result == []
+    assert all("timeout" in kw for kw in calls)
+    assert all(kw["timeout"] == 10 for kw in calls)
