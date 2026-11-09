@@ -31,6 +31,11 @@ NOISE_DOMAINS = frozenset(
         "tiktok.com",
         "classpass.com",
         "meetup.com",
+        "getbailar.com",
+        "salsavida.com",
+        "servisantiago.org",
+        "greenparkeventos.cl",
+        "portalpuentealto.cl",
     }
 )
 
@@ -42,6 +47,7 @@ CONTENT_PATHS = (
     "/albums/",
     "/permalink",
     "/reels/",
+    "/clases-de-bachata-en-",
 )
 
 INSTAGRAM_CONTENT_PREFIXES = (

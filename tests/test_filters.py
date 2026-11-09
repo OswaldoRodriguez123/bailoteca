@@ -45,6 +45,19 @@ def test_malformed_or_empty_url_is_kept():
     assert not is_noise(_c("no-es-una-url"))
 
 
+def test_drops_measured_directory_and_listicle_pages():
+    assert is_noise(_c("https://getbailar.com/es/studios/academia-go-salsa/"))
+    assert is_noise(_c("https://www.salsavida.com/es/event/chile/santiago-chile/x"))
+    assert is_noise(_c("https://servisantiago.org/academia-de-baile/casa-del-mambo/"))
+    assert is_noise(_c("https://www.greenparkeventos.cl/centros-de-eventos/jsd-academy"))
+    assert is_noise(_c("https://www.portalpuentealto.cl/sabor-latino-chile/"))
+    assert is_noise(
+        _c("https://izakodanceacademy.com/clases-de-bachata-en-la-florida/")
+    )
+    # La academia dueña del sitio se conserva por su home.
+    assert not is_noise(_c("https://izakodanceacademy.com/"))
+
+
 def test_filter_noise_returns_kept_and_count():
     from bailoteca.sources.filters import filter_noise
 
