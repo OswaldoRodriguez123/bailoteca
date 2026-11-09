@@ -14,7 +14,7 @@ esquema Postgres compartido.
 | --------- | ------------------------------------------------------------- | ------------- |
 | `parser/` | Pipeline: descubrir → filtrar → enriquecer → clasificar → proponer | Funcionando |
 | `shared/` | Paquete `bailoteca-shared`: conexión, lecturas y DTOs Pydantic | Funcionando |
-| `api/`    | FastAPI de solo lectura                                        | Documentado   |
+| `api/`    | FastAPI de solo lectura                                        | Funcionando   |
 | `web/`    | Angular                                                        | Documentado   |
 | `supabase/migrations/` | Esquema y RLS compartidos                         | Funcionando   |
 
@@ -28,11 +28,11 @@ bailoteca/
 ├── shared/                  # bailoteca-shared
 │   ├── src/bailoteca_shared/
 │   └── tests/
-├── api/                     # README + .env.example
+├── api/                     # FastAPI de solo lectura
 ├── web/                     # README + .env.example
-├── supabase/migrations/     # 0001_schema.sql, 0002_rls.sql
+├── supabase/migrations/     # 0001_schema.sql, 0002_rls.sql, 0003_api_readonly.sql
 ├── docs/superpowers/        # specs y planes
-└── .github/workflows/parser.yml
+└── .github/workflows/       # parser.yml, api.yml
 ```
 
 ## Quickstart del parser
@@ -69,6 +69,7 @@ Detalles del pipeline, filtro de ruido, fuentes y cuota de SerpApi en
 ```bash
 # desde la raíz
 .venv/bin/python -m pytest parser/tests shared/tests -q
+.venv/bin/python -m pytest shared/tests api/tests -q
 
 # integración contra un Postgres de prueba
 TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/bailoteca_test \
@@ -77,11 +78,17 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/bailoteca_test 
 
 ## API y web
 
-Ambas carpetas contienen solo el contrato y las decisiones de despliegue:
-
-- [`api/README.md`](api/README.md): FastAPI, endpoints previstos y usuario
-  read-only.
+- [`api/README.md`](api/README.md): FastAPI de solo lectura, endpoints,
+  filtros, rate limit y usuario read-only.
 - [`web/README.md`](web/README.md): Angular y consumo de `API_BASE_URL`.
+
+La API se instala y corre desde la raíz:
+
+```bash
+.venv/bin/pip install -e shared -e "api[dev]"
+cp api/.env.example api/.env      # completar DATABASE_URL_READONLY
+.venv/bin/uvicorn bailoteca_api.main:app --reload
+```
 
 ## Despliegue
 
@@ -100,12 +107,15 @@ Ningún `.env` se versiona. Cada componente tiene su `.env.example`:
 | Componente | Variables |
 | ---------- | --------- |
 | Parser     | `DATABASE_URL` (escritura), `GEMINI_API_KEY`, `SERPAPI_KEY`, `CLOUDFLARE_*` |
-| API        | `DATABASE_URL_READONLY`, `CORS_ORIGINS` |
+| API        | `DATABASE_URL_READONLY`, `CORS_ORIGINS`, `RATE_LIMIT`, `DB_POOL_MAX_SIZE` |
 | Web        | `API_BASE_URL` |
 
 En GitHub Actions, los secretos del parser se configuran en
-`Settings → Secrets and variables → Actions`. La API usará un usuario de
-Supabase con permiso solo de lectura, que se creará cuando se implemente.
+`Settings → Secrets and variables → Actions`. La API usa el usuario de Supabase
+`bailoteca_api`, creado por `supabase/migrations/0003_api_readonly.sql`; su
+contraseña se define a mano en el SQL Editor y se pasa como
+`DATABASE_URL_READONLY` (pooler, puerto 6543). La migración `0003` se aplica a
+mano, igual que `0001` y `0002`.
 
 ## Documentación
 
