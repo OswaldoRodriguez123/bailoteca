@@ -120,9 +120,9 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/bailoteca_test 
   .venv/bin/python -m pytest -q
 ```
 
-## Actualización semanal
+## Actualización mensual
 
-`.github/workflows/weekly.yml` corre los lunes a las 03:00 UTC:
+`.github/workflows/weekly.yml` corre el **1° de cada mes a las 03:00 UTC**:
 
 1. instala dependencias,
 2. corre la suite,
@@ -140,11 +140,10 @@ Fuentes (`BAILOTECA_SOURCES`):
   `anomaly.js` (status 202) en IPs datacenter; solo como respaldo manual.
 - `seed,search,osm`: además OSM, desactivado por defecto.
 
-> Nota de cuota: SerpApi free = ~250 req/mes. La corrida semanal completa
-> (15 comunas × 4 variantes = 60 queries) ≈ 240/mes, justo bajo el límite.
-> Si subes la frecuencia, reduce comunas o usa plan pago.
+> Nota de cuota: SerpApi free = ~250 req/mes. La corrida mensual completa
+> (10 comunas × 4 variantes = 40 queries) queda muy bajo el límite.
 
-La corrida semanal **no vuelve a descargar** las academias publicadas; solo
+La corrida mensual **no vuelve a descargar** las academias publicadas; solo
 comprueba enlaces. Para releer una ficha concreta, usar `bailoteca refresh <slug>`.
 
 ### OSM

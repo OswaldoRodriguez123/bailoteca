@@ -7,19 +7,14 @@ from bailoteca.models import Candidate
 COMUNAS = [
     "Santiago",
     "Providencia",
-    "Las Condes",
-    "Ñuñoa",
-    "Maipú",
     "La Florida",
-    "Puente Alto",
+    "Ñuñoa",
     "San Miguel",
-    "Recoleta",
+    "Puente Alto",
+    "Maipú",
+    "La Cisterna",
     "Independencia",
-    "Estación Central",
-    "La Reina",
-    "Macul",
-    "Peñalolén",
-    "Vitacura",
+    "Las Condes",
 ]
 
 

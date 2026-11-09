@@ -2,7 +2,8 @@ name: Actualizar Bailoteca
 
 on:
   schedule:
-    - cron: "0 3 * * 1"
+    # 1р día de cada mes, 03:00 UTC (40 queries/mes -> muy bajo cuota SerpApi free)
+    - cron: "0 3 1 * *"
   workflow_dispatch:
     inputs:
       dry_run:
