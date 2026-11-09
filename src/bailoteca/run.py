@@ -37,6 +37,7 @@ from bailoteca.sources.seed import load_seed
 @dataclass
 class RunSummary:
     discovered: int = 0
+    filtered_rules: int = 0
     new_candidates: int = 0
     proposals: int = 0
     needs_review: int = 0
@@ -175,8 +176,11 @@ def run(
     if llm is None and config.gemini_api_key:
         llm = GeminiLLM(config.gemini_api_key, HttpxPost())
 
-    candidates = collect(sources)
-    summary = RunSummary(discovered=len(candidates))
+    collected = collect(sources)
+    candidates = collected.candidates
+    summary = RunSummary(
+        discovered=len(candidates), filtered_rules=collected.filtered_rules
+    )
     drafts: list[tuple] = []
     dead: list[dict] = []
     stale: list[dict] = []
