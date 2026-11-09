@@ -131,7 +131,30 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/bailoteca_test 
 
 Configurar en GitHub `Settings → Secrets and variables → Actions`:
 `DATABASE_URL`, `GEMINI_API_KEY` y `SERPAPI_KEY` (esta última es la
-**recomendada** para descubrimiento web).
+**recomendada** para descubrimiento web). Opcionalmente
+`CLOUDFLARE_ACCOUNT_ID` y `CLOUDFLARE_API_TOKEN` para el triaje de ruido.
+
+### Filtro de ruido
+
+Cada corrida pasa por dos etapas antes de crear propuestas:
+
+```text
+descubrir → reglas deterministas → enriquecer → Clef → propuestas
+```
+
+1. **Reglas** (`bailoteca/sources/filters.py`): descartan directorios
+   (`superprof.cl`, `salirsantiago.com`, `2x3.cl`…), posts/videos/eventos de
+   redes y páginas `/popular/` de Instagram. Conservan perfiles y homepages de
+   grupos de Facebook.
+2. **Clef** (`@cf/cloudflare/clef-flash`): juzga con ~600 caracteres del texto
+   real de la página si es una academia que enseña salsa/bachata en la Región
+   Metropolitana. Umbral `min(academia, salsa, santiago) >= 0.5`.
+
+Los descartes **no se guardan** en la base: se vuelven a descubrir y juzgar el
+mes siguiente. Si faltan las credenciales de Cloudflare o Clef falla, el
+candidato pasa (**fail-open**), para no perder academias reales. Los contadores
+`filtrados_reglas`, `filtrados_clef` y `clef_errors` aparecen en el log y en
+`summary.md`.
 
 Fuentes (`BAILOTECA_SOURCES`):
 
