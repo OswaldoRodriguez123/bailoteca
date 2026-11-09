@@ -46,6 +46,38 @@ class Enriched:
     evidence: dict = field(default_factory=dict)
 
 
+import functools
+import ipaddress
+import socket
+import time
+from dataclasses import dataclass, field
+from urllib.parse import urlsplit
+
+# Cache DNS resolution results to avoid repeated lookups and slowdowns
+_DNS_CACHE: dict[str, tuple[list[str], float]] = {}
+_DNS_CACHE_TTL = 300  # 5 minutes
+
+
+def _resolve_host(host: str) -> list[str]:
+    """Resolve hostname to IP addresses, with caching."""
+    now = time.monotonic()
+    if host in _DNS_CACHE:
+        ips, cached_at = _DNS_CACHE[host]
+        if now - cached_at < _DNS_CACHE_TTL:
+            return ips
+    try:
+        # Use getaddrinfo with a short timeout
+        socket.setdefaulttimeout(2.0)
+        infos = socket.getaddrinfo(host, None, socket.AF_INET)
+        ips = [info[4][0] for info in infos]
+    except Exception:
+        ips = []
+    finally:
+        socket.setdefaulttimeout(None)
+    _DNS_CACHE[host] = (ips, now)
+    return ips
+
+
 def safe_url(url: str) -> bool:
     if not url:
         return False
@@ -58,11 +90,31 @@ def safe_url(url: str) -> bool:
     host = parts.hostname
     if not host:
         return False
-    if host.lower() == "localhost" or host.lower().endswith(".localhost"):
+    host = host.lower()
+    if host == "localhost" or host.endswith(".localhost"):
         return False
     try:
         address = ipaddress.ip_address(host)
     except ValueError:
+        # Hostname: resolve and check all IPs
+        ips = _resolve_host(host)
+        if not ips:
+            # Could not resolve; be conservative and reject
+            return False
+        for ip_str in ips:
+            try:
+                ip = ipaddress.ip_address(ip_str)
+                if (
+                    ip.is_private
+                    or ip.is_loopback
+                    or ip.is_link_local
+                    or ip.is_reserved
+                    or ip.is_unspecified
+                    or ip.is_multicast
+                ):
+                    return False
+            except ValueError:
+                continue
         return True
     return not (
         address.is_private
@@ -372,10 +424,10 @@ class HttpxFetcher:
                 chunks: list[bytes] = []
                 total = 0
                 for chunk in response.iter_bytes():
-                    total += len(chunk)
-                    if total > MAX_BYTES:
+                    if total + len(chunk) > MAX_BYTES:
                         break
                     chunks.append(chunk)
+                    total += len(chunk)
                 body = b"".join(chunks)
                 html = body.decode(response.encoding or "utf-8", errors="replace")
                 return Page(

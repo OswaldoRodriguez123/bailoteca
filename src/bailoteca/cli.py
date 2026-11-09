@@ -233,8 +233,10 @@ def cmd_spike(args: argparse.Namespace) -> int:
     import subprocess
     import sys
 
-    script = Path(__file__).parent.parent / "scripts" / "osm_spike.py"
+    # scripts/osm_spike.py está en la raíz del repo (un nivel arriba de src/)
+    script = Path(__file__).parent.parent.parent / "scripts" / "osm_spike.py"
     if not script.exists():
+        # fallback: si se ejecuta desde source (pip install -e .)
         script = Path(__file__).parent / "osm_spike.py"
     cmd = [sys.executable, str(script)]
     if args.fixture:

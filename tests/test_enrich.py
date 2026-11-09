@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -18,6 +19,13 @@ FIXTURES = Path(__file__).parent / "fixtures"
 HTML = (FIXTURES / "sitio.html").read_text()
 
 
+def _mock_resolve(host):
+    # academia.cl -> public IP
+    if host == "academia.cl":
+        return ["8.8.8.8"]
+    return []
+
+
 @pytest.mark.parametrize(
     "url,expected",
     [
@@ -32,7 +40,8 @@ HTML = (FIXTURES / "sitio.html").read_text()
     ],
 )
 def test_safe_url(url, expected):
-    assert safe_url(url) is expected
+    with patch("bailoteca.enrich._resolve_host", _mock_resolve):
+        assert safe_url(url) is expected
 
 
 def test_extract_description_from_meta():

@@ -11,6 +11,15 @@ def _loose_key(name: str, comuna: str | None) -> str:
     return f"{normalize_name(name)}|{normalize_name(comuna) if comuna else ''}"
 
 
+def _loose_match_key(existing: Candidate, candidate: Candidate) -> bool:
+    """Match by name; if both have comuna, require it to match."""
+    if normalize_name(existing.name) != normalize_name(candidate.name):
+        return False
+    if existing.comuna and candidate.comuna:
+        return normalize_name(existing.comuna) == normalize_name(candidate.comuna)
+    return True
+
+
 def collect(sources: list[Source]) -> list[Candidate]:
     merged: dict[str, Candidate] = {}
     for source in sources:
@@ -31,11 +40,10 @@ def collect(sources: list[Source]) -> list[Candidate]:
                     raw={**existing.raw, **candidate.raw},
                 )
             else:
-                # Try loose match by name + comuna for cross-source dedupe
-                loose = _loose_key(candidate.name, candidate.comuna)
+                # Try loose match by name (+ comuna if both have it) for cross-source dedupe
                 matched = None
                 for existing_key, existing in merged.items():
-                    if _loose_key(existing.name, existing.comuna) == loose:
+                    if _loose_match_key(existing, candidate):
                         matched = existing_key
                         break
                 if matched is not None:

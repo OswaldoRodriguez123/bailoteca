@@ -26,7 +26,8 @@ def upsert_candidate(conn: psycopg.Connection, cand: Candidate) -> str:
           name = excluded.name,
           url = excluded.url,
           handle = excluded.handle,
-          comuna = excluded.comuna
+          comuna = excluded.comuna,
+          raw = candidates.raw || excluded.raw
         returning id
         """,
         (
@@ -136,46 +137,64 @@ def mark_proposal(conn: psycopg.Connection, proposal_id: str, status: str) -> No
 
 
 def list_published(conn: psycopg.Connection) -> list[dict]:
-    academies = conn.execute(
+    rows = conn.execute(
         """
-        select id, slug, name, description, status, source_urls,
-               created_at, updated_at, verified_at
-        from academies
-        order by name asc
+        select
+            a.id,
+            a.slug,
+            a.name,
+            a.description,
+            a.status,
+            a.source_urls,
+            a.created_at,
+            a.updated_at,
+            a.verified_at,
+            coalesce(
+                json_agg(
+                    json_build_object(
+                        'label', al.label,
+                        'address', al.address,
+                        'comuna', al.comuna,
+                        'lat', al.lat,
+                        'lng', al.lng,
+                        'source_url', al.source_url
+                    )
+                    order by al.label nulls first, al.comuna asc
+                ) filter (where al.academy_id is not null),
+                '[]'
+            ) as locations,
+            coalesce(
+                json_agg(
+                    json_build_object(
+                        'kind', alk.kind,
+                        'url', alk.url
+                    )
+                    order by alk.kind asc, alk.url asc
+                ) filter (where alk.academy_id is not null),
+                '[]'
+            ) as links,
+            coalesce(
+                json_agg(
+                    json_build_object(
+                        'slug', s.slug,
+                        'name', s.name,
+                        'confidence', ast.confidence,
+                        'evidence', ast.evidence
+                    )
+                    order by s.sort asc
+                ) filter (where ast.academy_id is not null),
+                '[]'
+            ) as styles
+        from academies a
+        left join academy_locations al on al.academy_id = a.id
+        left join academy_links alk on alk.academy_id = a.id
+        left join academy_styles ast on ast.academy_id = a.id
+        left join styles s on s.id = ast.style_id
+        group by a.id, a.slug, a.name, a.description, a.status, a.source_urls, a.created_at, a.updated_at, a.verified_at
+        order by a.name asc
         """
     ).fetchall()
-    result = []
-    for academy in academies:
-        academy_id = academy["id"]
-        locations = conn.execute(
-            """
-            select label, address, comuna, lat, lng, source_url
-            from academy_locations where academy_id = %s
-            order by label nulls first, comuna asc
-            """,
-            (academy_id,),
-        ).fetchall()
-        links = conn.execute(
-            """
-            select kind, url from academy_links where academy_id = %s
-            order by kind asc, url asc
-            """,
-            (academy_id,),
-        ).fetchall()
-        styles = conn.execute(
-            """
-            select s.slug, s.name, a.confidence, a.evidence
-            from academy_styles a
-            join styles s on s.id = a.style_id
-            where a.academy_id = %s
-            order by s.sort asc
-            """,
-            (academy_id,),
-        ).fetchall()
-        result.append(
-            {**academy, "locations": locations, "links": links, "styles": styles}
-        )
-    return result
+    return rows
 
 
 def academy_id_by_slug(conn: psycopg.Connection, slug: str) -> str | None:

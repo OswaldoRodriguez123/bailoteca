@@ -198,7 +198,7 @@ def build_proposal(
 
     confidences = [style["confidence"] for style in payload.get("styles", [])]
     confidence = min(confidences) if confidences else 0.0
-    review = enriched is None or any(needs_review(hit) for hit in hits)
+    review = enriched is None or any(needs_review(hit) for hit in hits) or not payload.get("styles")
 
     return ProposalDraft(
         kind=kind,

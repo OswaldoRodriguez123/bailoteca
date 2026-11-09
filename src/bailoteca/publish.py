@@ -217,7 +217,7 @@ def approve(
               name = %s,
               description = %s,
               updated_at = now(),
-              verified_at = case when %s then now() else verified_at end
+              verified_at = case when %s then now() else null end
             where id = %s
             """,
             (data["name"], data["description"], verify, academy_id),
@@ -246,6 +246,16 @@ def approve(
 
 
 def reject(conn: psycopg.Connection, proposal_id: str) -> None:
+    # Get candidate_id first to mark it rejected too
+    row = conn.execute(
+        "select candidate_id from proposals where id = %s",
+        (proposal_id,),
+    ).fetchone()
+    if row and row["candidate_id"]:
+        conn.execute(
+            "update candidates set status = 'rejected' where id = %s",
+            (row["candidate_id"],),
+        )
     conn.execute(
         """
         update proposals set status = 'rejected', reviewed_at = now()

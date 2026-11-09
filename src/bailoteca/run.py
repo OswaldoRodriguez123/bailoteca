@@ -75,10 +75,11 @@ def build_sources(config: Config) -> list[Source]:
 def parse_add_target(target: str) -> Candidate:
     target = target.strip()
     if target.startswith("@"):
+        handle = normalize_handle(target)
         return Candidate(
-            name=target,
+            name=handle,
             url=None,
-            handle=normalize_handle(target),
+            handle=handle,
             source="manual",
         )
     if target.startswith(("http://", "https://")):
@@ -198,27 +199,31 @@ def run(
             existing = None
             rejections: set[tuple[str, str]] = set()
             if conn is not None and candidate_id is not None:
-                existing_row = conn.execute(
-                    """
-                    select a.id, a.name, a.description, a.locations, a.links, a.styles,
-                           a.verified_at
-                    from academies a
-                    join candidates c on c.id = a.id
-                    where c.id = %s
-                    """,
+                # Check if this candidate is already linked to a published academy
+                cand_row = conn.execute(
+                    "select academy_id from candidates where id = %s",
                     (candidate_id,),
                 ).fetchone()
-                if existing_row:
-                    existing = {
-                        "id": existing_row["id"],
-                        "name": existing_row["name"],
-                        "description": existing_row["description"],
-                        "locations": existing_row["locations"],
-                        "links": existing_row["links"],
-                        "styles": existing_row["styles"],
-                        "verified_at": existing_row["verified_at"],
-                    }
-                    rejections = rejected_values(conn, existing_row["id"])
+                if cand_row and cand_row["academy_id"]:
+                    existing_row = conn.execute(
+                        """
+                        select id, name, description, locations, links, styles, verified_at
+                        from academies
+                        where id = %s
+                        """,
+                        (cand_row["academy_id"],),
+                    ).fetchone()
+                    if existing_row:
+                        existing = {
+                            "id": existing_row["id"],
+                            "name": existing_row["name"],
+                            "description": existing_row["description"],
+                            "locations": existing_row["locations"],
+                            "links": existing_row["links"],
+                            "styles": existing_row["styles"],
+                            "verified_at": existing_row["verified_at"],
+                        }
+                        rejections = rejected_values(conn, existing_row["id"])
 
             draft = build_proposal(candidate, enriched, hits, existing, rejections)
             if draft is None:
