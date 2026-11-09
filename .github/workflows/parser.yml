@@ -1,8 +1,8 @@
-name: Actualizar Bailoteca
+name: Actualizar Bailoteca (parser)
 
 on:
   schedule:
-    # 1р día de cada mes, 03:00 UTC (40 queries/mes -> muy bajo cuota SerpApi free)
+    # 1er día de cada mes, 03:00 UTC (40 queries/mes -> muy bajo cuota SerpApi free)
     - cron: "0 3 1 * *"
   workflow_dispatch:
     inputs:
@@ -10,6 +10,16 @@ on:
         description: "Solo generar reportes, sin escribir en la base"
         type: boolean
         default: false
+  push:
+    paths:
+      - "parser/**"
+      - "shared/**"
+      - ".github/workflows/parser.yml"
+  pull_request:
+    paths:
+      - "parser/**"
+      - "shared/**"
+      - ".github/workflows/parser.yml"
 
 jobs:
   run:
@@ -22,13 +32,14 @@ jobs:
       - name: Cache de búsquedas SerpApi
         uses: actions/cache@v4
         with:
-          path: data/cache/serpapi
+          path: parser/data/cache/serpapi
           key: serpapi-cache-${{ github.run_id }}
           restore-keys: |
             serpapi-cache-
-      - run: pip install -e ".[dev]"
-      - run: python -m pytest -q
+      - run: pip install -e shared -e "parser[dev]"
+      - run: python -m pytest parser/tests shared/tests -q
       - name: Correr pipeline
+        working-directory: parser
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -45,4 +56,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: reportes
-          path: reports/
+          path: parser/reports/
