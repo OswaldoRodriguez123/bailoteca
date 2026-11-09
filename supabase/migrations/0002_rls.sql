@@ -1,6 +1,14 @@
 -- Seguridad: RLS activado en todas las tablas.
 -- La llave anónima solo lee las tablas publicadas; no hay políticas de escritura.
 
+do $$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'anon') then
+    create role anon nologin;
+  end if;
+end
+$$;
+
 alter table styles enable row level security;
 alter table academies enable row level security;
 alter table academy_locations enable row level security;
