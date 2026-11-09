@@ -7,7 +7,9 @@ name = "bailoteca-api"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-  "fastapi>=0.115",
+  # slowapi 0.1.10 no longer finds handlers once FastAPI nests included
+  # routers (0.137+), and its middleware silently skips the limit.
+  "fastapi>=0.115,<0.137",
   "uvicorn[standard]>=0.30",
   "slowapi>=0.1.9",
   "psycopg[binary,pool]>=3.2",
