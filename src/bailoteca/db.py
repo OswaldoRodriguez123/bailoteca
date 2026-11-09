@@ -150,47 +150,55 @@ def list_published(conn: psycopg.Connection) -> list[dict]:
             a.updated_at,
             a.verified_at,
             coalesce(
-                json_agg(
-                    json_build_object(
-                        'label', al.label,
-                        'address', al.address,
-                        'comuna', al.comuna,
-                        'lat', al.lat,
-                        'lng', al.lng,
-                        'source_url', al.source_url
+                (
+                    select json_agg(
+                        json_build_object(
+                            'label', al.label,
+                            'address', al.address,
+                            'comuna', al.comuna,
+                            'lat', al.lat,
+                            'lng', al.lng,
+                            'source_url', al.source_url
+                        )
+                        order by al.label nulls first, al.comuna asc
                     )
-                    order by al.label nulls first, al.comuna asc
-                ) filter (where al.academy_id is not null),
+                    from academy_locations al
+                    where al.academy_id = a.id
+                ),
                 '[]'
             ) as locations,
             coalesce(
-                json_agg(
-                    json_build_object(
-                        'kind', alk.kind,
-                        'url', alk.url
+                (
+                    select json_agg(
+                        json_build_object(
+                            'kind', alk.kind,
+                            'url', alk.url
+                        )
+                        order by alk.kind asc, alk.url asc
                     )
-                    order by alk.kind asc, alk.url asc
-                ) filter (where alk.academy_id is not null),
+                    from academy_links alk
+                    where alk.academy_id = a.id
+                ),
                 '[]'
             ) as links,
             coalesce(
-                json_agg(
-                    json_build_object(
-                        'slug', s.slug,
-                        'name', s.name,
-                        'confidence', ast.confidence,
-                        'evidence', ast.evidence
+                (
+                    select json_agg(
+                        json_build_object(
+                            'slug', s.slug,
+                            'name', s.name,
+                            'confidence', ast.confidence,
+                            'evidence', ast.evidence
+                        )
+                        order by s.sort asc
                     )
-                    order by s.sort asc
-                ) filter (where ast.academy_id is not null),
+                    from academy_styles ast
+                    join styles s on s.id = ast.style_id
+                    where ast.academy_id = a.id
+                ),
                 '[]'
             ) as styles
         from academies a
-        left join academy_locations al on al.academy_id = a.id
-        left join academy_links alk on alk.academy_id = a.id
-        left join academy_styles ast on ast.academy_id = a.id
-        left join styles s on s.id = ast.style_id
-        group by a.id, a.slug, a.name, a.description, a.status, a.source_urls, a.created_at, a.updated_at, a.verified_at
         order by a.name asc
         """
     ).fetchall()
