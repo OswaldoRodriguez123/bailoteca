@@ -142,8 +142,8 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/bailoteca_test 
 3. ejecuta `bailoteca run` con los secretos del repositorio,
 4. sube `parser/reports/` como artifact.
 
-El workflow solo se dispara con cambios en `parser/**`, `shared/**` o el propio
-YAML.
+El workflow se dispara solo por cron mensual o manualmente con
+`workflow_dispatch`; un push no ejecuta el pipeline.
 
 Configurar en GitHub `Settings → Secrets and variables → Actions`:
 `DATABASE_URL`, `GEMINI_API_KEY` y `SERPAPI_KEY` (esta última es la

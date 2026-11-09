@@ -86,8 +86,8 @@ Ambas carpetas contienen solo el contrato y las decisiones de despliegue:
 ## Despliegue
 
 - **Parser**: GitHub Actions, `.github/workflows/parser.yml`, el **1° de cada
-  mes a las 03:00 UTC**. Se dispara solo con cambios en `parser/**`,
-  `shared/**` o el propio workflow.
+  mes a las 03:00 UTC**. Solo corre por cron o manualmente
+  (`workflow_dispatch`); un push no lo dispara.
 - **API**: Vercel con Root Directory `api/`.
 - **Web**: Vercel con Root Directory `web/`.
 - **Base de datos**: Supabase; las migraciones se aplican a mano desde el SQL
