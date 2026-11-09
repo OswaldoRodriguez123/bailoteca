@@ -165,6 +165,12 @@ Fuentes (`BAILOTECA_SOURCES`):
 
 > Nota de cuota: SerpApi free = ~250 req/mes. La corrida mensual completa
 > (10 comunas × 4 variantes = 40 queries) queda muy bajo el límite.
+>
+> Las respuestas de SerpApi se cachean en `data/cache/serpapi/` con **TTL de
+> 24 h**, por consulta y sin incluir `api_key` en la clave. Repetir una corrida
+> el mismo día no gasta búsquedas; el cron mensual siempre refresca. Si el
+> archivo de caché está corrupto o no se puede escribir, se ignora y se vuelve
+> a consultar la API.
 
 La corrida mensual **no vuelve a descargar** las academias publicadas; solo
 comprueba enlaces. Para releer una ficha concreta, usar `bailoteca refresh <slug>`.

@@ -112,3 +112,75 @@ def test_serpapi_source_survives_errors_and_passes_timeout():
     assert calls[0][1]["api_key"] == "key-123"
     assert calls[0][1]["engine"] == "google"
     assert calls[0][1]["gl"] == "cl"
+
+
+def _serpapi_http(calls):
+    class _Response:
+        status_code = 200
+
+        def json(self):
+            return {
+                "organic_results": [
+                    {"title": "Academia Cache", "link": "https://cache.cl/"}
+                ]
+            }
+
+    class _Http:
+        def get(self, url, params=None, **kwargs):
+            calls.append(params)
+            return _Response()
+
+    return _Http()
+
+
+def test_serpapi_source_reuses_fresh_cache_without_calling_api(tmp_path):
+    from bailoteca.sources.serpapi import SerpApiSource
+
+    calls = []
+    first = SerpApiSource(
+        ["uno"], api_key="key-1", http=_serpapi_http(calls), delay=0,
+        cache_dir=tmp_path,
+    )
+    assert [c.name for c in first.discover()] == ["Academia Cache"]
+    assert len(calls) == 1
+
+    second = SerpApiSource(
+        ["uno"], api_key="otra-key", http=_serpapi_http(calls), delay=0,
+        cache_dir=tmp_path,
+    )
+    assert [c.name for c in second.discover()] == ["Academia Cache"]
+    assert len(calls) == 1  # la clave de caché no depende de api_key
+
+
+def test_serpapi_source_refetches_when_cache_is_expired(tmp_path):
+    from bailoteca.sources.serpapi import SerpApiSource
+
+    calls = []
+    SerpApiSource(
+        ["uno"], api_key="k", http=_serpapi_http(calls), delay=0,
+        cache_dir=tmp_path,
+    ).discover()
+    SerpApiSource(
+        ["uno"], api_key="k", http=_serpapi_http(calls), delay=0,
+        cache_dir=tmp_path, cache_ttl=-1,
+    ).discover()
+    assert len(calls) == 2
+
+
+def test_serpapi_source_ignores_corrupt_cache(tmp_path):
+    from bailoteca.sources.serpapi import SerpApiSource
+
+    calls = []
+    source = SerpApiSource(
+        ["uno"], api_key="k", http=_serpapi_http(calls), delay=0,
+        cache_dir=tmp_path,
+    )
+    source.discover()
+    for path in (tmp_path / "serpapi").glob("*.json"):
+        path.write_text("no es json", encoding="utf-8")
+
+    SerpApiSource(
+        ["uno"], api_key="k", http=_serpapi_http(calls), delay=0,
+        cache_dir=tmp_path,
+    ).discover()
+    assert len(calls) == 2

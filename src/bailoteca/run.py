@@ -84,6 +84,7 @@ def build_sources(config: Config) -> list[Source]:
                     build_queries(COMUNAS),
                     api_key=config.serpapi_key,
                     http=httpx.Client(timeout=10),
+                    cache_dir=config.cache_dir,
                 )
             )
         elif name == "osm":
