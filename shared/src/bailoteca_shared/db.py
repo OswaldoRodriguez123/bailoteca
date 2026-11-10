@@ -8,7 +8,7 @@ from psycopg.rows import dict_row
 
 _ACADEMY_SELECT = """
     select
-        a.id,
+        a.id::text as id,
         a.slug,
         a.name,
         a.description,
