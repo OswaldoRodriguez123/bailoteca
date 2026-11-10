@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  probe:
+  spike:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -12,61 +12,20 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e shared -e "parser[dev]"
-      - run: |
-          cat > probe.py <<'PY'
-          import json, time
-          import httpx
-          from bailoteca.sources.osm import build_query, parse_overpass, GRAN_SANTIAGO_BBOX
-
-          bbox = GRAN_SANTIAGO_BBOX
-          s, w_, n, e = bbox
-          control_query = f'[out:json][timeout:25];(node["amenity"="restaurant"]({s},{w_},{n},{e});way["amenity"="restaurant"]({s},{w_},{n},{e}););out count;'
-          dance_query = f'[out:json][timeout:25];(node["amenity"="dancing_school"]({s},{w_},{n},{e});way["amenity"="dancing_school"]({s},{w_},{n},{e}););out count;'
-          mirrors = [
-              "https://overpass-api.de/api/interpreter",
-              "https://overpass.kumi.systems/api/interpreter",
-              "https://overpass.private.coffee/api/interpreter",
-              "https://overpass.nchc.org.tw/api/interpreter",
-              "https://overpass.osm.ch/api/interpreter",
-              "https://lz4.overpass-api.de/api/interpreter",
-          ]
-          headers = {"User-Agent": "BailotecaSpike/1.0 (+https://github.com/OswaldoRodriguez123/bailoteca)"}
-          for ep in mirrors:
-              try:
-                  t0 = time.time()
-                  r = httpx.post(ep, content=control_query, headers=headers, timeout=60)
-                  nodes = ways = None
-                  if r.status_code == 200:
-                      elements = r.json().get("elements", [])
-                      tags_out = elements[0].get("tags", {}) if elements else {}
-                      nodes = tags_out.get("nodes"); ways = tags_out.get("ways")
-                  print(f"[mirror] {ep} status={r.status_code} in {time.time()-t0:.1f}s restaurant nodes={nodes} ways={ways}", flush=True)
-              except Exception as err:
-                  print(f"[mirror] {ep} ERROR: {err}", flush=True)
-
-          for ep in [m for m in mirrors if True]:
-              try:
-                  t0 = time.time()
-                  r = httpx.post(ep, content=dance_query, headers=headers, timeout=60)
-                  nodes = ways = None
-                  if r.status_code == 200:
-                      elements = r.json().get("elements", [])
-                      tags_out = elements[0].get("tags", {}) if elements else {}
-                      nodes = tags_out.get("nodes"); ways = tags_out.get("ways")
-                  print(f"[dance] {ep} status={r.status_code} in {time.time()-t0:.1f}s dance_school nodes={nodes} ways={ways}", flush=True)
-              except Exception as err:
-                  print(f"[dance] {ep} ERROR: {err}", flush=True)
-
-          try:
-              t0 = time.time()
-              r2 = httpx.post("https://overpass-api.de/api/interpreter", content=build_query(bbox), headers=headers, timeout=60)
-              print(f"[full] overpass-api.de status={r2.status_code} in {time.time()-t0:.1f}s", flush=True)
-              if r2.status_code == 200:
-                  cands = parse_overpass(r2.json())
-                  print(f"[full] OSM candidates={len(cands)}", flush=True)
-                  for c in cands:
-                      print(f"[full] {c.name} | {c.comuna} | {c.url} | {c.handle}", flush=True)
-          except Exception as err:
-              print(f"[full] ERROR: {err}", flush=True)
-          PY
-          python probe.py
+      - name: Dry-run con fuente OSM
+        working-directory: parser
+        env:
+          BAILOTECA_SOURCES: osm
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python -m bailoteca run --dry-run
+      - name: Listar reportes
+        run: |
+          ls -la parser/reports || true
+          echo "==== summary ===="
+          cat parser/reports/summary.md || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: osm-reports
+          path: parser/reports/
