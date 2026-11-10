@@ -27,6 +27,11 @@ FACEBOOK_NAV_PATHS = frozenset({
     "pages", "photo.php", "policies", "privacy", "problems", "recover",
     "reg", "settings", "share", "sharer", "watch",
 })
+# Rutas de navegación de la shell de Instagram (no son perfiles de negocio).
+INSTAGRAM_NAV_PATHS = frozenset({
+    "about", "accounts", "direct", "explore", "legal", "lite",
+    "locations", "popular", "reels", "stories", "tv", "web",
+})
 
 
 @dataclass(frozen=True)
@@ -192,6 +197,9 @@ def _normalize_social(kind: str, raw: str) -> str | None:
     path = parts.path or ""
     if kind == "instagram":
         if host != "instagram.com" or path.startswith(INSTAGRAM_POST_PREFIXES):
+            return None
+        first_segment = (path.split("/", 2) + [""])[1].lower()
+        if first_segment in INSTAGRAM_NAV_PATHS:
             return None
         handle = path.strip("/").split("/")[0]
         return f"https://instagram.com/{handle}" if handle else None

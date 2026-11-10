@@ -169,3 +169,21 @@ def test_extract_social_links_keeps_business_profile():
 
     assert _normalize_social("facebook", "https://www.facebook.com/MamboRockChile/") == "https://facebook.com/MamboRockChile/"
     assert _normalize_social("facebook", "https://www.facebook.com/p/Entredanzas-Academia-100092571087976/") == "https://www.facebook.com/p/Entredanzas-Academia-100092571087976/"
+
+
+def test_extract_social_links_drops_instagram_nav_urls():
+    from bailoteca.enrich import _normalize_social
+    nav = [
+        "https://www.instagram.com/accounts/",
+        "https://www.instagram.com/explore/",
+        "https://www.instagram.com/legal/",
+        "https://www.instagram.com/web/",
+        "https://www.instagram.com/popular/",
+    ]
+    for url in nav:
+        assert _normalize_social("instagram", url) is None
+
+
+def test_extract_social_links_keeps_real_profile():
+    from bailoteca.enrich import _normalize_social
+    assert _normalize_social("instagram", "https://www.instagram.com/academiamushin/") == "https://instagram.com/academiamushin"
