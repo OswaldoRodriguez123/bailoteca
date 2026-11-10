@@ -13,8 +13,17 @@ import { StyleBadges } from '../style-badges/style-badges';
     <a
       [routerLink]="['/academias', academy().slug]"
       [queryParams]="queryParams()"
-      class="group block h-full rounded-2xl border border-stone-200 bg-white p-6 transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600"
+      class="group block h-full overflow-hidden rounded-2xl border border-stone-200 bg-white transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600"
     >
+      @if (academy().google?.thumbnail) {
+        <img
+          [src]="academy().google!.thumbnail!"
+          [alt]="academy().name"
+          class="h-32 w-full object-cover"
+          loading="lazy"
+        />
+      }
+      <div class="p-6">
       <div class="flex items-start justify-between gap-3">
         <h2 class="text-lg font-semibold text-stone-900 transition-colors group-hover:text-rose-600">
           {{ academy().name }}
@@ -30,12 +39,22 @@ import { StyleBadges } from '../style-badges/style-badges';
         <p class="mt-1 text-sm text-stone-500">{{ comunas().join(' · ') }}</p>
       }
 
+      @if (academy().google && academy().google!.rating !== null) {
+        <p class="mt-1 text-sm text-stone-500">
+          ★ {{ academy().google!.rating }}
+          @if (academy().google!.reviews !== null) {
+            <span>({{ academy().google!.reviews }} reseñas)</span>
+          }
+        </p>
+      }
+
       @if (academy().description) {
         <p class="mt-3 text-sm leading-relaxed text-stone-600">{{ description() }}</p>
       }
 
       <div class="mt-4">
         <app-style-badges [styles]="academy().styles" />
+      </div>
       </div>
     </a>
   `,
