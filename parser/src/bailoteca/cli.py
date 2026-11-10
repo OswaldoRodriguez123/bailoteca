@@ -243,6 +243,29 @@ def cmd_enrich_places(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_clear_places(args: argparse.Namespace) -> int:
+    """Borra los datos de Google Maps de una o varias academias (sin SerpApi)."""
+    config = _load_config()
+    conn = _open_conn(config)
+    cleared = 0
+    try:
+        for slug in args.slugs:
+            cur = conn.execute(
+                "update academies set google = null, updated_at = now() where slug = %s",
+                (slug,),
+            )
+            if cur.rowcount:
+                cleared += cur.rowcount
+                print(f"borrado: {slug}")
+            else:
+                print(f"no encontrada: {slug}")
+        conn.commit()
+    finally:
+        conn.close()
+    print(f"borradas={cleared}")
+    return 0
+
+
 def cmd_export(args: argparse.Namespace) -> int:
     from bailoteca.db import list_published
 
@@ -377,6 +400,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Re-enriquecer aunque ya tenga datos de Google Maps",
     )
     enrich_places.set_defaults(handler=cmd_enrich_places)
+
+    clear_places = subparsers.add_parser(
+        "clear-places",
+        help="Borrar los datos de Google Maps de academias (sin SerpApi)",
+    )
+    clear_places.add_argument("slugs", nargs="+", help="Slugs de las academias")
+    clear_places.set_defaults(handler=cmd_clear_places)
 
     export = subparsers.add_parser("export", help="Exportar las academias publicadas")
     export.add_argument("--csv", action="store_true", help="Escribir CSV a stdout")
