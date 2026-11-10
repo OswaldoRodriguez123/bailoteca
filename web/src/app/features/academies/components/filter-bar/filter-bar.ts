@@ -6,32 +6,32 @@ import { StyleOption } from '../../../../core/models/academy.models';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-filter-bar',
   template: `
-    <section
-      aria-label="Filtros del directorio"
-      class="rounded-2xl border border-stone-200 bg-white p-4 sm:p-6"
-    >
-      <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+    <section aria-label="Filtros del directorio" class="border-y border-line py-4">
+      <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_14rem_12rem] md:items-end">
         <label class="block">
-          <span class="mb-1 block text-sm font-medium text-stone-700">Buscar</span>
+          <span class="mb-1 block text-xs font-medium text-muted">Buscar</span>
           <input
             id="filter-q"
+            name="q"
             type="search"
+            autocomplete="off"
             [value]="q()"
             [disabled]="disabled()"
             (input)="onQ($event)"
-            placeholder="Nombre o descripción"
-            class="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus-visible:border-rose-500 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-rose-500 disabled:bg-stone-100"
+            placeholder="Nombre o descripción…"
+            class="w-full border-0 border-b border-line bg-transparent px-0 py-2 text-base text-ink placeholder:text-muted/70 focus-visible:border-accent-ink focus-visible:outline-none focus-visible:ring-0 disabled:text-muted"
           />
         </label>
 
         <label class="block">
-          <span class="mb-1 block text-sm font-medium text-stone-700">Comuna</span>
+          <span class="mb-1 block text-xs font-medium text-muted">Comuna</span>
           <select
             id="filter-comuna"
+            name="comuna"
             [value]="comuna() ?? ''"
             [disabled]="disabled()"
             (change)="onComuna($event)"
-            class="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus-visible:border-rose-500 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-rose-500 disabled:bg-stone-100 md:w-56"
+            class="w-full border-0 border-b border-line bg-paper px-0 py-2 text-base text-ink focus-visible:border-accent-ink focus-visible:outline-none focus-visible:ring-0 disabled:text-muted"
           >
             <option value="">Todas las comunas</option>
             @for (option of comunas(); track option) {
@@ -41,13 +41,14 @@ import { StyleOption } from '../../../../core/models/academy.models';
         </label>
 
         <label class="block">
-          <span class="mb-1 block text-sm font-medium text-stone-700">Estilo</span>
+          <span class="mb-1 block text-xs font-medium text-muted">Estilo</span>
           <select
             id="filter-estilo"
+            name="style"
             [value]="style() ?? ''"
             [disabled]="disabled()"
             (change)="onStyle($event)"
-            class="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus-visible:border-rose-500 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-rose-500 disabled:bg-stone-100 md:w-48"
+            class="w-full border-0 border-b border-line bg-paper px-0 py-2 text-base text-ink focus-visible:border-accent-ink focus-visible:outline-none focus-visible:ring-0 disabled:text-muted"
           >
             <option value="">Todos los estilos</option>
             @for (option of styles(); track option.slug) {
@@ -57,12 +58,12 @@ import { StyleOption } from '../../../../core/models/academy.models';
         </label>
       </div>
 
-      <div class="mt-4 flex justify-end">
+      <div class="mt-3 flex justify-end">
         <button
           type="button"
           [disabled]="disabled()"
           (click)="clearFilters.emit()"
-          class="rounded-lg px-3 py-2 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600 disabled:text-stone-400"
+          class="text-sm font-medium text-accent-ink underline-offset-4 transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink disabled:text-muted disabled:no-underline"
         >
           Limpiar filtros
         </button>

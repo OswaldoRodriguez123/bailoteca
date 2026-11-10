@@ -8,12 +8,10 @@ import { styleLabel } from '../../academy-display';
   selector: 'app-style-badges',
   template: `
     @if (styles().length) {
-      <ul class="flex flex-wrap gap-2" aria-label="Estilos">
+      <ul class="flex flex-wrap gap-x-2 gap-y-1 text-sm text-muted" aria-label="Estilos">
         @for (style of styles(); track style.slug) {
-          <li>
-            <span class="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
-              {{ label(style) }}
-            </span>
+          <li class="after:ml-2 after:content-['·'] last:after:content-none">
+            <span>{{ label(style) }}</span>
           </li>
         }
       </ul>
