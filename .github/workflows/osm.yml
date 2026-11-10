@@ -30,6 +30,9 @@ jobs:
           bbox = GRAN_SANTIAGO_BBOX
           s, w_, n, e = bbox
           tags = [
+              ("amenity", "restaurant"),
+              ("amenity", "school"),
+              ("leisure", "dance_school"),
               ("amenity", "dancing_school"),
               ("leisure", "dance"),
               ("sport", "dancing"),
