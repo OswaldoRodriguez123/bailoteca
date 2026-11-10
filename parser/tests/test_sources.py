@@ -229,3 +229,68 @@ def test_overpass_source_returns_empty_when_all_attempts_fail(monkeypatch):
 
     assert len(calls) == len(osm_module.OVERPASS_ENDPOINTS) * osm_module.MAX_ATTEMPTS
     assert sleeps == [5.0] * len(calls)
+
+
+def test_parse_brave_json_maps_web_results():
+    from bailoteca.sources.brave import parse_brave_json
+
+    data = {
+        "web": {
+            "results": [
+                {"title": "Academia X en Instagram", "url": "https://instagram.com/bdoscuela/", "description": "baile"},
+                {"title": "Post IG", "url": "https://www.instagram.com/p/ABC123/", "description": "post"},
+                {"title": "DDG", "url": "https://duckduckgo.com/?q=baile", "description": "engine"},
+                {"title": "Sid", "url": "https://sites.google.com/x", "description": "x"},
+                {"title": "", "url": "https://no-title.cl/", "description": "empty"},
+            ]
+        }
+    }
+    cands = parse_brave_json(data)
+    assert [c.url for c in cands] == [
+        "https://instagram.com/bdoscuela/",
+        "https://sites.google.com/x",
+    ]
+    assert cands[0].handle == "bdoscuela"
+    assert cands[0].source == "brave"
+
+
+def test_brave_source_requires_key_and_survives_http_errors():
+    from bailoteca.sources.brave import BraveSource
+
+    class _Http:
+        def __init__(self):
+            self.calls = []
+
+        def get(self, url, params=None, headers=None, timeout=None):
+            self.calls.append((url, params, headers, timeout))
+            raise TimeoutError("red colgada")
+
+    http = _Http()
+    no_key = BraveSource(["academia salsa santiago"], api_key=None, http=http, delay=0)
+    assert no_key.discover() == []
+    assert http.calls == []
+
+    src = BraveSource(["academia salsa santiago"], api_key="k", http=http, delay=0)
+    assert src.discover() == []
+    assert http.calls and http.calls[0][2]["X-Subscription-Token"] == "k"
+    assert http.calls[0][3] == 10.0
+
+
+def test_brave_source_uses_delay_between_queries(monkeypatch):
+    from bailoteca.sources.brave import BraveSource
+
+    sleeps = []
+    monkeypatch.setattr("bailoteca.sources.brave.time.sleep", sleeps.append)
+
+    class _Response:
+        status_code = 200
+
+        def json(self):
+            return {"web": {"results": []}}
+
+    class _Http:
+        def get(self, url, params=None, headers=None, timeout=None):
+            return _Response()
+
+    BraveSource(["uno", "dos"], api_key="k", http=_Http(), delay=1.0).discover()
+    assert sleeps and all(0.9 <= s <= 1.0 for s in sleeps)

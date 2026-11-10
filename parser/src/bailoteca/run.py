@@ -87,6 +87,18 @@ def build_sources(config: Config) -> list[Source]:
                     cache_dir=config.cache_dir,
                 )
             )
+        elif name == "brave":
+            import httpx
+
+            from bailoteca.sources.brave import BraveSource
+
+            sources.append(
+                BraveSource(
+                    build_queries(COMUNAS),
+                    api_key=config.brave_api_key,
+                    http=httpx.Client(timeout=10),
+                )
+            )
         elif name == "osm":
             sources.append(OverpassSource())
     return sources

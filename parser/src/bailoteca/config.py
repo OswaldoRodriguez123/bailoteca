@@ -9,6 +9,7 @@ class Config:
     database_url: str | None
     gemini_api_key: str | None
     serpapi_key: str | None
+    brave_api_key: str | None
     cloudflare_account_id: str | None
     cloudflare_token: str | None
     cache_dir: Path
@@ -23,6 +24,7 @@ class Config:
             database_url=env.get("DATABASE_URL") or None,
             gemini_api_key=env.get("GEMINI_API_KEY") or None,
             serpapi_key=env.get("SERPAPI_KEY") or None,
+            brave_api_key=env.get("BRAVE_API_KEY") or None,
             cloudflare_account_id=env.get("CLOUDFLARE_ACCOUNT_ID") or None,
             cloudflare_token=env.get("CLOUDFLARE_API_TOKEN") or None,
             cache_dir=Path(env.get("BAILOTECA_CACHE_DIR", "data/cache")),

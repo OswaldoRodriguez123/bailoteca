@@ -177,6 +177,9 @@ candidato pasa (**fail-open**), para no perder academias reales. Los contadores
 Fuentes (`BAILOTECA_SOURCES`):
 
 - `seed,serpapi` (recomendado): CSV curado + Google Search vía SerpApi.
+- `seed,brave`: CSV curado + búsqueda web vía Brave Search API (plan free,
+  requiere `BRAVE_API_KEY`; no usa endpoints scrapeados: API con token, sin
+  bloqueo anti-bot).
 - `seed,search`: CSV + DuckDuckGo HTML. **DDG suele bloquear** con una página
   `anomaly.js` (status 202) en IPs datacenter; solo como respaldo manual.
 - `seed,search,osm`: además OSM, desactivado por defecto.
