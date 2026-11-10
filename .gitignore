@@ -9,3 +9,8 @@ reports/
 *.egg-info/
 data/cache/
 web/.vscode/
+
+# Skills instaladas por autoskills (no se commitean)
+web/.agents/
+web/.claude/
+web/skills-lock.json

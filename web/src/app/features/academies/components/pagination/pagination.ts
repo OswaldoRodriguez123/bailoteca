@@ -7,25 +7,28 @@ import { lastPage } from '../../academy-query';
   selector: 'app-pagination',
   template: `
     @if (total() > 0) {
-      <nav class="mt-8 flex items-center justify-center gap-4" aria-label="Paginación">
+      <nav
+        class="mt-8 flex items-center justify-between gap-4 border-t border-line pt-4"
+        aria-label="Paginación"
+      >
         <button
           type="button"
           [disabled]="page() <= 1"
           (click)="go(page() - 1)"
-          class="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600 disabled:cursor-not-allowed disabled:text-stone-400"
+          class="text-sm font-medium text-accent-ink underline-offset-4 transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink disabled:cursor-not-allowed disabled:text-muted disabled:no-underline"
         >
-          Anterior
+          ← Anterior
         </button>
 
-        <p class="text-sm text-stone-600">Página {{ page() }} de {{ last() }}</p>
+        <p class="text-sm text-muted">Página {{ page() }} de {{ last() }}</p>
 
         <button
           type="button"
           [disabled]="page() >= last()"
           (click)="go(page() + 1)"
-          class="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600 disabled:cursor-not-allowed disabled:text-stone-400"
+          class="text-sm font-medium text-accent-ink underline-offset-4 transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink disabled:cursor-not-allowed disabled:text-muted disabled:no-underline"
         >
-          Siguiente
+          Siguiente →
         </button>
       </nav>
     }

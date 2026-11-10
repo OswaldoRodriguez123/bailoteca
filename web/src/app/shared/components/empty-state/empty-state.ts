@@ -4,16 +4,16 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-empty-state',
   template: `
-    <div class="rounded-2xl border border-dashed border-stone-300 bg-white p-10 text-center">
-      <h2 class="text-lg font-semibold text-stone-900">{{ title() }}</h2>
+    <div class="border-y border-line py-16 text-center">
+      <h2 class="font-display text-2xl font-bold tracking-tight text-ink">{{ title() }}</h2>
       @if (message()) {
-        <p class="mx-auto mt-2 max-w-md text-sm text-stone-600">{{ message() }}</p>
+        <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-soft">{{ message() }}</p>
       }
       @if (actionLabel()) {
         <button
           type="button"
           (click)="action.emit()"
-          class="mt-6 rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600"
+          class="mt-6 text-sm font-medium text-accent-ink underline-offset-4 transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink"
         >
           {{ actionLabel() }}
         </button>

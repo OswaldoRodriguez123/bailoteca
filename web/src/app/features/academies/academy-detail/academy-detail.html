@@ -1,8 +1,8 @@
-<section class="mx-auto max-w-3xl space-y-6">
+<section class="mx-auto max-w-4xl space-y-8">
   <a
     [routerLink]="['/']"
     [queryParams]="backQuery()"
-    class="inline-flex items-center gap-1 text-sm font-medium text-rose-700 transition-colors hover:text-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600"
+    class="inline-flex items-center gap-1 text-sm font-medium text-accent-ink underline-offset-4 transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink"
   >
     <span aria-hidden="true">←</span>
     Volver al listado
@@ -18,162 +18,225 @@
   } @else if (error(); as message) {
     <app-error-state [message]="message" (retry)="retry()" />
   } @else if (academy(); as item) {
-    <article class="space-y-8 rounded-2xl border border-stone-200 bg-white p-6 sm:p-8">
-      @if (item.google?.thumbnail) {
-        <img
-          [src]="item.google.thumbnail"
-          [alt]="item.name"
-          class="h-48 w-full rounded-xl object-cover"
-          loading="lazy"
-        />
-      }
+    <article class="space-y-8">
       <header class="space-y-4">
         <div class="flex flex-wrap items-start justify-between gap-3">
-          <h1 class="text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
+          <h1
+            translate="no"
+            class="break-words text-balance font-display text-4xl font-extrabold leading-[0.95] tracking-tight text-ink sm:text-6xl"
+          >
             {{ item.name }}
           </h1>
 
           @if (item.status === 'closed') {
-            <span class="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800">
+            <span class="shrink-0 border border-ink px-2 py-0.5 text-xs font-medium text-ink">
               Cerrada
             </span>
           } @else if (item.status === 'unknown') {
-            <span class="shrink-0 rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-600">
+            <span class="shrink-0 border border-dashed border-muted px-2 py-0.5 text-xs font-medium text-muted">
               Sin verificar
             </span>
           }
         </div>
 
-        @if (item.description) {
-          <p class="leading-relaxed text-stone-600">{{ item.description }}</p>
-        }
-
         <app-style-badges [styles]="item.styles" />
+
+        @if (item.description) {
+          <p class="max-w-2xl text-lg leading-relaxed text-ink-soft">{{ item.description }}</p>
+        }
       </header>
 
-      @if (item.locations.length) {
-        <section aria-labelledby="sedes-title" class="space-y-3">
-          <h2 id="sedes-title" class="text-lg font-semibold text-stone-900">Sedes</h2>
+      @if (item.google?.thumbnail) {
+        <img
+          [src]="item.google!.thumbnail!"
+          alt=""
+          width="1600"
+          height="900"
+          class="aspect-[16/9] w-full border border-ink object-cover"
+          loading="lazy"
+        />
+      } @else {
+        <div
+          aria-hidden="true"
+          class="flex aspect-[16/9] w-full items-center justify-center border border-line bg-paper-deep font-display text-6xl font-extrabold text-ink/30"
+        >
+          {{ initials() }}
+        </div>
+      }
 
-          <ul class="space-y-3">
-            @for (location of item.locations; track $index) {
-              <li class="rounded-xl border border-stone-200 p-4">
-                @if (location.label) {
-                  <p class="font-medium text-stone-900">{{ location.label }}</p>
+      <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div class="space-y-8">
+          @if (item.locations.length) {
+            <section aria-labelledby="sedes-title" class="border-t border-line pt-6">
+              <h2 id="sedes-title" class="font-display text-2xl font-bold tracking-tight text-ink">
+                Sedes
+              </h2>
+
+              <ul class="mt-4">
+                @for (location of item.locations; track $index) {
+                  <li class="border-b border-line py-4">
+                    @if (location.label) {
+                      <p class="font-medium text-ink">{{ location.label }}</p>
+                    }
+
+                    @if (location.address || location.comuna) {
+                      <p class="mt-1 text-sm text-ink-soft">
+                        {{ location.address ?? '' }}@if (location.address && location.comuna) {<span>, </span>}{{ location.comuna ?? '' }}
+                      </p>
+                    }
+
+                    @if (mapUrl(location); as url) {
+                      <a
+                        [href]="url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="mt-2 inline-block text-sm font-medium text-accent-ink underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink"
+                      >
+                        Cómo llegar
+                      </a>
+                    }
+                  </li>
                 }
+              </ul>
+            </section>
+          }
 
-                @if (location.address || location.comuna) {
-                  <p class="mt-1 text-sm text-stone-600">
-                    {{ location.address ?? '' }}@if (location.address && location.comuna) {<span>, </span>}{{ location.comuna ?? '' }}
+          @if (otherLinks().length) {
+            <section aria-labelledby="enlaces-title" class="border-t border-line pt-6">
+              <h2 id="enlaces-title" class="font-display text-2xl font-bold tracking-tight text-ink">
+                Enlaces
+              </h2>
+
+              <ul class="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+                @for (link of otherLinks(); track $index) {
+                  <li>
+                    <a
+                      [href]="linkHref(link)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-sm font-medium text-accent-ink underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink"
+                    >
+                      {{ linkLabel(link.kind) }}
+                    </a>
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+        </div>
+
+        <aside class="space-y-8">
+          @if (
+            item.google &&
+            (item.google.rating !== null ||
+              item.google.price ||
+              item.google.hours ||
+              item.google.maps_url ||
+              item.google.phone ||
+              item.google.website)
+          ) {
+            <section aria-labelledby="google-title" class="border-t border-line pt-6">
+              <h2 id="google-title" class="font-display text-2xl font-bold tracking-tight text-ink">
+                Google Maps
+              </h2>
+
+              <div class="mt-4 space-y-3 text-sm text-ink-soft">
+                @if (item.google.rating !== null) {
+                  <p>
+                    <span class="font-medium text-ink">★ {{ item.google.rating }}</span> / 5
+                    @if (item.google.reviews !== null) {
+                      <span class="text-muted">({{ item.google.reviews }} reseñas)</span>
+                    }
                   </p>
                 }
 
-                @if (mapUrl(location); as url) {
+                @if (item.google.price) {
+                  <p>Precio: {{ item.google.price }}</p>
+                }
+
+                @if (item.google.hours) {
+                  <div>
+                    <p class="font-medium text-ink">Horarios</p>
+                    <dl class="mt-1 space-y-1 tabular-nums">
+                      @for (entry of googleHoursEntries(item.google.hours); track entry[0]) {
+                        <div class="flex justify-between gap-3">
+                          <dt>{{ entry[0] }}</dt>
+                          <dd class="text-right">{{ entry[1] }}</dd>
+                        </div>
+                      }
+                    </dl>
+                  </div>
+                }
+
+                @if (item.google.maps_url) {
                   <a
-                    [href]="url"
+                    [href]="item.google.maps_url"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="mt-3 inline-block text-sm font-medium text-rose-700 transition-colors hover:text-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600"
+                    class="inline-block font-medium text-accent-ink underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink"
                   >
-                    Cómo llegar
+                    Ver en Google Maps
                   </a>
                 }
-              </li>
-            }
-          </ul>
-        </section>
-      }
+              </div>
 
-      @if (item.links.length) {
-        <section aria-labelledby="enlaces-title" class="space-y-3">
-          <h2 id="enlaces-title" class="text-lg font-semibold text-stone-900">Enlaces</h2>
-
-          <ul class="flex flex-wrap gap-3">
-            @for (link of item.links; track $index) {
-              <li>
-                <a
-                  [href]="linkHref(link)"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="inline-block rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600"
-                >
-                  {{ linkLabel(link.kind) }}
-                </a>
-              </li>
-            }
-          </ul>
-        </section>
-      }
-
-      @if (
-        item.google &&
-        (item.google.rating !== null ||
-          item.google.price ||
-          item.google.hours ||
-          item.google.maps_url)
-      ) {
-        <section aria-labelledby="google-title" class="space-y-3">
-          <h2 id="google-title" class="text-lg font-semibold text-stone-900">Google Maps</h2>
-
-          <div class="space-y-2 rounded-xl border border-stone-200 p-4">
-            @if (item.google.rating !== null) {
-              <p class="text-sm text-stone-700">
-                <span class="font-medium">{{ item.google.rating }}</span> / 5
-                @if (item.google.reviews !== null) {
-                  <span class="text-stone-500">({{ item.google.reviews }} reseñas)</span>
+              <p class="mt-3 text-xs text-muted">
+                según Google Maps
+                @if (item.google.fetched_at) {
+                  <span> · actualizado el {{ item.google.fetched_at | date: 'mediumDate' }}</span>
                 }
               </p>
-            }
+            </section>
+          }
 
-            @if (item.google.price) {
-              <p class="text-sm text-stone-600">Precio: {{ item.google.price }}</p>
-            }
+          @if (item.google?.phone || item.google?.website || contactLinks().length) {
+            <section aria-labelledby="contacto-title" class="border-t border-line pt-6">
+              <h2 id="contacto-title" class="font-display text-2xl font-bold tracking-tight text-ink">
+                Contacto
+              </h2>
 
-            @if (item.google.phone) {
-              <p class="text-sm text-stone-600">
-                Teléfono:
-                <a [href]="'tel:' + item.google.phone" class="font-medium text-rose-700 hover:text-rose-800">{{ item.google.phone }}</a>
-              </p>
-            }
+              <ul class="mt-4 space-y-2 text-sm">
+                @if (item.google?.phone) {
+                  <li>
+                    <a
+                      [href]="'tel:' + item.google!.phone"
+                      class="font-medium text-accent-ink underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink"
+                    >
+                      {{ item.google!.phone }}
+                    </a>
+                  </li>
+                }
 
-            @if (item.google.website) {
-              <p class="text-sm text-stone-600">
-                Sitio web:
-                <a [href]="item.google.website" target="_blank" rel="noopener noreferrer" class="font-medium text-rose-700 hover:text-rose-800">{{ item.google.website }}</a>
-              </p>
-            }
+                @if (item.google?.website) {
+                  <li>
+                    <a
+                      [href]="item.google!.website!"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="font-medium text-accent-ink underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink"
+                    >
+                      Sitio web
+                    </a>
+                  </li>
+                }
 
-            @if (item.google.hours) {
-              <div class="text-sm text-stone-600">
-                <p class="font-medium">Horarios</p>
-                <ul class="mt-1 space-y-1">
-                  @for (entry of googleHoursEntries(item.google.hours); track entry[0]) {
-                    <li>{{ entry[0] }}: {{ entry[1] }}</li>
-                  }
-                </ul>
-              </div>
-            }
-
-            <p class="text-xs text-stone-500">
-              según Google Maps
-              @if (item.google.fetched_at) {
-                <span> · actualizado el {{ item.google.fetched_at | date: 'mediumDate' }}</span>
-              }
-            </p>
-
-            @if (item.google.maps_url) {
-              <a
-                [href]="item.google.maps_url"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="inline-block text-sm font-medium text-rose-700 transition-colors hover:text-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600"
-              >
-                Ver en Google Maps
-              </a>
-            }
-          </div>
-        </section>
-      }
+                @for (link of contactLinks(); track $index) {
+                  <li>
+                    <a
+                      [href]="linkHref(link)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="font-medium text-accent-ink underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink"
+                    >
+                      {{ linkLabel(link.kind) }}
+                    </a>
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+        </aside>
+      </div>
     </article>
   }
 </section>

@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Params, RouterLink } from '@angular/router';
@@ -38,6 +38,43 @@ export class AcademyDetailPage {
   readonly notFound = signal(false);
   readonly error = signal<string | null>(null);
   readonly backQuery = signal<Params>({});
+
+  private readonly contactKinds = new Set(['phone', 'email', 'whatsapp']);
+
+  protected readonly contactLinks = computed(() => {
+    const academy = this.academy();
+    const hasGooglePhone = Boolean(academy?.google?.phone);
+
+    return (academy?.links ?? []).filter(link => {
+      const kind = link.kind.toLowerCase();
+      if (!this.contactKinds.has(kind)) {
+        return false;
+      }
+      return !(kind === 'phone' && hasGooglePhone);
+    });
+  });
+
+  protected readonly otherLinks = computed(() => {
+    const academy = this.academy();
+    const hasGoogleWebsite = Boolean(academy?.google?.website);
+
+    return (academy?.links ?? []).filter(link => {
+      const kind = link.kind.toLowerCase();
+      if (this.contactKinds.has(kind)) {
+        return false;
+      }
+      return !(kind === 'web' && hasGoogleWebsite);
+    });
+  });
+
+  protected readonly initials = computed(() =>
+    (this.academy()?.name ?? '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(word => word[0]?.toUpperCase() ?? '')
+      .join(''),
+  );
 
   constructor() {
     const slug$ = this.route.paramMap.pipe(map(params => params.get('slug') ?? ''));

@@ -1,10 +1,12 @@
-<section class="space-y-6">
-  <div>
-    <h1 class="text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
-      Academias de baile
+<section class="space-y-8">
+  <div class="max-w-2xl">
+    <h1
+      class="text-balance font-display text-5xl font-extrabold leading-[0.95] tracking-tight text-ink sm:text-7xl"
+    >
+      Santiago baila.
     </h1>
-    <p class="mt-2 text-stone-600">
-      Encuentra academias de salsa y otros estilos en Santiago.
+    <p class="mt-4 text-lg leading-relaxed text-ink-soft">
+      Academias de baile en Santiago. Encuentra la tuya por comuna y estilo.
     </p>
   </div>
 
@@ -26,7 +28,7 @@
   } @else if (error(); as message) {
     <app-error-state [message]="message" (retry)="retry()" />
   } @else if (page(); as current) {
-    <p class="text-sm text-stone-600" aria-live="polite">
+    <p class="text-sm text-muted" aria-live="polite">
       {{ current.total }}
       {{ current.total === 1 ? 'academia' : 'academias' }}
     </p>
@@ -39,7 +41,7 @@
         (action)="clearFilters()"
       />
     } @else {
-      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="border-t border-line">
         @for (academy of current.items; track academy.id) {
           <app-academy-card [academy]="academy" [queryParams]="queryParams()" />
         }
