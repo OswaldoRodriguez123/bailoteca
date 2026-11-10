@@ -299,6 +299,14 @@ def enrich(candidate: Candidate, fetcher: Fetcher) -> Enriched:
     links: dict[str, list[str]] = {}
     if candidate.handle:
         _add_link(links, "instagram", f"https://instagram.com/{candidate.handle}")
+    # El candidato descubierto en una red social es una fuente válida por sí sola.
+    if candidate.url:
+        classified = _classify_href(candidate.url)
+        if classified:
+            kind, url = classified
+            normalized = _normalize_social(kind, url)
+            if normalized:
+                _add_link(links, kind, normalized)
 
     page_url = candidate.url
     text = ""

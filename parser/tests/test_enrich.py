@@ -84,6 +84,15 @@ class _FakeFetcher:
         return self.page
 
 
+def test_enrich_adds_candidate_social_url_as_link():
+    page = Page("https://www.facebook.com/MamboRockChile/", 200, "", "")
+    enriched = enrich(
+        Candidate("Mambo Roakes", "https://www.facebook.com/MamboRockChile/", None, "serpapi"),
+        _FakeFetcher(page),
+    )
+    assert enriched.links["facebook"] == ["https://www.facebook.com/MamboRockChile/"]
+
+
 def test_cached_fetcher_only_fetches_once(tmp_path):
     fetcher = _FakeFetcher(Page("https://demo.cl", 200, HTML, "texto"))
     cached = CachedFetcher(fetcher, tmp_path)
