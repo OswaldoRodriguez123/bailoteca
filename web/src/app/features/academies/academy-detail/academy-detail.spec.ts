@@ -132,13 +132,26 @@ describe('AcademyDetailPage', () => {
     expect(element(harness).textContent).toContain('Sin verificar');
   });
 
-  it('no muestra badge de estado para academias activas', async () => {
-    getAcademy.mockReturnValue(of(makeAcademy({ status: 'active' })));
+  it('muestra "Verificado" cuando la academia tiene verified_at', async () => {
+    getAcademy.mockReturnValue(
+      of(makeAcademy({ status: 'unknown', verified_at: '2026-11-10T18:16:55Z' })),
+    );
     const harness = await open('/academias/danson-academy');
     const text = element(harness).textContent ?? '';
 
+    expect(text).toContain('Verificado');
     expect(text).not.toContain('Sin verificar');
+  });
+
+  it('no muestra "Cerrada" para academias activas', async () => {
+    getAcademy.mockReturnValue(
+      of(makeAcademy({ status: 'active', verified_at: '2026-11-10T18:16:55Z' })),
+    );
+    const harness = await open('/academias/danson-academy');
+    const text = element(harness).textContent ?? '';
+
     expect(text).not.toContain('Cerrada');
+    expect(text).toContain('Verificado');
   });
 
   it('no renderiza confianza, evidencia ni URLs de origen', async () => {
