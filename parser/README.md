@@ -12,7 +12,7 @@ escrituras y la CLI.
 - **Publicado** = existe en la tabla `academies`. Solo la CLI escribe ahí,
   después de aprobar.
 - **Estilos** multilabel sobre una taxonomía en la tabla `styles`
-  (`salsa-cubana`, `salsa-linea`, `mambo`). Agregar bachata o kizomba es
+  (`salsa-cubana`, `salsa-linea`, `mambo`, `bachata`). Agregar kizomba es
   insertar filas, no migrar columnas.
 - **Costo $0**: Postgres free en Supabase, GitHub Actions y fuentes gratuitas.
   Gemini es opcional; sin clave el sistema clasifica solo con reglas.
@@ -32,6 +32,8 @@ escrituras y la CLI.
    ```text
    supabase/migrations/0001_schema.sql
    supabase/migrations/0002_rls.sql
+   supabase/migrations/0003_api_readonly.sql
+   supabase/migrations/0004_add_bachata.sql
    ```
 
    `0002` activa RLS y deja a la llave anónima solo lectura de las tablas

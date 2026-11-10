@@ -32,6 +32,7 @@ def build_queries(comunas: list[str]) -> list[str]:
                 f"salsa cubana {comuna}",
                 f"salsa en linea {comuna}",
                 f"mambo {comuna}",
+                f"bachata {comuna}",
             ]
         )
     return queries

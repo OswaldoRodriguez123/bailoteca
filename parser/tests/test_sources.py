@@ -21,6 +21,7 @@ def test_build_queries():
         "salsa cubana Providencia",
         "salsa en linea Providencia",
         "mambo Providencia",
+        "bachata Providencia",
     ]
 
 

@@ -20,7 +20,7 @@ LINK_KINDS = (
     "phone",
     "email",
 )
-STYLE_SLUGS = ("salsa-cubana", "salsa-linea", "mambo")
+STYLE_SLUGS = ("salsa-cubana", "salsa-linea", "mambo", "bachata")
 
 
 class LocationIn(BaseModel):
@@ -46,7 +46,7 @@ class LinkIn(BaseModel):
 class StyleIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    slug: Literal["salsa-cubana", "salsa-linea", "mambo"]
+    slug: Literal["salsa-cubana", "salsa-linea", "mambo", "bachata"]
     confidence: float | None = None
     evidence: str | None = None
     disputed: bool = False

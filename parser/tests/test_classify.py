@@ -21,6 +21,19 @@ def test_rules_detect_cubana_linea_and_mambo():
     ]
 
 
+def test_rules_detect_bachata():
+    assert [h.slug for h in rule_hits("Clases de bachata los martes")] == [
+        "bachata"
+    ]
+    assert [h.slug for h in rule_hits("Bachata sensual y dominicana")] == [
+        "bachata"
+    ]
+    assert [h.slug for h in rule_hits("Salsa cubana y bachata moderna")] == [
+        "salsa-cubana",
+        "bachata",
+    ]
+
+
 def test_strong_rule_contradicted_by_llm_is_disputed():
     merged = merge_hits(
         [StyleHit("salsa-cubana", 0.9)],

@@ -52,6 +52,8 @@ cp parser/.env.example parser/.env
 # 3. Migraciones (SQL Editor de Supabase, en orden)
 #    supabase/migrations/0001_schema.sql
 #    supabase/migrations/0002_rls.sql
+#    supabase/migrations/0003_api_readonly.sql
+#    supabase/migrations/0004_add_bachata.sql
 
 # 4. Correr el pipeline
 cd parser

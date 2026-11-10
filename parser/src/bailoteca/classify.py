@@ -8,7 +8,7 @@ from bailoteca.normalize import strip_accents
 AUTO_CONFIDENCE = 0.85
 REVIEW_CONFIDENCE = 0.60
 
-VALID_SLUGS = ["salsa-cubana", "salsa-linea", "mambo"]
+VALID_SLUGS = ["salsa-cubana", "salsa-linea", "mambo", "bachata"]
 
 # (frase normalizada, slug, confianza) en orden de evaluación.
 RULE_HITS: list[tuple[str, str, float]] = [
@@ -23,6 +23,10 @@ RULE_HITS: list[tuple[str, str, float]] = [
     ("on2", "salsa-linea", 0.65),
     ("salsa mambo", "mambo", 0.9),
     ("mambo", "mambo", 0.65),
+    ("bachata sensual", "bachata", 0.9),
+    ("bachata dominicana", "bachata", 0.9),
+    ("bachata moderna", "bachata", 0.9),
+    ("bachata", "bachata", 0.7),
 ]
 
 
