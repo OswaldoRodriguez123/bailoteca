@@ -180,7 +180,7 @@ def list_comunas(conn: psycopg.Connection) -> list[str]:
 
 def academy_id_by_slug(conn: psycopg.Connection, slug: str) -> str | None:
     row = conn.execute(
-        "select id from academies where slug = %s",
+        "select id::text as id from academies where slug = %s",
         (slug,),
     ).fetchone()
     return row["id"] if row else None
