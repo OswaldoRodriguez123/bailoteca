@@ -1,8 +1,7 @@
 # Bailoteca
 
-Dance school directory for Santiago de Chile, starting with salsa. A monorepo
-with a data pipeline, a read-only API and a web app, all on one shared Postgres
-schema.
+Dance school directory for Santiago de Chile. A monorepo with a data pipeline, a
+read-only API and a web app, all on one shared Postgres schema.
 
 [![API](https://github.com/OswaldoRodriguez123/bailoteca/actions/workflows/api.yml/badge.svg)](https://github.com/OswaldoRodriguez123/bailoteca/actions/workflows/api.yml)
 [![web](https://github.com/OswaldoRodriguez123/bailoteca/actions/workflows/web.yml/badge.svg)](https://github.com/OswaldoRodriguez123/bailoteca/actions/workflows/web.yml)
@@ -52,7 +51,7 @@ bailoteca/
 │   └── tests/
 ├── api/                     # FastAPI
 ├── web/                     # Angular SPA
-├── supabase/migrations/     # 0001_schema.sql, 0002_rls.sql, 0003_api_readonly.sql
+├── supabase/migrations/     # schema, RLS, read-only role and data migrations
 ├── docs/architecture.md     # design decisions
 └── .github/workflows/       # parser.yml, api.yml, web.yml
 ```
@@ -72,10 +71,7 @@ cp parser/.env.example parser/.env
 # edit parser/.env with DATABASE_URL and the optional keys
 
 # 3. Migrations (Supabase SQL Editor, in order)
-#    supabase/migrations/0001_schema.sql
-#    supabase/migrations/0002_rls.sql
-#    supabase/migrations/0003_api_readonly.sql
-#    supabase/migrations/0004_add_bachata.sql
+#    apply every file in supabase/migrations/, from 0001 to the latest
 
 # 4. Run the pipeline
 cd parser
@@ -132,7 +128,7 @@ No `.env` is committed. Each component has its own `.env.example`:
 
 | Component | Variables |
 | --- | --- |
-| Parser | `DATABASE_URL` (write), `GEMINI_API_KEY`, `SERPAPI_KEY`, `CLOUDFLARE_*` |
+| Parser | `DATABASE_URL` (write), `GEMINI_API_KEY`, `SERPAPI_KEY`, `BRAVE_API_KEY`, `CLOUDFLARE_*` |
 | API | `DATABASE_URL_READONLY`, `CORS_ORIGINS`, `RATE_LIMIT`, `DB_POOL_MAX_SIZE` |
 | Web | `API_BASE_URL` |
 

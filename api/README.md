@@ -1,60 +1,59 @@
 # Bailoteca API
 
-API pública de solo lectura para el directorio de academias de Bailoteca. La
-consume la web Angular; no expone escrituras ni credenciales.
+Public read-only API for the Bailoteca academy directory. It is consumed by the
+Angular web app; it exposes no writes and no credentials.
 
 ## Stack
 
 - **FastAPI** + **Uvicorn**.
-- **`slowapi`** para el rate limit por IP, con storage en memoria.
-- **`bailoteca-shared`** para la conexión, las consultas y los DTOs
+- **`slowapi`** for per-IP rate limiting, with in-memory storage.
+- **`bailoteca-shared`** for the connection, the queries and the DTOs
   (`Academy`, `AcademyLocation`, `AcademyLink`, `AcademyStyle`).
-- Postgres de Supabase con el usuario **read-only** `bailoteca_api`.
+- Supabase Postgres with the **read-only** user `bailoteca_api`.
 
-> FastAPI queda pinneado a `<0.137`: desde 0.137 los routers incluidos se
-> anidan y `slowapi` 0.1.10 deja de encontrar el handler, por lo que su
-> middleware **salta el límite en silencio**. El pin está en
-> `pyproject.toml`.
+> FastAPI is pinned to `<0.137`: from 0.137 on, included routers are nested and
+> `slowapi` 0.1.10 can no longer find the handler, so its middleware **silently
+> skips the limit**. The pin lives in `pyproject.toml`.
 
-## Estructura
+## Structure
 
 ```text
 api/
 ├── pyproject.toml
-├── requirements.txt            # instalación local con pip
+├── requirements.txt            # local install with pip
 ├── .env.example
 ├── bailoteca_api/
-│   ├── main.py                 # create_app: CORS, limiter, routers, errores
-│   ├── config.py               # Settings desde env
-│   ├── db.py                   # pool perezoso + dependency get_conn
-│   ├── rate_limit.py           # limiter por IP + handler 429
-│   ├── schemas.py              # AcademyPage, StyleList, ComunaList
+│   ├── main.py                 # create_app: CORS, limiter, routers, errors
+│   ├── config.py               # Settings from env
+│   ├── db.py                   # lazy pool + get_conn dependency
+│   ├── rate_limit.py           # per-IP limiter + 429 handler
+│   ├── schemas.py              # AcademyPage, StyleOption, StyleList, ComunaList
 │   └── routers/
 │       ├── health.py
 │       └── academies.py
 └── tests/
 ```
 
-## Instalación
+## Install
 
-Desde la raíz del repo:
+From the repo root:
 
 ```bash
 python -m venv .venv
 .venv/bin/pip install -e shared -e "api[dev]"
 ```
 
-## Cómo correrla
+## Running it
 
 ```bash
-# desde la raíz
-cp api/.env.example api/.env      # completar DATABASE_URL_READONLY
+# from the repo root
+cp api/.env.example api/.env      # fill in DATABASE_URL_READONLY
 .venv/bin/uvicorn bailoteca_api.main:app --reload
 ```
 
-- `/docs` y `/openapi.json` quedan disponibles en local.
-- Sin `DATABASE_URL_READONLY`, la app arranca igual: `/health` y los endpoints
-  de datos responden **503** en vez de romper el cold start.
+- `/docs` and `/openapi.json` are available locally.
+- Without `DATABASE_URL_READONLY` the app still starts: `/health` and the data
+  endpoints answer **503** instead of breaking the cold start.
 
 ## Tests
 
@@ -63,36 +62,36 @@ cp api/.env.example api/.env      # completar DATABASE_URL_READONLY
 .venv/bin/python -m pytest shared/tests api/tests -q
 ```
 
-Los tests no abren una base real: sobrescriben `get_conn` y monkeypatchean las
-consultas de `bailoteca_shared`. Los tests de integración de `parser/` se
-saltan si no hay `TEST_DATABASE_URL`.
+The tests do not open a real database: they override `get_conn` and monkeypatch
+the `bailoteca_shared` queries. The `parser/` integration tests are skipped when
+`TEST_DATABASE_URL` is missing.
 
 ## Endpoints
 
-| Método | Ruta                | Respuesta                                    |
+| Method | Route               | Response                                     |
 | ------ | ------------------- | -------------------------------------------- |
-| `GET`  | `/health`           | `{"status": "ok", "database": "ok"}` o 503   |
+| `GET`  | `/health`           | `{"status": "ok", "database": "ok"}` or 503  |
 | `GET`  | `/academies`        | `AcademyPage`                                |
-| `GET`  | `/academies/{slug}` | `Academy` o 404                              |
+| `GET`  | `/academies/{slug}` | `Academy` or 404                             |
 | `GET`  | `/styles`           | `{"items": [{"slug", "name", "sort"}]}`      |
 | `GET`  | `/comunas`          | `{"items": ["Providencia", ...]}`            |
 
 ### `GET /academies`
 
-| Parámetro   | Tipo   | Reglas                                                       |
+| Parameter   | Type   | Rules                                                        |
 | ----------- | ------ | ------------------------------------------------------------ |
-| `comuna`    | string | Opcional, máx. 100, exacta sin distinguir mayúsculas         |
-| `style`     | string | Opcional, slug `^[a-z0-9-]+$`                                |
-| `q`         | string | Opcional, 2–100 caracteres, busca en nombre y descripción    |
-| `page`      | int    | Default 1, mínimo 1                                          |
-| `page_size` | int    | Default 20, mínimo 1, máximo 100                             |
+| `comuna`    | string | Optional, max. 100, exact, case-insensitive                  |
+| `style`     | string | Optional, slug `^[a-z0-9-]+$`                                |
+| `q`         | string | Optional, 2–100 characters, searches name and description    |
+| `page`      | int    | Default 1, minimum 1                                         |
+| `page_size` | int    | Default 20, minimum 1, maximum 100                           |
 
-- Los filtros vacíos (`?comuna=&style=&q=`) se tratan como ausentes.
-- Orden fijo: `name asc`.
-- Un `style` o `comuna` sin coincidencias devuelve `items: []`, no error.
-- Una página fuera de rango devuelve `items: []` con el total real.
+- Empty filters (`?comuna=&style=&q=`) are treated as absent.
+- Fixed order: `name asc`.
+- A `style` or `comuna` with no matches returns `items: []`, not an error.
+- A page out of range returns `items: []` with the real total.
 
-Respuesta:
+Response:
 
 ```json
 {
@@ -115,86 +114,86 @@ Respuesta:
 
 ## Rate limit
 
-- `RATE_LIMIT` usa la sintaxis de `limits`, por defecto `60/minute` por IP.
-- La IP sale del primer valor de `X-Forwarded-For` (Vercel lo setea) o de
-  `request.client.host` en local.
-- Al pasarse devuelve **429** con
-  `{"detail": "Demasiadas solicitudes. Intenta de nuevo más tarde."}` y header
-  `Retry-After`.
-- El storage es en memoria: en Vercel cada instancia cuenta por separado, así
-  que el límite es aproximado. Para exactitud habría que cambiar el storage de
-  `slowapi`, sin tocar los endpoints.
+- `RATE_LIMIT` uses the `limits` syntax, `60/minute` per IP by default.
+- The IP comes from the first `X-Forwarded-For` value (Vercel sets it) or from
+  `request.client.host` locally.
+- Going over returns **429** with
+  `{"detail": "Demasiadas solicitudes. Intenta de nuevo más tarde."}` and a
+  `Retry-After` header.
+- Storage is in memory: on Vercel each instance counts separately, so the limit
+  is approximate. For exactness you would change the `slowapi` storage, without
+  touching the endpoints.
 
-## Usuario read-only y RLS
+## Read-only user and RLS
 
-`supabase/migrations/0002_rls.sql` habilita RLS y crea políticas solo para
-`anon` (que es `nologin`). Un rol nuevo con `GRANT SELECT` pero sin políticas
-propias leería cero filas. Por eso se aplica también:
+`supabase/migrations/0002_rls.sql` enables RLS and creates policies only for
+`anon` (which is `nologin`). A new role with `GRANT SELECT` but no policies of
+its own would read zero rows. That is why this is applied too:
 
 ```text
 supabase/migrations/0003_api_readonly.sql
 ```
 
-Esa migración crea el rol `bailoteca_api`, le da `select` solo sobre las cinco
-tablas publicadas y agrega políticas de lectura. La contraseña **no** está en el
-repo; se define a mano en el SQL Editor de Supabase:
+That migration creates the `bailoteca_api` role, grants `select` only on the
+five published tables and adds read policies. The password is **not** in the
+repo; it is set by hand in the Supabase SQL Editor:
 
 ```sql
 alter role bailoteca_api with password '<password>';
 ```
 
-Luego se arma `DATABASE_URL_READONLY` con ese rol y el connection string del
-**pooler** de Supabase (puerto 6543). La API crea el pool con
-`prepare_threshold=None` para no chocar con el pooler en modo transacción.
+Then `DATABASE_URL_READONLY` is built with that role and the Supabase **pooler**
+connection string (port 6543). The API creates the pool with
+`prepare_threshold=None` to avoid clashing with the pooler in transaction mode.
 
-Comprobación manual después de aplicar la migración:
+Manual check after applying the migration:
 
-1. Con `bailoteca_api`, `select count(*) from academies` devuelve filas (no cero
-   por RLS).
-2. Un `insert` falla por permisos.
-3. `/health`, `/academies` con cada filtro, detalle, `/styles` y `/comunas`
-   responden.
+1. As `bailoteca_api`, `select count(*) from academies` returns rows (not zero
+   because of RLS).
+2. An `insert` fails on permissions.
+3. `/health`, `/academies` with each filter, the detail, `/styles` and
+   `/comunas` respond.
 
-## Variables de entorno
+## Environment variables
 
-| Variable                | Default                 | Uso                                   |
+| Variable                | Default                 | Use                                   |
 | ----------------------- | ----------------------- | ------------------------------------- |
-| `DATABASE_URL_READONLY` | vacío                   | Conexión de solo lectura a Supabase   |
-| `CORS_ORIGINS`          | `http://localhost:4200` | Orígenes separados por coma           |
-| `RATE_LIMIT`            | `60/minute`             | Límite por IP                         |
-| `DB_POOL_MAX_SIZE`      | `4`                     | Conexiones máximas del pool           |
+| `DATABASE_URL_READONLY` | empty                   | Read-only connection to Supabase      |
+| `CORS_ORIGINS`          | `http://localhost:4200` | Comma-separated origins               |
+| `RATE_LIMIT`            | `60/minute`             | Per-IP limit                          |
+| `DB_POOL_MAX_SIZE`      | `4`                     | Maximum pool connections              |
 
-`CORS_ORIGINS=*` permite cualquier origen; es aceptable para una API pública de
-solo lectura, pero en producción conviene listar el dominio de la web.
+`CORS_ORIGINS=*` allows any origin; it is acceptable for a public read-only API,
+but in production it is better to list the web domain.
 
-## Errores
+## Errors
 
-- Base de datos no configurada, caída o inalcanzable → **503**
+- Database not configured, down or unreachable → **503**
   `{"detail": "Base de datos no disponible"}`.
-- Excepción no controlada → **500** `{"detail": "Error interno"}`.
-- Validación de parámetros → **422**.
-- Nunca se devuelve el mensaje de psycopg ni un stack trace.
+- Unhandled exception → **500** `{"detail": "Error interno"}`.
+- Parameter validation → **422**.
+- The psycopg message or a stack trace is never returned.
 
-## Despliegue en Vercel
+## Deploying to Vercel
 
 - **Root Directory**: `api/`.
-- Vercel resuelve `[tool.vercel] entrypoint = "bailoteca_api.main:app"` como
-  `api/bailoteca_api/main.py`. Por eso el paquete vive en la raíz de `api/`, no
-  dentro de `src/`.
-- Vercel instala desde `pyproject.toml` con `uv`, no desde `requirements.txt`.
-  Por eso `bailoteca-shared` está declarado en `[project].dependencies` y
-  resuelto desde `../shared` con `[tool.uv.sources]`.
-- `requirements.txt` queda para instalaciones locales con pip; también usa el
-  paquete local y `../shared`, sin `-e`.
-- Si el build de Vercel no ve `../shared`, la salida documentada es usar una
-  dependencia `git+https://...#subdirectory=shared` en `pyproject.toml`.
-- Configurar `DATABASE_URL_READONLY`, `CORS_ORIGINS`, `RATE_LIMIT` y
-  `DB_POOL_MAX_SIZE` en Vercel. Ningún `.env` se versiona.
+- Vercel resolves `[tool.vercel] entrypoint = "bailoteca_api.main:app"` as
+  `api/bailoteca_api/main.py`. That is why the package lives at the root of
+  `api/`, not inside `src/`.
+- Vercel installs from `pyproject.toml` with `uv`, not from `requirements.txt`.
+  That is why `bailoteca-shared` is declared in `[project].dependencies` and
+  resolved from `../shared` with `[tool.uv.sources]`.
+- `requirements.txt` is kept for local pip installs; it also uses the local
+  package and `../shared`, without `-e`.
+- If the Vercel build cannot see `../shared`, the documented workaround is a
+  `git+https://...#subdirectory=shared` dependency in `pyproject.toml`.
+- Configure `DATABASE_URL_READONLY`, `CORS_ORIGINS`, `RATE_LIMIT` and
+  `DB_POOL_MAX_SIZE` in Vercel. No `.env` is versioned.
 
 ## CI
 
-`.github/workflows/api.yml` corre en `push` y `pull_request` que toquen
-`api/**` o `shared/**`:
+`.github/workflows/api.yml` runs on `push` and `pull_request` that touch
+`api/**` or `shared/**`:
 
 ```bash
 pip install -e shared -e "api[dev]"

@@ -1,42 +1,42 @@
 # Bailoteca web
 
-SPA en Angular 22 con Tailwind CSS 4 que consume la API pública de solo lectura
-de Bailoteca. No usa SSR ni SSG, no incluye NgRx y no tiene acceso a la base de
-datos: todo pasa por los endpoints públicos.
+Angular 22 SPA with Tailwind CSS 4 that consumes the Bailoteca public read-only
+API. It uses no SSR or SSG, does not include NgRx and has no database access:
+everything goes through the public endpoints.
 
 ## Stack
 
-- Angular 22 con componentes standalone, signals y rutas lazy.
-- Tailwind CSS 4 (configuración CSS-first, sin `tailwind.config.js`).
-- Vitest 5 con `jsdom` para tests unitarios.
+- Angular 22 with standalone components, signals and lazy routes.
+- Tailwind CSS 4 (CSS-first configuration, no `tailwind.config.js`).
+- Vitest 5 with `jsdom` for unit tests.
 - TypeScript 6.
 
-## Estructura
+## Structure
 
 ```text
 web/
-├── scripts/write-env.mjs             # genera environment.production.ts antes del build
+├── scripts/write-env.mjs             # generates environment.production.ts before the build
 ├── src/
-│   ├── environments/                 # development y production
+│   ├── environments/                 # development and production
 │   └── app/
-│       ├── core/                     # token API_BASE_URL, modelos, cliente HTTP, mensajes de error
+│       ├── core/                     # API_BASE_URL token, models, HTTP client, error messages
 │       ├── shared/components/        # EmptyState, ErrorState, LoadingGrid
 │       └── features/academies/
-│           ├── academy-list/         # listado con filtros y paginación
-│           ├── academy-detail/       # detalle por slug
-│           ├── academy-display.ts    # etiquetas, mapas y comunas
-│           ├── academy-query.ts      # normalización de la URL
+│           ├── academy-list/         # list with filters and pagination
+│           ├── academy-detail/       # detail by slug
+│           ├── academy-display.ts    # labels, maps and comunas
+│           ├── academy-query.ts      # URL normalization
 │           └── components/           # AcademyCard, FilterBar, Pagination, StyleBadges
 └── vercel.json
 ```
 
-## Requisitos
+## Requirements
 
 - Node.js 24
 - npm 11
-- La API corriendo (por defecto en `http://localhost:8000`)
+- The API running (on `http://localhost:8000` by default)
 
-## Desarrollo
+## Development
 
 ```bash
 cd web
@@ -44,8 +44,8 @@ npm install
 npm start
 ```
 
-La app queda en `http://localhost:4200` y lee `API_BASE_URL` desde
-`src/environments/environment.ts` (`http://localhost:8000` por defecto).
+The app runs at `http://localhost:4200` and reads `API_BASE_URL` from
+`src/environments/environment.ts` (`http://localhost:8000` by default).
 
 ## Tests
 
@@ -54,75 +54,76 @@ cd web
 npm test -- --watch=false
 ```
 
-Los tests usan `HttpTestingController` y fixtures; no necesitan la API real.
+The tests use `HttpTestingController` and fixtures; they do not need the real
+API.
 
-## Build de producción
+## Production build
 
 ```bash
 cd web
 API_BASE_URL=https://api.example.com npm run build
 ```
 
-`API_BASE_URL` es obligatoria: el script `prebuild` (`scripts/write-env.mjs`)
-falla si falta y escribe `src/environments/environment.production.ts` antes de
-compilar. La salida queda en `dist/bailoteca-web/browser/`.
+`API_BASE_URL` is required: the `prebuild` script (`scripts/write-env.mjs`)
+fails when it is missing and writes `src/environments/environment.production.ts`
+before compiling. The output goes to `dist/bailoteca-web/browser/`.
 
 ## Variables
 
-| Variable       | Dónde                          | Uso                                   |
+| Variable       | Where                          | Use                                   |
 | -------------- | ------------------------------ | ------------------------------------- |
-| `API_BASE_URL` | entorno del build / `.env`     | URL base de la API pública            |
+| `API_BASE_URL` | build environment / `.env`     | Base URL of the public API            |
 
-No hay secretos en el navegador. `web/.env.example` solo documenta
+There are no secrets in the browser. `web/.env.example` only documents
 `API_BASE_URL`.
 
-## Endpoints consumidos
+## Endpoints consumed
 
-| Método | Endpoint             | Uso                                    |
+| Method | Endpoint             | Use                                    |
 | ------ | -------------------- | -------------------------------------- |
-| `GET`  | `/academies`         | Listado con `comuna`, `style`, `q`, `page`, `page_size` |
-| `GET`  | `/academies/{slug}`  | Detalle de una academia                |
-| `GET`  | `/styles`            | Opciones del filtro de estilo          |
-| `GET`  | `/comunas`           | Opciones del filtro de comuna          |
+| `GET`  | `/academies`         | List with `comuna`, `style`, `q`, `page`, `page_size` |
+| `GET`  | `/academies/{slug}`  | Academy detail                         |
+| `GET`  | `/styles`            | Style filter options                   |
+| `GET`  | `/comunas`           | Comuna filter options                  |
 
-El cliente está en `src/app/core/services/academies-api.ts` y solo hace lecturas.
+The client lives in `src/app/core/services/academies-api.ts` and only performs
+reads.
 
-## Rutas
+## Routes
 
-| Ruta               | Página                                     |
+| Route              | Page                                       |
 | ------------------ | ------------------------------------------ |
-| `/`                | Listado con filtros, búsqueda y paginación |
-| `/academias/:slug` | Detalle de la academia                     |
+| `/`                | List with filters, search and pagination   |
+| `/academias/:slug` | Academy detail                             |
 
-Ambas se cargan con `loadComponent` (lazy). Una ruta desconocida redirige a `/`.
+Both are loaded with `loadComponent` (lazy). An unknown route redirects to `/`.
 
-## Decisiones
+## Decisions
 
-- **La URL es el estado del listado**: `comuna`, `style`, `q` y `page` viven en
-  query params. La búsqueda se debouncea 300 ms y reescribe la URL con
-  `replaceUrl`, así el botón atrás no guarda cada tecla.
-- **Sin filtro por `status` en el cliente**: se muestran todas las academias que
-  devuelve la API; las cerradas llevan el badge "Cerrada" y las no verificadas
-  "Sin verificar".
-- **Datos internos ocultos**: `confidence`, `evidence`, `source_url` y
-  `source_urls` no se renderizan. Solo se muestran datos públicos.
-- **Entradas inválidas se normalizan**: estilos con formato inválido, búsquedas
-  de un carácter y páginas fuera de rango se corrigen en la URL.
-- **Los enlaces de tarjeta conservan los filtros** para volver al mismo listado.
+- **The URL is the list state**: `comuna`, `style`, `q` and `page` live in query
+  params. Search is debounced 300 ms and rewrites the URL with `replaceUrl`, so
+  the back button does not store every keystroke.
+- **No `status` filter in the client**: every academy the API returns is shown;
+  closed ones carry the "Cerrada" badge and unverified ones "Sin verificar".
+- **Internal data hidden**: `confidence`, `evidence`, `source_url` and
+  `source_urls` are not rendered. Only public data is shown.
+- **Invalid input is normalized**: styles with an invalid format, one-character
+  searches and out-of-range pages are corrected in the URL.
+- **Card links keep the filters** so you return to the same list.
 
-## Despliegue en Vercel
+## Deploying to Vercel
 
-1. Crear un proyecto con **Root Directory** `web/`.
+1. Create a project with **Root Directory** `web/`.
 2. Build command: `npm run build`.
 3. Output directory: `dist/bailoteca-web/browser`.
-4. Configurar `API_BASE_URL` con la URL pública de la API en las variables de
-   entorno del proyecto.
-5. `vercel.json` reescribe todas las rutas a `index.html` para que el router de
-   Angular funcione al recargar.
+4. Set `API_BASE_URL` to the public API URL in the project environment
+   variables.
+5. `vercel.json` rewrites every route to `index.html` so the Angular router
+   works on reload.
 
-La API debe permitir el origen del sitio en `CORS_ORIGINS`
-(`https://<proyecto>.vercel.app`). El CI de `.github/workflows/web.yml` corre
-tests y build con un `API_BASE_URL` de relleno cuando cambia `web/**`.
+The API must allow the site origin in `CORS_ORIGINS`
+(`https://<project>.vercel.app`). The `.github/workflows/web.yml` CI runs tests
+and the build with a placeholder `API_BASE_URL` when `web/**` changes.
 
-Sitio en producción: <https://bailoteca.vercel.app>, con
+Production site: <https://bailoteca.vercel.app>, with
 `API_BASE_URL=https://bailoteca-api.vercel.app`.

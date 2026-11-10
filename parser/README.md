@@ -1,125 +1,117 @@
 # Bailoteca Parser
 
-**Bailoteca Parser** es el pipeline de un directorio de academias de baile en
-Santiago, empezando por salsa. Descubre candidatos desde fuentes gratuitas, los
-clasifica por estilo con evidencia y deja propuestas para que una persona las
-apruebe antes de publicarlas.
+**Bailoteca Parser** is the pipeline behind a dance school directory in Santiago.
+It discovers candidates from free sources, classifies them by style with
+evidence, and leaves proposals for a person to approve before publishing.
 
-Este paquete vive en `parser/` dentro del monorepo. La conexión y las consultas
-de lectura vienen de `shared/` (`bailoteca-shared`); el parser conserva las
-escrituras y la CLI.
+This package lives in `parser/` inside the monorepo. Connection and read queries
+come from `shared/` (`bailoteca-shared`); the parser keeps the writes and the
+CLI.
 
-- **Publicado** = existe en la tabla `academies`. Solo la CLI escribe ahí,
-  después de aprobar.
-- **Estilos** multilabel sobre una taxonomía en la tabla `styles`
-  (`salsa-cubana`, `salsa-linea`, `mambo`, `bachata`). Agregar kizomba es
-  insertar filas, no migrar columnas.
-- **Costo $0**: Postgres free en Supabase, GitHub Actions y fuentes gratuitas.
-  Gemini es opcional; sin clave el sistema clasifica solo con reglas.
+- **Published** = the row exists in the `academies` table. Only the CLI writes
+  there, after approval.
+- **Styles** are multilabel over a taxonomy stored in the `styles` table.
+  Adding a style is inserting rows, not migrating columns.
+- **$0 cost**: free Postgres on Supabase, GitHub Actions and free sources.
+  Gemini is optional; without a key the system classifies with rules only.
 
-## Requisitos
+## Requirements
 
-- Python 3.12 o superior.
-- Un proyecto de Supabase (free) o cualquier Postgres 14+.
-- Opcional: una API key de Gemini para mejorar la clasificación.
+- Python 3.12 or newer.
+- A Supabase project (free) or any Postgres 14+.
+- Optional: a Gemini API key to improve classification.
 
-## Puesta en marcha
+## Setup
 
-1. Crear el proyecto en Supabase y copiar la cadena de conexión
+1. Create the Supabase project and copy the connection string
    (`Project Settings → Database → Connection string`).
-2. Aplicar las migraciones en orden desde el SQL Editor:
+2. Apply every file in `supabase/migrations/` in order from the SQL Editor.
 
-   ```text
-   supabase/migrations/0001_schema.sql
-   supabase/migrations/0002_rls.sql
-   supabase/migrations/0003_api_readonly.sql
-   supabase/migrations/0004_add_bachata.sql
-   ```
+   `0002` enables RLS and leaves the anonymous key read-only on the published
+   tables. The migrations live at the repo root because the schema is shared
+   with the API.
 
-   `0002` activa RLS y deja a la llave anónima solo lectura de las tablas
-   publicadas. Las migraciones viven en la raíz del repo porque el esquema es
-   compartido con la API.
-
-3. Copiar `.env.example` a `.env` y llenar los valores:
+3. Copy `.env.example` to `.env` and fill in the values:
 
    ```bash
    cp .env.example .env
    ```
 
-   `DATABASE_URL` es un secreto: no se versiona ni se pega en el chat. La llave
-   anónima de Supabase sirve para leer desde el frontend, nunca para escribir.
+   `DATABASE_URL` is a secret: it is not versioned and never pasted into chat.
+   The Supabase anonymous key is for reading from the frontend, never for
+   writing.
 
-4. Instalar los paquetes desde la raíz del repo:
+4. Install the packages from the repo root:
 
    ```bash
    python -m venv .venv
    .venv/bin/pip install -e shared -e "parser[dev]"
    ```
 
-   `bailoteca-shared` debe instalarse antes o junto con el parser; sin él los
-   imports de lectura fallan.
+   `bailoteca-shared` must be installed before or together with the parser;
+   without it the read imports fail.
 
-5. Llenar `data/seed.csv` con las academias que ya conoces:
+5. Fill `data/seed.csv` with the academies you already know:
 
    ```csv
    name,url,instagram,comuna
    Academia Ejemplo,https://ejemplo.cl,@ejemplo,Providencia
    ```
 
-   `url` e `instagram` son opcionales; una academia solo con Instagram se
-   publica igual, como no verificada.
+   `url` and `instagram` are optional; an academy with only Instagram is still
+   published, as unverified.
 
-## Uso
+## Usage
 
-Todos los comandos se ejecutan desde `parser/` con el virtualenv activado
+All commands run from `parser/` with the virtualenv active
 (`source ../.venv/bin/activate`):
 
 ```bash
-# Descubrir y generar propuestas sin tocar la base
+# Discover and generate proposals without touching the database
 bailoteca run --dry-run
 
-# Igual, escribiendo propuestas en Postgres
+# Same, writing proposals to Postgres
 bailoteca run
 
-# Ver propuestas pendientes en Markdown
+# List pending proposals in Markdown
 bailoteca review
 
-# Aprobar una propuesta (fija verified_at)
+# Approve a proposal (sets verified_at)
 bailoteca approve <proposal-id>
 
-# Aprobar una ficha incompleta sin darla por verificada
+# Approve an incomplete record without marking it verified
 bailoteca approve <proposal-id> --unverified
 
-# Corregir y aprobar (abre $EDITOR con el payload JSON)
+# Fix and approve (opens $EDITOR with the JSON payload)
 bailoteca edit <proposal-id>
 
-# Descartar una propuesta
+# Discard a proposal
 bailoteca reject <proposal-id>
 
-# Agregar una academia a mano: @handle, URL o nombre
+# Add an academy by hand: @handle, URL or name
 bailoteca add "@academia_ejemplo"
 
-# Releer una academia publicada y proponer solo diferencias
+# Re-read a published academy and propose only the differences
 bailoteca refresh academia-ejemplo
 
-# Exportar lo publicado
+# Export what is published
 bailoteca export
 bailoteca export --csv
 ```
 
-Cada corrida escribe `reports/<fecha>/` con `candidates.json`,
-`proposals.json`, `review.md` y `summary.md`.
+Each run writes `reports/<date>/` with `candidates.json`, `proposals.json`,
+`review.md` and `summary.md`.
 
 ## Tests
 
-Desde la raíz del repo:
+From the repo root:
 
 ```bash
 .venv/bin/python -m pytest parser/tests shared/tests -q
 ```
 
-Los tests de integración se saltan si no hay `TEST_DATABASE_URL`. Para
-correrlos contra un Postgres de prueba:
+Integration tests are skipped when `TEST_DATABASE_URL` is missing. To run them
+against a test Postgres:
 
 ```bash
 docker run -d --name bailoteca-test-db \
@@ -135,114 +127,117 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/bailoteca_test 
   .venv/bin/python -m pytest parser/tests shared/tests -q
 ```
 
-## Actualización mensual
+## Monthly update
 
-`.github/workflows/parser.yml` corre el **1° de cada mes a las 03:00 UTC**:
+`.github/workflows/parser.yml` runs on the **1st of each month at 03:00 UTC**:
 
-1. instala dependencias (`shared` + `parser`),
-2. corre la suite,
-3. ejecuta `bailoteca run` con los secretos del repositorio,
-4. sube `parser/reports/` como artifact.
+1. installs dependencies (`shared` + `parser`),
+2. runs the test suite,
+3. runs `bailoteca run` with the repository secrets,
+4. uploads `parser/reports/` as an artifact.
 
-El workflow se dispara solo por cron mensual o manualmente con
-`workflow_dispatch`; un push no ejecuta el pipeline.
+The workflow only runs on the monthly cron or manually with
+`workflow_dispatch`; a push does not run the pipeline.
 
-Configurar en GitHub `Settings → Secrets and variables → Actions`:
-`DATABASE_URL`, `GEMINI_API_KEY` y `SERPAPI_KEY` (esta última es la
-**recomendada** para descubrimiento web). Opcionalmente
-`CLOUDFLARE_ACCOUNT_ID` y `CLOUDFLARE_API_TOKEN` para el triaje de ruido.
+Configure in GitHub `Settings → Secrets and variables → Actions`:
+`DATABASE_URL`, `GEMINI_API_KEY` and `SERPAPI_KEY` (the latter is
+**recommended** for web discovery). Optionally `BRAVE_API_KEY`,
+`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` for noise triage.
 
-### Filtro de ruido
+### Noise filter
 
-Cada corrida pasa por dos etapas antes de crear propuestas:
+Every run goes through two stages before creating proposals:
 
 ```text
-descubrir → reglas deterministas → enriquecer → Clef → propuestas
+discover → deterministic rules → enrich → Clef → proposals
 ```
 
-1. **Reglas** (`bailoteca/sources/filters.py`): descartan directorios
-   (`superprof.cl`, `salirsantiago.com`, `2x3.cl`…), posts/videos/eventos de
-   redes y páginas `/popular/` de Instagram. Conservan perfiles y homepages de
-   grupos de Facebook.
-2. **Clef** (`@cf/cloudflare/clef-flash`): juzga con ~600 caracteres del texto
-   real de la página si es una academia que enseña salsa/bachata en la Región
-   Metropolitana. Umbral `min(academia, salsa, santiago) >= 0.5`.
+1. **Rules** (`bailoteca/sources/filters.py`): drop directories
+   (`superprof.cl`, `salirsantiago.com`, `2x3.cl`…), social posts/videos/events
+   and Instagram `/popular/` pages. They keep profiles and homepages of
+   Facebook groups.
+2. **Clef** (`@cf/cloudflare/clef-flash`): judges, with ~600 characters of the
+   page's real text, whether it is a dance academy in the Metropolitan Region
+   that teaches the styles in the taxonomy. Threshold
+   `min(academia, salsa, santiago) >= 0.5`.
 
-Los descartes **no se guardan** en la base: se vuelven a descubrir y juzgar el
-mes siguiente. Si faltan las credenciales de Cloudflare o Clef falla, el
-candidato pasa (**fail-open**), para no perder academias reales. Los contadores
-`filtrados_reglas`, `filtrados_clef` y `clef_errors` aparecen en el log y en
+Discards are **not stored** in the database: they are discovered and judged
+again next month. If the Cloudflare credentials are missing or Clef fails, the
+candidate passes (**fail-open**), so real academies are not lost. The counters
+`filtrados_reglas`, `filtrados_clef` and `clef_errors` appear in the log and in
 `summary.md`.
 
-Fuentes (`BAILOTECA_SOURCES`):
+Sources (`BAILOTECA_SOURCES`):
 
-- `seed,serpapi` (recomendado): CSV curado + Google Search vía SerpApi.
-- `seed,brave`: CSV curado + búsqueda web vía Brave Search API (plan free,
-  requiere `BRAVE_API_KEY`; no usa endpoints scrapeados: API con token, sin
-  bloqueo anti-bot).
-- `seed,search`: CSV + DuckDuckGo HTML. **DDG suele bloquear** con una página
-  `anomaly.js` (status 202) en IPs datacenter; solo como respaldo manual.
-- `seed,search,osm`: además OSM, desactivado por defecto.
+- `seed,serpapi` (recommended): curated CSV + Google Search through SerpApi.
+- `seed,brave`: curated CSV + web search through the Brave Search API (free
+  plan, requires `BRAVE_API_KEY`; it does not use scraped endpoints: token API,
+  no anti-bot blocking).
+- `seed,search`: CSV + DuckDuckGo HTML. **DDG usually blocks** with an
+  `anomaly.js` page (status 202) on datacenter IPs; use it only as a manual
+  fallback.
+- `seed,search,osm`: also OSM, disabled by default.
 
-> Nota de cuota: SerpApi free = ~250 req/mes. La corrida mensual completa
-> (10 comunas × 4 variantes = 40 queries) queda muy bajo el límite.
+> Quota note: SerpApi free = ~250 req/month. The full monthly run
+> (10 comunas × 4 variants = 40 queries) stays well under the limit.
 >
-> Las respuestas de SerpApi se cachean en `data/cache/serpapi/` con **TTL de
-> 24 h**, por consulta y sin incluir `api_key` en la clave. Repetir una corrida
-> el mismo día no gasta búsquedas; el cron mensual siempre refresca. Si el
-> archivo de caché está corrupto o no se puede escribir, se ignora y se vuelve
-> a consultar la API. En GitHub Actions `data/cache/serpapi` se restaura con
-> `actions/cache`, así que re-ejecutar el workflow el mismo día tampoco gasta
-> búsquedas; el cron mensual siempre encuentra la caché vencida.
+> SerpApi responses are cached in `data/cache/serpapi/` with a **24 h TTL**, per
+> query and without the `api_key` in the key. Repeating a run on the same day
+> spends no searches; the monthly cron always refreshes. If the cache file is
+> corrupt or cannot be written, it is ignored and the API is queried again. In
+> GitHub Actions `data/cache/serpapi` is restored with `actions/cache`, so
+> re-running the workflow on the same day spends no searches either; the monthly
+> cron always finds the cache expired.
 
-La corrida mensual **no vuelve a descargar** las academias publicadas; solo
-comprueba enlaces. Para releer una ficha concreta, usar `bailoteca refresh <slug>`.
+The monthly run **does not re-download** published academies; it only checks
+links. To re-read a specific record, use `bailoteca refresh <slug>`.
 
 ### OSM
 
-`OverpassSource` está implementado pero desactivado por defecto. El spike del
-2026-11-09 no pudo medir su cobertura porque la red bloqueó ambos endpoints; ver
-`docs/osm-spike.md`. Se puede activar con `BAILOTECA_SOURCES=seed,search,osm`
-cuando haya red y se valide el criterio de corte.
+`OverpassSource` is implemented but disabled by default. The 2026-11-09 spike
+could not measure its coverage because the network blocked both endpoints; see
+`docs/osm-spike.md`. It can be enabled with `BAILOTECA_SOURCES=seed,search,osm`
+once there is network and the cutoff criterion is validated.
 
-## Seguridad
+## Security
 
-- RLS activo en las ocho tablas.
-- La llave anónima solo hace `select` sobre `styles`, `academies`,
-  `academy_locations`, `academy_links` y `academy_styles`.
-- No hay políticas de escritura para `anon`.
-- `candidates`, `proposals` y `field_rejections` solo se leen y escriben con la
-  llave de servicio (la CLI).
-- No se scrapea Instagram: se guarda el handle público como enlace.
-- El HTML crudo queda en `data/cache/` (ignorado por git) y como artifact del
-  workflow, nunca en la base.
+- RLS is active on all eight tables.
+- The anonymous key only runs `select` on `styles`, `academies`,
+  `academy_locations`, `academy_links` and `academy_styles`.
+- There are no write policies for `anon`.
+- `candidates`, `proposals` and `field_rejections` are only read and written
+  with the service key (the CLI).
+- Instagram is not scraped: the public handle is stored as a link.
+- Raw HTML stays in `data/cache/` (git-ignored) and as a workflow artifact,
+  never in the database.
 
-## Estructura
+## Structure
 
 ```text
 parser/
   src/bailoteca/
-    cli.py        # comandos bailoteca
-    config.py     # lectura de entorno
-    db.py         # escrituras SQL; reexporta las lecturas de shared
-    discover.py   # deduplicación entre fuentes
-    enrich.py     # descarga segura, JSON-LD, redes y caché
-    classify.py   # reglas + fusión con LLM
-    propose.py    # payloads, dedupe y rechazos
-    publish.py    # validación, aprobación y publicación
-    run.py        # corrida completa, dry-run y refresh
-    links.py      # enlaces muertos
-    report.py     # reporte semanal
+    cli.py        # bailoteca commands
+    config.py     # environment reading
+    db.py         # SQL writes; re-exports the reads from shared
+    discover.py   # deduplication across sources
+    enrich.py     # safe download, JSON-LD, socials and cache
+    classify.py   # rules + LLM merge
+    propose.py    # payloads, dedupe and rejections
+    publish.py    # validation, approval and publishing
+    run.py        # full run, dry-run and refresh
+    links.py      # dead links
+    report.py     # run report
   tests/
   data/seed.csv
   reports/
-shared/           # conexión, lecturas y DTOs compartidos con la API
+shared/           # connection, reads and DTOs shared with the API
 supabase/migrations/
 ```
 
-## Limitaciones de v1
+## v1 limitations
 
-- Sin horarios ni precios.
-- Sin frontend todavía: la API y la web están planificadas en `api/` y `web/`.
-- Solo comunas de Santiago en las consultas de búsqueda.
-- `verified_at` solo lo fija una persona; una corrida automática nunca lo toca.
+- No schedules or prices.
+- The API and web app live in `api/` and `web/`; this package only writes to the
+  database.
+- Only Santiago comunas in the search queries.
+- `verified_at` is only set by a person; an automated run never touches it.
