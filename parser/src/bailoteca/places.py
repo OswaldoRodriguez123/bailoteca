@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from difflib import SequenceMatcher
 import sys
 import unicodedata
 from dataclasses import dataclass, field
@@ -57,7 +58,10 @@ def _query_variants(
         combos.append([base, address])
     if comuna:
         combos.append([base, comuna])
+        for extra in ("academia de baile", "clases de baile", "danza"):
+            combos.append([base, extra, comuna])
     combos.append([base])
+    combos.append([base, "academia de baile"])
     for combo in combos:
         parts = [p for p in combo if p]
         if comuna and comuna.lower() not in " ".join(parts).lower():
@@ -100,6 +104,13 @@ def _pick_result(results: list[dict], name: str, comuna: str | None) -> dict | N
                 score += 1
         if comuna_l and comuna_l in address:
             score += 1
+        # Similitud difusa para nombres comerciales (Mambo Roakes ~ Mambo Rock).
+        if clean and title:
+            similarity = SequenceMatcher(None, clean, title).ratio()
+            if similarity >= 0.6:
+                score += 2
+                if similarity > 0.75:
+                    score += 1
         if score > best_score:
             best_score = score
             best = item
