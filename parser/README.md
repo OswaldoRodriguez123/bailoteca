@@ -233,7 +233,6 @@ parser/
     run.py        # corrida completa, dry-run y refresh
     links.py      # enlaces muertos
     report.py     # reporte semanal
-    osm_spike.py  # resumen de cobertura OSM
   tests/
   data/seed.csv
   reports/

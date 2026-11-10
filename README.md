@@ -1,79 +1,101 @@
 # Bailoteca
 
-Directorio de academias de baile en Santiago de Chile, empezando por salsa.
-Monorepo con un pipeline de datos, una API de solo lectura y una web, sobre un
-esquema Postgres compartido.
+Dance school directory for Santiago de Chile, starting with salsa. A monorepo
+with a data pipeline, a read-only API and a web app, all on one shared Postgres
+schema.
 
-- **Costo $0**: Supabase free, GitHub Actions y fuentes gratuitas.
-- **Publicado = aprobado por una persona**: el pipeline propone; la CLI publica.
-- **Sin scraping de Instagram**: se guarda el handle público como enlace.
+[![API](https://github.com/OswaldoRodriguez123/bailoteca/actions/workflows/api.yml/badge.svg)](https://github.com/OswaldoRodriguez123/bailoteca/actions/workflows/api.yml)
+[![web](https://github.com/OswaldoRodriguez123/bailoteca/actions/workflows/web.yml/badge.svg)](https://github.com/OswaldoRodriguez123/bailoteca/actions/workflows/web.yml)
+[![parser](https://github.com/OswaldoRodriguez123/bailoteca/actions/workflows/parser.yml/badge.svg)](https://github.com/OswaldoRodriguez123/bailoteca/actions/workflows/parser.yml)
 
-## Componentes
+[Web](https://bailoteca.vercel.app) · [API docs](https://bailoteca-api.vercel.app/docs)
 
-| Carpeta   | Qué es                                                        | Estado        |
-| --------- | ------------------------------------------------------------- | ------------- |
-| `parser/` | Pipeline: descubrir → filtrar → enriquecer → clasificar → proponer | Funcionando |
-| `shared/` | Paquete `bailoteca-shared`: conexión, lecturas y DTOs Pydantic | Funcionando |
-| `api/`    | FastAPI de solo lectura                                        | Funcionando   |
-| `web/`    | Angular: listado y detalle de academias                        | Funcionando   |
-| `supabase/migrations/` | Esquema y RLS compartidos                         | Funcionando   |
+![Bailoteca web app](docs/assets/screenshot.png)
+
+- **$0 to run**: Supabase free tier, GitHub Actions and free data sources.
+- **Published means a human approved it**: the pipeline proposes, the CLI publishes.
+- **No Instagram scraping**: only the public profile preview (Open Graph) is
+  read; it never logs in or walks through posts.
+
+## How it works
+
+```text
+discover → filter → enrich → classify → propose → approve
+```
+
+1. **Discover** academies from a seed list, web search and OpenStreetMap.
+2. **Filter** noise (directories, aggregators, unrelated results).
+3. **Enrich** with the public site, JSON-LD, social links and Google Maps.
+4. **Classify** dance styles with rules plus an LLM fallback.
+5. **Propose** a payload for a human to review.
+6. **Approve** with the CLI, which validates and publishes to Postgres.
+
+## Components
+
+| Folder | What it is | Status |
+| --- | --- | --- |
+| `parser/` | Pipeline: discover → filter → enrich → classify → propose | Working |
+| `shared/` | `bailoteca-shared` package: connection, reads and Pydantic DTOs | Working |
+| `api/` | Read-only FastAPI | Working |
+| `web/` | Angular: list and detail views | Working |
+| `supabase/migrations/` | Shared schema and RLS | Working |
 
 ```text
 bailoteca/
 ├── parser/                  # pipeline + CLI
 │   ├── src/bailoteca/
 │   ├── tests/
-│   ├── data/                # seed.csv + caché (ignorada)
-│   └── reports/             # reportes por corrida (ignorados)
+│   ├── data/                # seed.csv + cache (ignored)
+│   └── reports/             # per-run reports (ignored)
 ├── shared/                  # bailoteca-shared
 │   ├── src/bailoteca_shared/
 │   └── tests/
-├── api/                     # FastAPI de solo lectura
-├── web/                     # SPA Angular (listado y detalle)
+├── api/                     # FastAPI
+├── web/                     # Angular SPA
 ├── supabase/migrations/     # 0001_schema.sql, 0002_rls.sql, 0003_api_readonly.sql
-├── docs/superpowers/        # specs y planes
+├── docs/architecture.md     # design decisions
 └── .github/workflows/       # parser.yml, api.yml, web.yml
 ```
 
-## Quickstart del parser
+## Parser quickstart
 
-Requisitos: Python 3.12+, un Postgres 14+ (Supabase free sirve) y, opcional, una
-API key de Gemini.
+Requirements: Python 3.12+, a Postgres 14+ database (Supabase free works) and,
+optionally, a Gemini API key.
 
 ```bash
-# 1. Entorno e instalación (desde la raíz)
+# 1. Environment and install (from the repo root)
 python -m venv .venv
 .venv/bin/pip install -e shared -e "parser[dev]"
 
-# 2. Configuración
+# 2. Configuration
 cp parser/.env.example parser/.env
-# editar parser/.env con DATABASE_URL y las claves opcionales
+# edit parser/.env with DATABASE_URL and the optional keys
 
-# 3. Migraciones (SQL Editor de Supabase, en orden)
+# 3. Migrations (Supabase SQL Editor, in order)
 #    supabase/migrations/0001_schema.sql
 #    supabase/migrations/0002_rls.sql
 #    supabase/migrations/0003_api_readonly.sql
 #    supabase/migrations/0004_add_bachata.sql
 
-# 4. Correr el pipeline
+# 4. Run the pipeline
 cd parser
-../.venv/bin/python -m bailoteca run --dry-run   # sin escribir en la BD
-../.venv/bin/python -m bailoteca run             # escribe propuestas
-../.venv/bin/python -m bailoteca review          # ver pendientes
-../.venv/bin/python -m bailoteca approve <id>    # publicar
+../.venv/bin/python -m bailoteca run --dry-run   # no database writes
+../.venv/bin/python -m bailoteca run             # writes proposals
+../.venv/bin/python -m bailoteca review          # list pending
+../.venv/bin/python -m bailoteca approve <id>    # publish
 ```
 
-Detalles del pipeline, filtro de ruido, fuentes y cuota de SerpApi en
+Pipeline details, noise filter, sources and SerpApi quota live in
 [`parser/README.md`](parser/README.md).
 
 ## Tests
 
 ```bash
-# desde la raíz
+# from the repo root
 .venv/bin/python -m pytest parser/tests shared/tests -q
 .venv/bin/python -m pytest shared/tests api/tests -q
 
-# integración contra un Postgres de prueba
+# integration against a test Postgres
 TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/bailoteca_test \
   .venv/bin/python -m pytest parser/tests shared/tests -q
 
@@ -81,51 +103,50 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/bailoteca_test 
 cd web && npm test -- --watch=false
 ```
 
-## API y web
+## API and web
 
-- [`api/README.md`](api/README.md): FastAPI de solo lectura, endpoints,
-  filtros, rate limit y usuario read-only.
-- [`web/README.md`](web/README.md): Angular y consumo de `API_BASE_URL`.
-
-La API se instala y corre desde la raíz:
+- [`api/README.md`](api/README.md): read-only FastAPI, endpoints, filters,
+  rate limit and the read-only database user.
+- [`web/README.md`](web/README.md): Angular app and `API_BASE_URL`.
 
 ```bash
 .venv/bin/pip install -e shared -e "api[dev]"
-cp api/.env.example api/.env      # completar DATABASE_URL_READONLY
+cp api/.env.example api/.env      # fill in DATABASE_URL_READONLY
 .venv/bin/uvicorn bailoteca_api.main:app --reload
 ```
 
-## Despliegue
+## Deployment
 
-- **Parser**: GitHub Actions, `.github/workflows/parser.yml`, el **1° de cada
-  mes a las 03:00 UTC**. Solo corre por cron o manualmente
-  (`workflow_dispatch`); un push no lo dispara.
-- **API**: Vercel con Root Directory `api/`:
-  <https://bailoteca-api.vercel.app> (`/docs` para OpenAPI).
-- **Web**: Vercel con Root Directory `web/`:
+- **Parser**: GitHub Actions, `.github/workflows/parser.yml`, on the **1st of
+  each month at 03:00 UTC**. It only runs on schedule or manually
+  (`workflow_dispatch`); a push does not trigger it.
+- **API**: Vercel with Root Directory `api/`:
+  <https://bailoteca-api.vercel.app> (`/docs` for OpenAPI).
+- **Web**: Vercel with Root Directory `web/`:
   <https://bailoteca.vercel.app>.
-- **Base de datos**: Supabase; las migraciones se aplican a mano desde el SQL
-  Editor.
+- **Database**: Supabase; migrations are applied by hand from the SQL Editor.
 
-## Secretos
+## Secrets
 
-Ningún `.env` se versiona. Cada componente tiene su `.env.example`:
+No `.env` is committed. Each component has its own `.env.example`:
 
-| Componente | Variables |
-| ---------- | --------- |
-| Parser     | `DATABASE_URL` (escritura), `GEMINI_API_KEY`, `SERPAPI_KEY`, `CLOUDFLARE_*` |
-| API        | `DATABASE_URL_READONLY`, `CORS_ORIGINS`, `RATE_LIMIT`, `DB_POOL_MAX_SIZE` |
-| Web        | `API_BASE_URL` |
+| Component | Variables |
+| --- | --- |
+| Parser | `DATABASE_URL` (write), `GEMINI_API_KEY`, `SERPAPI_KEY`, `CLOUDFLARE_*` |
+| API | `DATABASE_URL_READONLY`, `CORS_ORIGINS`, `RATE_LIMIT`, `DB_POOL_MAX_SIZE` |
+| Web | `API_BASE_URL` |
 
-En GitHub Actions, los secretos del parser se configuran en
-`Settings → Secrets and variables → Actions`. La API usa el usuario de Supabase
-`bailoteca_api`, creado por `supabase/migrations/0003_api_readonly.sql`; su
-contraseña se define a mano en el SQL Editor y se pasa como
-`DATABASE_URL_READONLY` (pooler, puerto 6543). La migración `0003` se aplica a
-mano, igual que `0001` y `0002`.
+In GitHub Actions the parser secrets live in
+`Settings → Secrets and variables → Actions`. The API uses the Supabase user
+`bailoteca_api`, created by `supabase/migrations/0003_api_readonly.sql`; its
+password is set by hand in the SQL Editor and passed as
+`DATABASE_URL_READONLY` (pooler, port 6543).
 
-## Documentación
+## Documentation
 
-- Diseño del monorepo: `docs/superpowers/specs/2026-11-09-monorepo-design.md`
-- Plan de migración: `docs/superpowers/plans/2026-11-09-monorepo-restructure.md`
-- Spike de OSM: `parser/docs/osm-spike.md`
+- [Architecture and design decisions](docs/architecture.md)
+- [OSM spike notes](parser/docs/osm-spike.md)
+
+## License
+
+MIT. See [LICENSE](LICENSE).

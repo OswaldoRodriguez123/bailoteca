@@ -62,3 +62,4 @@ jobs:
         with:
           name: reportes
           path: parser/reports/
+          retention-days: 7

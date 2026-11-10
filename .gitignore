@@ -8,3 +8,4 @@ parser/data/cache/*
 reports/
 *.egg-info/
 data/cache/
+web/.vscode/
