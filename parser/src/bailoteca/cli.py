@@ -35,6 +35,7 @@ def _print_summary(summary) -> None:
     print(
         f"descubiertos={summary.discovered} "
         f"filtrados_reglas={summary.filtered_rules} "
+        f"duplicados={summary.duplicates} "
         f"filtrados_clef={summary.filtered_clef} "
         f"nuevos={summary.new_candidates} "
         f"propuestas={summary.proposals} "

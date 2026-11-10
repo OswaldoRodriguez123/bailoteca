@@ -17,6 +17,7 @@ def render_weekly_report(
     lines = ["# Reporte semanal del directorio", ""]
     lines.append(f"- Candidatos descubiertos: {summary.discovered}")
     lines.append(f"- Descartados por reglas: {summary.filtered_rules}")
+    lines.append(f"- Descartados por duplicado (publicados/pendientes): {summary.duplicates}")
     lines.append(f"- Descartados por Clef: {summary.filtered_clef}")
     lines.append(f"- Clef con error (pasaron): {summary.clef_errors}")
     lines.append(f"- Candidatos nuevos: {summary.new_candidates}")

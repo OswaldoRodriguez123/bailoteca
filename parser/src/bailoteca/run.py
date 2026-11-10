@@ -20,6 +20,7 @@ from bailoteca.db import (
     rejected_values,
     upsert_candidate,
 )
+from bailoteca.dedupe import build_existing_index, is_duplicate
 from bailoteca.discover import collect
 from bailoteca.enrich import CachedFetcher, HttpxFetcher, enrich
 from bailoteca.links import check_published
@@ -45,6 +46,7 @@ class RunSummary:
     proposals: int = 0
     needs_review: int = 0
     dead_links: int = 0
+    duplicates: int = 0
     duration_s: float = 0.0
 
 
@@ -220,6 +222,21 @@ def run(
                 "Falta DATABASE_URL. Configúrala en .env o usa run --dry-run."
             )
         conn = connect(config.database_url)
+
+    if conn is not None:
+        published = list_published(conn)
+        rows = conn.execute(
+            "select payload from proposals where status = 'pending'"
+        ).fetchall()
+        pending = [row["payload"] for row in rows]
+        index = build_existing_index(published, pending)
+        kept_candidates: list[Candidate] = []
+        for candidate in candidates:
+            if is_duplicate(candidate, index):
+                summary.duplicates += 1
+            else:
+                kept_candidates.append(candidate)
+        candidates = kept_candidates
 
     try:
         for candidate in candidates:
