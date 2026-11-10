@@ -23,7 +23,7 @@ api/
 ├── pyproject.toml
 ├── requirements.txt            # instalación para Vercel
 ├── .env.example
-├── src/bailoteca_api/
+├── bailoteca_api/
 │   ├── main.py                 # create_app: CORS, limiter, routers, errores
 │   ├── config.py               # Settings desde env
 │   ├── db.py                   # pool perezoso + dependency get_conn
@@ -178,13 +178,15 @@ solo lectura, pero en producción conviene listar el dominio de la web.
 ## Despliegue en Vercel
 
 - **Root Directory**: `api/`.
-- Vercel detecta `app` por `[tool.vercel] entrypoint` en `pyproject.toml`
-  (`bailoteca_api.main:app`).
-- `requirements.txt` instala el paquete local y `../shared` (`-e .`,
-  `-e ../shared`).
+- Vercel resuelve `[tool.vercel] entrypoint = "bailoteca_api.main:app"` como
+  `api/bailoteca_api/main.py`. Por eso el paquete vive en la raíz de `api/`, no
+  dentro de `src/`.
+- `requirements.txt` instala el paquete local y `../shared` sin `-e`. Vercel
+  copia ambos a `_vendor`; un install editable dejaría un `.pth` con una ruta
+  de build que no existe en runtime.
 - Si el build de Vercel no ve `../shared`, las salidas documentadas son
-  publicar `bailoteca-shared` como wheel o mover el Root Directory a la raíz del
-  repo.
+  publicar `bailoteca-shared` como wheel o usar una dependencia
+  `git+https://...#subdirectory=shared`.
 - Configurar `DATABASE_URL_READONLY`, `CORS_ORIGINS`, `RATE_LIMIT` y
   `DB_POOL_MAX_SIZE` en Vercel. Ningún `.env` se versiona.
 

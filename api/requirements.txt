@@ -1,2 +1,4 @@
--e .
--e ../shared
+# Sin -e: Vercel instala con --target _vendor y un editable .pth apuntaría
+# a una ruta de build que no existe en runtime.
+.
+../shared
