@@ -18,6 +18,14 @@ GENERIC_WORDS = {
     "los",
     "las",
     "y",
+    # Tokens técnicos/regionales que aparecen en títulos SEO pero no identifican negocios.
+    "www",
+    "cl",
+    "com",
+    "chile",
+    "instagram",
+    "facebook",
+    "tt",
 }
 
 

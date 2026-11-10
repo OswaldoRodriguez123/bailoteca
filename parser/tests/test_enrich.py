@@ -90,7 +90,7 @@ def test_enrich_adds_candidate_social_url_as_link():
         Candidate("Mambo Roakes", "https://www.facebook.com/MamboRockChile/", None, "serpapi"),
         _FakeFetcher(page),
     )
-    assert enriched.links["facebook"] == ["https://www.facebook.com/MamboRockChile/"]
+    assert enriched.links["facebook"] == ["https://facebook.com/MamboRockChile/"]
 
 
 def test_cached_fetcher_only_fetches_once(tmp_path):
@@ -144,3 +144,25 @@ def test_enrich_does_not_fetch_instagram():
     )
     assert fetcher.calls == 0
     assert enriched.links["instagram"] == ["https://instagram.com/soloig"]
+
+
+def test_extract_social_links_drops_facebook_nav_urls():
+    from bailoteca.enrich import _normalize_social
+
+    nav = [
+        "https://www.facebook.com/about/",
+        "https://www.facebook.com/help/1234",
+        "https://www.facebook.com/login",
+        "https://www.facebook.com/watch/?v=123",
+        "https://www.facebook.com/photo.php?fbid=123",
+        "https://www.facebook.com/ad_campaign/landing.php",
+    ]
+    for url in nav:
+        assert _normalize_social("facebook", url) is None, url
+
+
+def test_extract_social_links_keeps_business_profile():
+    from bailoteca.enrich import _normalize_social
+
+    assert _normalize_social("facebook", "https://www.facebook.com/MamboRockChile/") == "https://facebook.com/MamboRockChile/"
+    assert _normalize_social("facebook", "https://www.facebook.com/p/Entredanzas-Academia-100092571087976/") == "https://www.facebook.com/p/Entredanzas-Academia-100092571087976/"

@@ -20,6 +20,13 @@ MAX_BYTES = 5 * 1024 * 1024
 TIMEOUT_SECONDS = 10.0
 INSTAGRAM_POST_PREFIXES = ("/p/", "/reel/", "/tv/", "/stories/")
 SHARE_PATHS = ("/sharer", "/share")
+# Rutas de navegación/infra de Facebook que no identifican un negocio.
+FACEBOOK_NAV_PATHS = frozenset({
+    "about", "ad_campaign", "ads", "careers", "cookies", "developers",
+    "groups", "help", "home.php", "lite", "login", "marketplace",
+    "pages", "photo.php", "policies", "privacy", "problems", "recover",
+    "reg", "settings", "share", "sharer", "watch",
+})
 
 
 @dataclass(frozen=True)
@@ -188,6 +195,17 @@ def _normalize_social(kind: str, raw: str) -> str | None:
             return None
         handle = path.strip("/").split("/")[0]
         return f"https://instagram.com/{handle}" if handle else None
+    if kind == "facebook":
+        if host != "facebook.com":
+            return None
+        segments = [seg for seg in path.split("/") if seg]
+        if not segments:
+            return None
+        first = segments[0]
+        if first.lower() in FACEBOOK_NAV_PATHS:
+            return None
+        # Perfiles clásicos: /<username>/ (preserva mayúsculas).
+        return f"https://facebook.com/{first}/" if first.lower() != "p" else raw
     if any(marker in path for marker in SHARE_PATHS):
         return None
     return raw
