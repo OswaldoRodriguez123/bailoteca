@@ -294,3 +294,26 @@ def test_brave_source_uses_delay_between_queries(monkeypatch):
 
     BraveSource(["uno", "dos"], api_key="k", http=_Http(), delay=1.0).discover()
     assert sleeps and all(0.9 <= s <= 1.0 for s in sleeps)
+
+
+def test_parse_brave_json_keeps_clean_description_in_raw():
+    from bailoteca.sources.brave import parse_brave_json
+
+    data = {
+        "web": {
+            "results": [
+                {
+                    "title": "Mambo Madness | Clases",
+                    "url": "https://www.salsasaborcaribe.com/",
+                    "description": "<strong>Mambo Madness</strong> en Providencia. Clases de Salsa para todos. &quot;Explora nuestra escuela!&quot;",
+                    "language": "es",
+                }
+            ]
+        }
+    }
+    cands = parse_brave_json(data)
+    assert len(cands) == 1
+    assert cands[0].raw["description"] == (
+        "Mambo Madness en Providencia. Clases de Salsa para todos. "
+        '"Explora nuestra escuela!"'
+    )

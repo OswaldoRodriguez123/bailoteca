@@ -152,3 +152,39 @@ def test_existing_with_list_published_shape_keeps_fallback_values():
     assert draft.payload["links"] == [{"kind": "instagram", "url": "https://instagram.com/x"}]
     # Los estilos copiados no deben arrastrar 'name' (validación extra=forbid)
     assert draft.payload["styles"] == [{"slug": "salsa-cubana", "confidence": 0.9, "evidence": None}]
+
+
+def test_build_proposal_falls_back_to_candidate_description_when_enriched_has_none():
+    candidate = Candidate(
+        "Academia X",
+        "https://x.cl",
+        None,
+        "brave",
+        raw={"description": "Clases de salsa desde cero."},
+    )
+    draft = build_proposal(
+        candidate,
+        _enriched(description=None, page_url="https://x.cl"),
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=None,
+        rejections=set(),
+    )
+    assert draft.payload["description"] == "Clases de salsa desde cero."
+
+
+def test_build_proposal_prefers_enriched_description_over_candidate_description():
+    candidate = Candidate(
+        "Academia X",
+        "https://x.cl",
+        None,
+        "brave",
+        raw={"description": "Snippet de búsqueda."},
+    )
+    draft = build_proposal(
+        candidate,
+        _enriched(description="Descripción real de la página."),
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=None,
+        rejections=set(),
+    )
+    assert draft.payload["description"] == "Descripción real de la página."

@@ -6,8 +6,10 @@ Requiere BRAVE_API_KEY (plan free con registro en api.search.brave.com).
 
 from __future__ import annotations
 
+import re
 import time
 
+from html import unescape
 from typing import Protocol
 from urllib.parse import urlsplit
 
@@ -19,6 +21,16 @@ BRAVE_URL = "https://api.search.brave.com/res/v1/web/search"
 
 class HttpClient(Protocol):
     def get(self, url: str, params: dict | None = None, headers: dict | None = None, timeout: float | None = None): ...
+
+
+def _clean_description(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    # Quita etiquetas <strong> y entidades HTML; colapsa espacios.
+    text = re.sub(r"<[^>]+>", " ", value)
+    text = unescape(text)
+    text = " ".join(text.split())
+    return text or None
 
 
 def parse_brave_json(data: dict) -> list[Candidate]:
@@ -48,8 +60,10 @@ def parse_brave_json(data: dict) -> list[Candidate]:
         handle = None
         if host == "instagram.com":
             handle = parts.path.strip("/").split("/")[0].lstrip("@") or None
+        description = _clean_description(item.get("description"))
+        raw = {"description": description} if description else {}
         candidates.append(
-            Candidate(name=title, url=url, handle=handle, source="brave")
+            Candidate(name=title, url=url, handle=handle, source="brave", raw=raw)
         )
     return candidates
 

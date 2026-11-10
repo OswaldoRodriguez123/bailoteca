@@ -116,8 +116,15 @@ def _build_payload(
         payload["styles"] = style_payload(hits)
         return payload
 
+    candidate_description = None
+    raw = getattr(candidate, "raw", None)
+    if isinstance(raw, dict):
+        candidate_description = raw.get("description")
+
     if enriched.description:
         payload["description"] = enriched.description
+    elif candidate_description:
+        payload["description"] = candidate_description
     elif existing and existing.get("description"):
         payload["description"] = existing["description"]
 
