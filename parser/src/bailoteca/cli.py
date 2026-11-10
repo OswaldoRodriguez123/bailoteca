@@ -267,6 +267,19 @@ def cmd_clear_places(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_refresh_images(args: argparse.Namespace) -> int:
+    from bailoteca.images import refresh_images
+
+    summary = refresh_images(_load_config(), dry_run=getattr(args, "dry_run", False))
+    print(
+        f"revisadas={summary['checked']} "
+        f"actualizadas={summary['updated']} "
+        f"mantienen_google={summary['kept_google']} "
+        f"sin_imagen={summary['no_image']}"
+    )
+    return 0
+
+
 def cmd_export(args: argparse.Namespace) -> int:
     from bailoteca.db import list_published
 
@@ -408,6 +421,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     clear_places.add_argument("slugs", nargs="+", help="Slugs de las academias")
     clear_places.set_defaults(handler=cmd_clear_places)
+
+    refresh_images = subparsers.add_parser(
+        "refresh-images",
+        help="Re-firmar portadas desde og:image (Instagram/Facebook/web)",
+    )
+    refresh_images.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Imprime los cambios sin escribir en la base de datos",
+    )
+    refresh_images.set_defaults(handler=cmd_refresh_images)
 
     export = subparsers.add_parser("export", help="Exportar las academias publicadas")
     export.add_argument("--csv", action="store_true", help="Escribir CSV a stdout")
