@@ -101,7 +101,6 @@
         item.google &&
         (item.google.rating !== null ||
           item.google.price ||
-          item.google.open_state ||
           item.google.hours ||
           item.google.maps_url)
       ) {
@@ -122,19 +121,15 @@
               <p class="text-sm text-stone-600">Precio: {{ item.google.price }}</p>
             }
 
-            @if (item.google.open_state) {
-              <p class="text-sm text-stone-600">{{ item.google.open_state }}</p>
-            }
-
             @if (item.google.hours) {
-              <details class="text-sm text-stone-600">
-                <summary class="cursor-pointer font-medium">Horarios</summary>
-                <ul class="mt-2 space-y-1">
+              <div class="text-sm text-stone-600">
+                <p class="font-medium">Horarios</p>
+                <ul class="mt-1 space-y-1">
                   @for (entry of googleHoursEntries(item.google.hours); track entry[0]) {
                     <li>{{ entry[0] }}: {{ entry[1] }}</li>
                   }
                 </ul>
-              </details>
+              </div>
             }
 
             <p class="text-xs text-stone-500">
