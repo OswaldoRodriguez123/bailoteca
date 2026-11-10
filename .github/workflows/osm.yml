@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  spike:
+  probe:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -12,4 +12,35 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e shared -e "parser[dev]"
-      - run: python -m bailoteca spike
+      - run: python - <<'PY'
+          import json, time
+          import httpx
+          from bailoteca.sources.osm import build_query, parse_overpass, GRAN_SANTIAGO_BBOX
+
+          mirrors = [
+              "https://overpass-api.de/api/interpreter",
+              "https://overpass.kumi.systems/api/interpreter",
+              "https://overpass.private.coffee/api/interpreter",
+              "https://overpass.osm.ch/api/interpreter",
+              "https://overpass.nchc.org.tw/api/interpreter",
+              "https://overpass.fi/api/interpreter",
+              "https://lz4.overpass-api.de/api/interpreter",
+          ]
+          bbox = GRAN_SANTIAGO_BBOX
+          count_query = f"[out:json][timeout:25];(node[\"amenity\"=\"dancing_school\"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]}););out count;"
+          full_query = build_query(bbox)
+
+          for ep in mirrors:
+              try:
+                  t0 = time.time()
+                  r = httpx.post(ep, content=count_query, timeout=45)
+                  print(f"[probe] {ep} status={r.status_code} in {time.time()-t0:.1f}s", flush=True)
+                  if r.status_code == 200:
+                      data = r.json()
+                      print("[probe] count response:", json.dumps(data)[:300], flush=True)
+                      break
+              except Exception as e:
+                  print(f"[probe] {ep} ERROR: {e}", flush=True)
+          else:
+              print("[probe] todos los mirrors fallaron", flush=True)
+          PY
