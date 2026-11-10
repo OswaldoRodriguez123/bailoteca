@@ -23,9 +23,20 @@ class PlaceInfo:
     fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+def clean_name(name: str | None) -> str:
+    if not name:
+        return ""
+    # Google suele indexar el nombre comercial sin el texto promocional.
+    for separator in ("|", "(", "@"):
+        if separator in name:
+            name = name.split(separator, 1)[0]
+    return " ".join(name.split())
+
+
 def _pick_result(results: list[dict], name: str, comuna: str | None) -> dict | None:
     if not results:
         return None
+    clean = clean_name(name).lower()
     name_l = (name or "").lower()
     comuna_l = (comuna or "").lower()
     best = None
@@ -34,14 +45,24 @@ def _pick_result(results: list[dict], name: str, comuna: str | None) -> dict | N
         title = (item.get("title") or "").lower()
         address = (item.get("address") or "").lower()
         score = 0
-        if name_l and (name_l in title or title in name_l):
+        if clean and (clean in title or title in clean):
+            score += 3
+        elif name_l and (name_l in title or title in name_l):
             score += 2
+        # Coincidencia por palabras significativas del nombre.
+        if clean:
+            words = [w for w in clean.split() if len(w) > 3]
+            if words and all(word in title for word in words[:2]):
+                score += 1
         if comuna_l and comuna_l in address:
             score += 1
         if score > best_score:
             best_score = score
             best = item
-    return best if best is not None else results[0]
+    # Si ningún resultado se parece al nombre, no tomar uno arbitrario.
+    if best is None or best_score < 2:
+        return None
+    return best
 
 
 def parse_place(data: dict, name: str, comuna: str | None) -> PlaceInfo | None:
@@ -90,9 +111,18 @@ def fetch_place(
     api_key: str,
     timeout: float = 10.0,
 ) -> PlaceInfo | None:
+    cleaned = clean_name(name)
+    query_parts = [cleaned or name]
+    if address:
+        query_parts.append(address)
+    if comuna and comuna.lower() not in " ".join(query_parts).lower():
+        query_parts.append(comuna)
+    if "chile" not in " ".join(query_parts).lower():
+        query_parts.append("Chile")
     params: dict[str, str] = {
         "engine": "google_maps",
-        "q": " ".join(part for part in (name, comuna, "Santiago Chile") if part).strip(),
+        "type": "search",
+        "q": " ".join(part for part in query_parts if part).strip(),
         "api_key": api_key,
         "gl": "cl",
         "hl": "es",
