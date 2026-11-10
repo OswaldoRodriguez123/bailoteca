@@ -64,6 +64,9 @@ def _query_variants(
     combos.append([base, "academia de baile"])
     combos.append([base, "estudio de danza"])
     combos.append([base, "clases de baile"])
+    # Búsquedas más amplias por si la comuna no coincide con Google.
+    combos.append([base, "Chile"])
+    combos.append([base, "Santiago", "Chile"])
     for combo in combos:
         parts = [p for p in combo if p]
         if comuna and comuna.lower() not in " ".join(parts).lower():
