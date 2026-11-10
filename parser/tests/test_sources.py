@@ -185,3 +185,47 @@ def test_serpapi_source_ignores_corrupt_cache(tmp_path):
         cache_dir=tmp_path,
     ).discover()
     assert len(calls) == 2
+
+
+def test_overpass_source_passes_user_agent_and_retries(monkeypatch):
+    from bailoteca.sources.osm import OVERPASS_ENDPOINTS, OverpassSource
+
+    fixture = json.loads((FIXTURES / "overpass.json").read_text())
+    calls = []
+    responses = [
+        type("R", (), {"status_code": 502, "json": lambda self: {}}),
+        type("R", (), {"status_code": 200, "json": lambda self: fixture}),
+    ]
+    sleeps = []
+
+    class _Http:
+        def post(self, url, content=None, headers=None, timeout=None):
+            calls.append((url, headers, timeout))
+            return responses.pop(0)()
+
+    monkeypatch.setattr("bailoteca.sources.osm.time.sleep", sleeps.append)
+    cands = OverpassSource(http=_Http()).discover()
+    assert len(cands) == 1
+    assert calls[0][0] == OVERPASS_ENDPOINTS[0]
+    assert calls[0][1]["User-Agent"]
+    assert calls[0][2] >= 60
+    assert sleeps == [5.0]
+
+
+def test_overpass_source_returns_empty_when_all_attempts_fail(monkeypatch):
+    from bailoteca.sources.osm import OverpassSource
+
+    calls = []
+    sleeps = []
+
+    class _Http:
+        def post(self, url, content=None, headers=None, timeout=None):
+            calls.append(url)
+            raise TimeoutError("red colgada")
+
+    monkeypatch.setattr("bailoteca.sources.osm.time.sleep", sleeps.append)
+    assert OverpassSource(http=_Http()).discover() == []
+    import bailoteca.sources.osm as osm_module
+
+    assert len(calls) == len(osm_module.OVERPASS_ENDPOINTS) * osm_module.MAX_ATTEMPTS
+    assert sleeps == [5.0] * len(calls)

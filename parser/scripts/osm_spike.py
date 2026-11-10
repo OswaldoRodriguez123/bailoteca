@@ -9,27 +9,7 @@ import sys
 from pathlib import Path
 
 from bailoteca.osm_spike import summarize
-from bailoteca.sources.osm import (
-    GRAN_SANTIAGO_BBOX,
-    OVERPASS_ENDPOINTS,
-    build_query,
-    parse_overpass,
-)
-
-
-def load_from_overpass(bbox) -> dict:
-    import httpx
-
-    query = build_query(bbox)
-    last_error = None
-    for endpoint in OVERPASS_ENDPOINTS:
-        try:
-            response = httpx.post(endpoint, content=query, timeout=60.0)
-            response.raise_for_status()
-            return response.json()
-        except Exception as error:  # noqa: BLE001 - el spike reporta el fallo
-            last_error = error
-    raise SystemExit(f"Overpass no respondió: {last_error}")
+from bailoteca.sources.osm import GRAN_SANTIAGO_BBOX, OverpassSource, parse_overpass
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -43,13 +23,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.fixture:
         data = json.loads(args.fixture.read_text(encoding="utf-8"))
+        candidates = parse_overpass(data)
         endpoint = f"fixture:{args.fixture}"
     else:
-        data = load_from_overpass(GRAN_SANTIAGO_BBOX)
+        candidates = OverpassSource().discover()
         endpoint = "overpass"
 
-    summary = summarize(parse_overpass(data))
-    result = {"endpoint": endpoint, "bbox": GRAN_SANTIAGO_BBOX, **summary}
+    summary = summarize(candidates)
+    result = {"endpoint": endpoint, "bbox": list(GRAN_SANTIAGO_BBOX), **summary}
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 

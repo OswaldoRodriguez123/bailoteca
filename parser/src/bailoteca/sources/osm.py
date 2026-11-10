@@ -1,15 +1,24 @@
 from __future__ import annotations
 
 import json
+import time
 from typing import Protocol
 
 from bailoteca.models import Candidate
 from bailoteca.normalize import normalize_handle
 
+# Solo se conservan los endpoints que sirven datos de Chile y responden con
+# una User-Agent identificable; el resto está caído, saturado o sirve solo su
+# región (p. ej. osm.ch devuelve 0 fuera de Suiza).
 OVERPASS_ENDPOINTS = [
     "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
+    "https://lz4.overpass-api.de/api/interpreter",
 ]
+USER_AGENT = "Bailoteca/1.0 (+https://github.com/OswaldoRodriguez123/bailoteca)"
+REQUEST_HEADERS = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+MAX_ATTEMPTS = 2
+BACKOFF_SECONDS = 5.0
+TIMEOUT_SECONDS = 90.0
 GRAN_SANTIAGO_BBOX = (-33.65, -70.85, -33.30, -70.50)
 
 QUERY_TEMPLATE = """
@@ -89,14 +98,23 @@ class OverpassSource:
             http = self.http
         query = build_query(self.bbox)
         for endpoint in OVERPASS_ENDPOINTS:
-            try:
-                response = http.post(endpoint, content=query)
-            except Exception:
-                continue
-            if getattr(response, "status_code", 0) != 200:
-                continue
-            try:
-                return parse_overpass(response.json())
-            except (ValueError, json.JSONDecodeError):
-                continue
+            for attempt in range(MAX_ATTEMPTS):
+                try:
+                    response = http.post(
+                        endpoint,
+                        content=query,
+                        headers=REQUEST_HEADERS,
+                        timeout=TIMEOUT_SECONDS,
+                    )
+                except Exception:
+                    time.sleep(BACKOFF_SECONDS)
+                    continue
+                if getattr(response, "status_code", 0) != 200:
+                    # 502/429: sobrecarga transitoria de Overpass; reintento.
+                    time.sleep(BACKOFF_SECONDS)
+                    continue
+                try:
+                    return parse_overpass(response.json())
+                except (ValueError, json.JSONDecodeError):
+                    break
         return []
