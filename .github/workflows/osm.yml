@@ -18,56 +18,55 @@ jobs:
           import httpx
           from bailoteca.sources.osm import build_query, parse_overpass, GRAN_SANTIAGO_BBOX
 
+          bbox = GRAN_SANTIAGO_BBOX
+          s, w_, n, e = bbox
+          control_query = f'[out:json][timeout:25];(node["amenity"="restaurant"]({s},{w_},{n},{e});way["amenity"="restaurant"]({s},{w_},{n},{e}););out count;'
+          dance_query = f'[out:json][timeout:25];(node["amenity"="dancing_school"]({s},{w_},{n},{e});way["amenity"="dancing_school"]({s},{w_},{n},{e}););out count;'
           mirrors = [
               "https://overpass-api.de/api/interpreter",
               "https://overpass.kumi.systems/api/interpreter",
               "https://overpass.private.coffee/api/interpreter",
-              "https://overpass.osm.ch/api/interpreter",
               "https://overpass.nchc.org.tw/api/interpreter",
-              "https://overpass.fi/api/interpreter",
+              "https://overpass.osm.ch/api/interpreter",
               "https://lz4.overpass-api.de/api/interpreter",
           ]
-          bbox = GRAN_SANTIAGO_BBOX
-          s, w_, n, e = bbox
-          tags = [
-              ("amenity", "restaurant"),
-              ("amenity", "school"),
-              ("leisure", "dance_school"),
-              ("amenity", "dancing_school"),
-              ("leisure", "dance"),
-              ("sport", "dancing"),
-              ("shop", "dance"),
-              ("leisure", "dance_hall"),
-              ("amenity", "dojo"),
-              ("leisure", "arts_centre"),
-              ("amenity", "arts_centre"),
-              ("leisure", "studio"),
-              ("leisure", "sports_centre"),
-          ]
-          full_query = build_query(bbox)
-
-          ep = "https://overpass.osm.ch/api/interpreter"
-          for tag, value in tags:
-              q = f'[out:json][timeout:25];(node["{tag}"="{value}"]({s},{w_},{n},{e});way["{tag}"="{value}"]({s},{w_},{n},{e}););out count;'
-              r = httpx.post(ep, content=q, timeout=45)
+          headers = {"User-Agent": "BailotecaSpike/1.0 (+https://github.com/OswaldoRodriguez123/bailoteca)"}
+          for ep in mirrors:
               try:
-                  elements = r.json().get("elements", [])
-                  tags_out = elements[0].get("tags", {}) if elements else {}
-                  print(f"[tag] {tag}={value} status={r.status_code} nodes={tags_out.get('nodes')} ways={tags_out.get('ways')}", flush=True)
+                  t0 = time.time()
+                  r = httpx.post(ep, content=control_query, headers=headers, timeout=60)
+                  nodes = ways = None
+                  if r.status_code == 200:
+                      elements = r.json().get("elements", [])
+                      tags_out = elements[0].get("tags", {}) if elements else {}
+                      nodes = tags_out.get("nodes"); ways = tags_out.get("ways")
+                  print(f"[mirror] {ep} status={r.status_code} in {time.time()-t0:.1f}s restaurant nodes={nodes} ways={ways}", flush=True)
               except Exception as err:
-                  print(f"[tag] {tag}={value} status={r.status_code} parse_error={err}", flush=True)
+                  print(f"[mirror] {ep} ERROR: {err}", flush=True)
+
+          for ep in [m for m in mirrors if True]:
+              try:
+                  t0 = time.time()
+                  r = httpx.post(ep, content=dance_query, headers=headers, timeout=60)
+                  nodes = ways = None
+                  if r.status_code == 200:
+                      elements = r.json().get("elements", [])
+                      tags_out = elements[0].get("tags", {}) if elements else {}
+                      nodes = tags_out.get("nodes"); ways = tags_out.get("ways")
+                  print(f"[dance] {ep} status={r.status_code} in {time.time()-t0:.1f}s dance_school nodes={nodes} ways={ways}", flush=True)
+              except Exception as err:
+                  print(f"[dance] {ep} ERROR: {err}", flush=True)
 
           try:
               t0 = time.time()
-              r2 = httpx.post(ep, content=full_query, timeout=60)
-              print(f"[tag] full query status={r2.status_code} in {time.time()-t0:.1f}s", flush=True)
-              cands = parse_overpass(r2.json()) if r2.status_code == 200 else []
-              print(f"[tag] OSM candidates={len(cands)}", flush=True)
-              from bailoteca.osm_spike import summarize
-              print(json.dumps(summarize(cands), ensure_ascii=False), flush=True)
-              for c in cands:
-                  print(f"[tag] {c.name} | {c.comuna} | {c.url} | {c.handle}", flush=True)
+              r2 = httpx.post("https://overpass-api.de/api/interpreter", content=build_query(bbox), headers=headers, timeout=60)
+              print(f"[full] overpass-api.de status={r2.status_code} in {time.time()-t0:.1f}s", flush=True)
+              if r2.status_code == 200:
+                  cands = parse_overpass(r2.json())
+                  print(f"[full] OSM candidates={len(cands)}", flush=True)
+                  for c in cands:
+                      print(f"[full] {c.name} | {c.comuna} | {c.url} | {c.handle}", flush=True)
           except Exception as err:
-              print(f"[tag] full query ERROR: {err}", flush=True)
+              print(f"[full] ERROR: {err}", flush=True)
           PY
           python probe.py
