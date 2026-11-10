@@ -58,10 +58,12 @@ def _query_variants(
         combos.append([base, address])
     if comuna:
         combos.append([base, comuna])
-        for extra in ("academia de baile", "clases de baile", "danza"):
+        for extra in ("academia de baile", "clases de baile", "danza", "estudio"):
             combos.append([base, extra, comuna])
     combos.append([base])
     combos.append([base, "academia de baile"])
+    combos.append([base, "estudio de danza"])
+    combos.append([base, "clases de baile"])
     for combo in combos:
         parts = [p for p in combo if p]
         if comuna and comuna.lower() not in " ".join(parts).lower():
@@ -104,12 +106,26 @@ def _pick_result(results: list[dict], name: str, comuna: str | None) -> dict | N
                 score += 1
         if comuna_l and comuna_l in address:
             score += 1
-        # Similitud difusa para nombres comerciales (Mambo Roakes ~ Mambo Rock).
-        if clean and title:
-            similarity = SequenceMatcher(None, clean, title).ratio()
-            if similarity >= 0.6:
-                score += 2
-                if similarity > 0.75:
+        # Similitud a nivel de tokens para nombres comerciales
+        # (Mambo Roakes ~ Mambo Rock), evitando falsos positivos como
+        # Mambo Roakes ~ Mambo Madness.
+        if clean:
+            clean_tokens = [t for t in clean.split() if len(t) >= 4]
+            title_tokens = title.split()
+            matched_tokens = 0
+            for ct in clean_tokens:
+                if any(ct == tt for tt in title_tokens):
+                    matched_tokens += 1
+                    continue
+                if any(
+                    len(tt) >= 4
+                    and SequenceMatcher(None, ct, tt).ratio() >= 0.7
+                    for tt in title_tokens
+                ):
+                    matched_tokens += 1
+            if clean_tokens and matched_tokens:
+                score += 2 * matched_tokens
+                if matched_tokens == len(clean_tokens):
                     score += 1
         if score > best_score:
             best_score = score
