@@ -32,6 +32,11 @@ export interface GooglePlace {
   open_state: string | null;
   maps_url: string | null;
   thumbnail: string | null;
+  phone: string | null;
+  website: string | null;
+  type: string | null;
+  gps_coordinates: { latitude: number; longitude: number } | null;
+  raw: Record<string, unknown> | null;
   fetched_at: string | null;
 }
 

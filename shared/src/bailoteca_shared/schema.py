@@ -47,6 +47,11 @@ class GooglePlace(BaseModel):
     open_state: str | None = None
     maps_url: str | None = None
     thumbnail: str | None = None
+    phone: str | None = None
+    website: str | None = None
+    type: str | None = None
+    gps_coordinates: dict | None = None
+    raw: dict | None = None
     fetched_at: datetime | None = None
 
 

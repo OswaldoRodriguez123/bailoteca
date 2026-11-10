@@ -23,6 +23,11 @@ class PlaceInfo:
     open_state: str | None = None
     maps_url: str | None = None
     thumbnail: str | None = None
+    phone: str | None = None
+    website: str | None = None
+    place_type: str | None = None
+    gps_coordinates: dict | None = None
+    raw: dict | None = None
     fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -152,6 +157,12 @@ def parse_place(data: dict, name: str, comuna: str | None) -> PlaceInfo | None:
     if place_id:
         maps_url = f"https://www.google.com/maps/place/?q=place_id:{place_id}"
     thumbnail = item.get("thumbnail") or item.get("serpapi_thumbnail")
+    phone = item.get("phone")
+    website = item.get("website")
+    place_type = item.get("type")
+    gps_coordinates = item.get("gps_coordinates")
+    if not isinstance(gps_coordinates, dict):
+        gps_coordinates = None
     hours = item.get("operating_hours")
     if not isinstance(hours, dict):
         hours = None
@@ -174,6 +185,11 @@ def parse_place(data: dict, name: str, comuna: str | None) -> PlaceInfo | None:
         open_state=item.get("open_state"),
         maps_url=maps_url,
         thumbnail=thumbnail,
+        phone=phone,
+        website=website,
+        place_type=place_type,
+        gps_coordinates=gps_coordinates,
+        raw=item,
     )
 
 
@@ -230,6 +246,11 @@ def to_dict(info: PlaceInfo) -> dict:
             "open_state": info.open_state,
             "maps_url": info.maps_url,
             "thumbnail": info.thumbnail,
+            "phone": info.phone,
+            "website": info.website,
+            "type": info.place_type,
+            "gps_coordinates": info.gps_coordinates,
+            "raw": info.raw,
             "fetched_at": info.fetched_at.isoformat()
             if info.fetched_at is not None
             else None,
