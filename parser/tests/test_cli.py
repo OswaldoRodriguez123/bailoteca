@@ -9,5 +9,5 @@ def test_module_help_lists_commands():
         text=True,
     )
     assert result.returncode == 0
-    for command in ("run", "review", "approve", "add", "refresh"):
+    for command in ("run", "review", "approve", "add", "refresh", "enrich-places"):
         assert command in result.stdout

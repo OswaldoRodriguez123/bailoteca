@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Params, RouterLink } from '@angular/router';
 import { Observable, Subject, catchError, map, merge, of, switchMap, tap } from 'rxjs';
@@ -22,7 +23,7 @@ interface LoadResult {
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EmptyState, ErrorState, LoadingGrid, RouterLink, StyleBadges],
+  imports: [DatePipe, EmptyState, ErrorState, LoadingGrid, RouterLink, StyleBadges],
   selector: 'app-academy-detail',
   templateUrl: './academy-detail.html',
 })
@@ -82,6 +83,15 @@ export class AcademyDetailPage {
   protected linkHref = linkHref;
   protected linkLabel = linkLabel;
   protected mapUrl = mapUrl;
+
+  protected googleHoursEntries(
+    hours: Record<string, string> | null,
+  ): [string, string][] {
+    if (!hours) {
+      return [];
+    }
+    return Object.entries(hours);
+  }
 
   private captureBackQuery(): void {
     const params = this.route.snapshot.queryParamMap;

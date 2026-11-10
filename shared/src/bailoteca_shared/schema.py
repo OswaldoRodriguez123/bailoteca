@@ -49,3 +49,13 @@ class Academy(BaseModel):
     locations: list[AcademyLocation] = []
     links: list[AcademyLink] = []
     styles: list[AcademyStyle] = []
+    google_place_id: str | None = None
+    google_name: str | None = None
+    google_address: str | None = None
+    google_rating: float | None = None
+    google_reviews: int | None = None
+    google_price: str | None = None
+    google_hours: dict | None = None
+    google_open_state: str | None = None
+    google_maps_url: str | None = None
+    google_fetched_at: datetime | None = None

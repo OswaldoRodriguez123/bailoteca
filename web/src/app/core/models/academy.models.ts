@@ -34,6 +34,16 @@ export interface Academy {
   locations: AcademyLocation[];
   links: AcademyLink[];
   styles: AcademyStyle[];
+  google_place_id: string | null;
+  google_name: string | null;
+  google_address: string | null;
+  google_rating: number | null;
+  google_reviews: number | null;
+  google_price: string | null;
+  google_hours: Record<string, string> | null;
+  google_open_state: string | null;
+  google_maps_url: string | null;
+  google_fetched_at: string | null;
 }
 
 export interface AcademyPage {

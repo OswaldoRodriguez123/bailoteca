@@ -42,6 +42,16 @@ export function makeAcademy(overrides: Partial<Academy> = {}): Academy {
     locations: [],
     links: [],
     styles: [makeStyle()],
+    google_place_id: null,
+    google_name: null,
+    google_address: null,
+    google_rating: null,
+    google_reviews: null,
+    google_price: null,
+    google_hours: null,
+    google_open_state: null,
+    google_maps_url: null,
+    google_fetched_at: null,
     ...overrides,
   };
 }

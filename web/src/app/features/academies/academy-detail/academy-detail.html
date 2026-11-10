@@ -96,6 +96,66 @@
           </ul>
         </section>
       }
+
+      @if (
+        item.google_rating !== null ||
+        item.google_price ||
+        item.google_open_state ||
+        item.google_hours ||
+        item.google_maps_url
+      ) {
+        <section aria-labelledby="google-title" class="space-y-3">
+          <h2 id="google-title" class="text-lg font-semibold text-stone-900">Google Maps</h2>
+
+          <div class="space-y-2 rounded-xl border border-stone-200 p-4">
+            @if (item.google_rating !== null) {
+              <p class="text-sm text-stone-700">
+                <span class="font-medium">{{ item.google_rating }}</span> / 5
+                @if (item.google_reviews !== null) {
+                  <span class="text-stone-500">({{ item.google_reviews }} reseñas)</span>
+                }
+              </p>
+            }
+
+            @if (item.google_price) {
+              <p class="text-sm text-stone-600">Precio: {{ item.google_price }}</p>
+            }
+
+            @if (item.google_open_state) {
+              <p class="text-sm text-stone-600">{{ item.google_open_state }}</p>
+            }
+
+            @if (item.google_hours) {
+              <details class="text-sm text-stone-600">
+                <summary class="cursor-pointer font-medium">Horarios</summary>
+                <ul class="mt-2 space-y-1">
+                  @for (entry of googleHoursEntries(item.google_hours); track entry[0]) {
+                    <li>{{ entry[0] }}: {{ entry[1] }}</li>
+                  }
+                </ul>
+              </details>
+            }
+
+            <p class="text-xs text-stone-500">
+              según Google Maps
+              @if (item.google_fetched_at) {
+                <span> · actualizado el {{ item.google_fetched_at | date: 'mediumDate' }}</span>
+              }
+            </p>
+
+            @if (item.google_maps_url) {
+              <a
+                [href]="item.google_maps_url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-block text-sm font-medium text-rose-700 transition-colors hover:text-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600"
+              >
+                Ver en Google Maps
+              </a>
+            }
+          </div>
+        </section>
+      }
     </article>
   }
 </section>

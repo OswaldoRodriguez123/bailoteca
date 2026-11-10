@@ -174,6 +174,88 @@ def cmd_refresh(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_enrich_places(args: argparse.Namespace) -> int:
+    from bailoteca.db import list_published
+    from bailoteca.places import fetch_place, to_dict
+
+    config = _load_config()
+    if not config.serpapi_key:
+        print(
+            "Falta SERPAPI_KEY. Configúrala en .env o en el entorno.",
+            file=sys.stderr,
+        )
+        return 2
+
+    import httpx
+    from psycopg.types.json import Jsonb
+
+    conn = _open_conn(config)
+    http = httpx.Client(timeout=10)
+    enriched = 0
+    failed = 0
+    try:
+        academies = list_published(conn)
+        for academy in academies:
+            locations = academy.get("locations") or []
+            loc = locations[0] if locations else {}
+            info = fetch_place(
+                academy["name"],
+                loc.get("comuna"),
+                loc.get("address"),
+                loc.get("lat"),
+                loc.get("lng"),
+                http,
+                config.serpapi_key,
+            )
+            if info is None:
+                failed += 1
+                continue
+            data = to_dict(info)
+            if not getattr(args, "dry_run", False):
+                conn.execute(
+                    """
+                    update academies set
+                      google_place_id = %s,
+                      google_name = %s,
+                      google_address = %s,
+                      google_rating = %s,
+                      google_reviews = %s,
+                      google_price = %s,
+                      google_hours = %s,
+                      google_open_state = %s,
+                      google_maps_url = %s,
+                      google_fetched_at = %s,
+                      updated_at = now()
+                    where id = %s
+                    """,
+                    (
+                        data["google_place_id"],
+                        data["google_name"],
+                        data["google_address"],
+                        data["google_rating"],
+                        data["google_reviews"],
+                        data["google_price"],
+                        Jsonb(data["google_hours"])
+                        if data["google_hours"] is not None
+                        else None,
+                        data["google_open_state"],
+                        data["google_maps_url"],
+                        data["google_fetched_at"],
+                        academy["id"],
+                    ),
+                )
+            enriched += 1
+        if not getattr(args, "dry_run", False):
+            conn.commit()
+    finally:
+        http.close()
+        conn.close()
+    print(
+        f"enriquecidas={enriched} fallidas={failed} total={len(academies)}"
+    )
+    return 0
+
+
 def cmd_export(args: argparse.Namespace) -> int:
     from bailoteca.db import list_published
 
@@ -289,6 +371,16 @@ def build_parser() -> argparse.ArgumentParser:
     refresh = subparsers.add_parser("refresh", help="Releer una academia publicada")
     refresh.add_argument("slug")
     refresh.set_defaults(handler=cmd_refresh)
+
+    enrich_places = subparsers.add_parser(
+        "enrich-places", help="Enriquecer academias con datos de Google Maps"
+    )
+    enrich_places.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="No escribir en la base de datos",
+    )
+    enrich_places.set_defaults(handler=cmd_enrich_places)
 
     export = subparsers.add_parser("export", help="Exportar las academias publicadas")
     export.add_argument("--csv", action="store_true", help="Escribir CSV a stdout")
