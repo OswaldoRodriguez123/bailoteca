@@ -17,16 +17,7 @@ _ACADEMY_SELECT = """
         a.created_at,
         a.updated_at,
         a.verified_at,
-        a.google_place_id,
-        a.google_name,
-        a.google_address,
-        a.google_rating,
-        a.google_reviews,
-        a.google_price,
-        a.google_hours,
-        a.google_open_state,
-        a.google_maps_url,
-        a.google_fetched_at,
+        a.google,
         coalesce(
             (
                 select json_agg(

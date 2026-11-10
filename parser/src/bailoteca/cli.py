@@ -215,32 +215,12 @@ def cmd_enrich_places(args: argparse.Namespace) -> int:
                 conn.execute(
                     """
                     update academies set
-                      google_place_id = %s,
-                      google_name = %s,
-                      google_address = %s,
-                      google_rating = %s,
-                      google_reviews = %s,
-                      google_price = %s,
-                      google_hours = %s,
-                      google_open_state = %s,
-                      google_maps_url = %s,
-                      google_fetched_at = %s,
+                      google = %s,
                       updated_at = now()
                     where id = %s
                     """,
                     (
-                        data["google_place_id"],
-                        data["google_name"],
-                        data["google_address"],
-                        data["google_rating"],
-                        data["google_reviews"],
-                        data["google_price"],
-                        Jsonb(data["google_hours"])
-                        if data["google_hours"] is not None
-                        else None,
-                        data["google_open_state"],
-                        data["google_maps_url"],
-                        data["google_fetched_at"],
+                        Jsonb(data["google"]),
                         academy["id"],
                     ),
                 )

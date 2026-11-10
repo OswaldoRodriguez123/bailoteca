@@ -116,14 +116,18 @@ def fetch_place(
 
 def to_dict(info: PlaceInfo) -> dict:
     return {
-        "google_place_id": info.place_id,
-        "google_name": info.name,
-        "google_address": info.address,
-        "google_rating": info.rating,
-        "google_reviews": info.reviews,
-        "google_price": info.price,
-        "google_hours": info.hours,
-        "google_open_state": info.open_state,
-        "google_maps_url": info.maps_url,
-        "google_fetched_at": info.fetched_at,
+        "google": {
+            "place_id": info.place_id,
+            "name": info.name,
+            "address": info.address,
+            "rating": info.rating,
+            "reviews": info.reviews,
+            "price": info.price,
+            "hours": info.hours,
+            "open_state": info.open_state,
+            "maps_url": info.maps_url,
+            "fetched_at": info.fetched_at.isoformat()
+            if info.fetched_at is not None
+            else None,
+        }
     }

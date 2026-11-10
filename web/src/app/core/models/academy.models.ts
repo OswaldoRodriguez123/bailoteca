@@ -21,6 +21,19 @@ export interface AcademyStyle {
   evidence: string | null;
 }
 
+export interface GooglePlace {
+  place_id: string | null;
+  name: string | null;
+  address: string | null;
+  rating: number | null;
+  reviews: number | null;
+  price: string | null;
+  hours: Record<string, string> | null;
+  open_state: string | null;
+  maps_url: string | null;
+  fetched_at: string | null;
+}
+
 export interface Academy {
   id: string;
   slug: string;
@@ -34,16 +47,7 @@ export interface Academy {
   locations: AcademyLocation[];
   links: AcademyLink[];
   styles: AcademyStyle[];
-  google_place_id: string | null;
-  google_name: string | null;
-  google_address: string | null;
-  google_rating: number | null;
-  google_reviews: number | null;
-  google_price: string | null;
-  google_hours: Record<string, string> | null;
-  google_open_state: string | null;
-  google_maps_url: string | null;
-  google_fetched_at: string | null;
+  google: GooglePlace | null;
 }
 
 export interface AcademyPage {
