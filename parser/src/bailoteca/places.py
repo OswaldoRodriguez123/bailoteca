@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import json
-import os
 from difflib import SequenceMatcher
-import sys
 import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -210,24 +208,9 @@ def fetch_place(
             continue
         if not isinstance(data, dict):
             continue
-        results = data.get("local_results")
-        if os.environ.get("BAILOTECA_DEBUG_PLACES"):
-            titles = []
-            if isinstance(results, list):
-                titles = [r.get("title") for r in results[:5]]
-            print(
-                f"[places] query={query!r} status={response.status_code} "
-                f"n={len(results) if isinstance(results, list) else 0} "
-                f"top={titles}",
-                file=sys.stdout,
-            )
         info = parse_place(data, name, comuna)
         if info is not None:
-            if os.environ.get("BAILOTECA_DEBUG_PLACES"):
-                print(f"[places] OK {name!r} -> {info.name!r}", file=sys.stdout, flush=True)
             return info
-    if os.environ.get("BAILOTECA_DEBUG_PLACES"):
-        print(f"[places] FAIL {name!r}", file=sys.stdout, flush=True)
     return None
 
 

@@ -49,7 +49,6 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
-          BAILOTECA_DEBUG_PLACES: "1"
         run: python -m bailoteca enrich-places
       - uses: actions/upload-artifact@v4
         with:
