@@ -28,31 +28,33 @@
   } @else if (error(); as message) {
     <app-error-state [message]="message" (retry)="retry()" />
   } @else if (page(); as current) {
-    <p class="text-sm text-muted" aria-live="polite">
-      {{ current.total }}
-      {{ current.total === 1 ? 'academia' : 'academias' }}
-    </p>
+    <div class="space-y-4">
+      <p class="text-sm text-muted" aria-live="polite">
+        {{ current.total }}
+        {{ current.total === 1 ? 'academia' : 'academias' }}
+      </p>
 
-    @if (current.items.length === 0) {
-      <app-empty-state
-        title="Sin resultados"
-        message="No encontramos academias con esos filtros."
-        actionLabel="Limpiar filtros"
-        (action)="clearFilters()"
-      />
-    } @else {
-      <div class="border-t border-line">
-        @for (academy of current.items; track academy.id) {
-          <app-academy-card [academy]="academy" [queryParams]="queryParams()" />
-        }
-      </div>
+      @if (current.items.length === 0) {
+        <app-empty-state
+          title="Sin resultados"
+          message="No encontramos academias con esos filtros."
+          actionLabel="Limpiar filtros"
+          (action)="clearFilters()"
+        />
+      } @else {
+        <div class="border-t border-line">
+          @for (academy of current.items; track academy.id) {
+            <app-academy-card [academy]="academy" [queryParams]="queryParams()" />
+          }
+        </div>
 
-      <app-pagination
-        [page]="current.page"
-        [total]="current.total"
-        [pageSize]="current.page_size"
-        (pageChange)="onPage($event)"
-      />
-    }
+        <app-pagination
+          [page]="current.page"
+          [total]="current.total"
+          [pageSize]="current.page_size"
+          (pageChange)="onPage($event)"
+        />
+      }
+    </div>
   }
 </section>

@@ -6,7 +6,7 @@ import { StyleOption } from '../../../../core/models/academy.models';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-filter-bar',
   template: `
-    <section aria-label="Filtros del directorio" class="border-y border-line py-4">
+    <section aria-label="Filtros del directorio" class="border-t border-line pt-4">
       <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_14rem_12rem] md:items-end">
         <label class="block">
           <span class="mb-1 block text-xs font-medium text-muted">Buscar</span>

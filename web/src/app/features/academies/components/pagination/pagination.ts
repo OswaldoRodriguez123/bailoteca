@@ -8,7 +8,7 @@ import { lastPage } from '../../academy-query';
   template: `
     @if (total() > 0) {
       <nav
-        class="mt-8 flex items-center justify-between gap-4 border-t border-line pt-4"
+        class="flex items-center justify-between gap-4"
         aria-label="Paginación"
       >
         <button
