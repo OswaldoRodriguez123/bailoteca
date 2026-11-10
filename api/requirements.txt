@@ -1,4 +1,4 @@
-# Sin -e: Vercel instala con --target _vendor y un editable .pth apuntaría
-# a una ruta de build que no existe en runtime.
+# Instalación local con pip. Vercel usa pyproject.toml + uv y resuelve
+# bailoteca-shared desde [tool.uv.sources].
 .
 ../shared

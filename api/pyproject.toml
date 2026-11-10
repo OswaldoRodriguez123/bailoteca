@@ -14,10 +14,15 @@ dependencies = [
   "slowapi>=0.1.9",
   "psycopg[binary,pool]>=3.2",
   "pydantic-settings>=2.4",
+  "bailoteca-shared",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "httpx>=0.27"]
+
+[tool.uv.sources]
+# Vercel instala desde pyproject.toml con uv; shared vive fuera de api/.
+bailoteca-shared = { path = "../shared" }
 
 [tool.setuptools.packages.find]
 where = ["."]

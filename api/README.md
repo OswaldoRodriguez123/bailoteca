@@ -21,7 +21,7 @@ consume la web Angular; no expone escrituras ni credenciales.
 ```text
 api/
 ├── pyproject.toml
-├── requirements.txt            # instalación para Vercel
+├── requirements.txt            # instalación local con pip
 ├── .env.example
 ├── bailoteca_api/
 │   ├── main.py                 # create_app: CORS, limiter, routers, errores
@@ -181,12 +181,13 @@ solo lectura, pero en producción conviene listar el dominio de la web.
 - Vercel resuelve `[tool.vercel] entrypoint = "bailoteca_api.main:app"` como
   `api/bailoteca_api/main.py`. Por eso el paquete vive en la raíz de `api/`, no
   dentro de `src/`.
-- `requirements.txt` instala el paquete local y `../shared` sin `-e`. Vercel
-  copia ambos a `_vendor`; un install editable dejaría un `.pth` con una ruta
-  de build que no existe en runtime.
-- Si el build de Vercel no ve `../shared`, las salidas documentadas son
-  publicar `bailoteca-shared` como wheel o usar una dependencia
-  `git+https://...#subdirectory=shared`.
+- Vercel instala desde `pyproject.toml` con `uv`, no desde `requirements.txt`.
+  Por eso `bailoteca-shared` está declarado en `[project].dependencies` y
+  resuelto desde `../shared` con `[tool.uv.sources]`.
+- `requirements.txt` queda para instalaciones locales con pip; también usa el
+  paquete local y `../shared`, sin `-e`.
+- Si el build de Vercel no ve `../shared`, la salida documentada es usar una
+  dependencia `git+https://...#subdirectory=shared` en `pyproject.toml`.
 - Configurar `DATABASE_URL_READONLY`, `CORS_ORIGINS`, `RATE_LIMIT` y
   `DB_POOL_MAX_SIZE` en Vercel. Ningún `.env` se versiona.
 
