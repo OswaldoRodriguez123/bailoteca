@@ -162,13 +162,6 @@ def _pick_result(results: list[dict], name: str, comuna: str | None) -> dict | N
             if any(dt == tt for tt in title_token_list):
                 distinctive_match = True
                 break
-            if any(
-                len(tt) >= 4
-                and SequenceMatcher(None, dt, tt).ratio() >= 0.6
-                for tt in title_token_list
-            ):
-                distinctive_match = True
-                break
         if distinctive and not distinctive_match:
             continue
         # Similitud a nivel de tokens para nombres comerciales
@@ -285,9 +278,14 @@ def fetch_place(
             continue
         if not isinstance(data, dict):
             continue
+        results = data.get("local_results")
+        titles = [r.get("title") for r in results[:6]] if isinstance(results, list) else None
+        print(f"[dbg] q={query!r} n={len(results) if isinstance(results,list) else 0} top={titles}", flush=True)
         info = parse_place(data, name, comuna)
         if info is not None:
+            print(f"[dbg] MATCH {name!r} -> {info.name!r}", flush=True)
             return info
+    print(f"[dbg] NO MATCH {name!r}", flush=True)
     return None
 
 
