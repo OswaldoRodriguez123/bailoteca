@@ -56,6 +56,26 @@ Reglas:
 """
 
 
+PROMPT_IDENTITY = """Eres un asistente que extrae el nombre comercial corto de una academia de baile.
+
+Texto de la academia:
+---
+{text}
+---
+
+Nombre tal como viene (suele ser un título SEO largo): {fallback}
+
+Devuelve SOLO un objeto JSON con esta forma:
+{{"name": "Nombre Corto"}}
+
+Reglas:
+- "name" debe ser el nombre comercial del negocio (ej: "Mushin", "Casa del Mambo", "JSD Academy", "Fred Astaire Santiago").
+- No incluyas descriptores ("Clases de salsa", "| Santiago", "Academia de", "| Oficial").
+- Máximo 6 palabras. Sin guiones largos, barras, paréntesis con hashtags.
+- Si no puedes determinar, responde {{"name": "{fallback}"}} con el mismo nombre tal cual.
+"""
+
+
 class GeminiLLM:
     def __init__(
         self,
@@ -67,10 +87,7 @@ class GeminiLLM:
         self.http = http
         self.models = models or DEFAULT_MODELS
 
-    def classify_styles(self, text: str, slugs: list[str]) -> list[StyleHit] | None:
-        if not self.api_key:
-            return None
-        prompt = PROMPT.format(text=text, slugs=", ".join(slugs))
+    def _query_json(self, prompt: str) -> dict | None:
         for model in self.models:
             url = (
                 "https://generativelanguage.googleapis.com/v1beta/models/"
@@ -95,15 +112,19 @@ class GeminiLLM:
             if status != 200:
                 return None
             try:
-                return self._parse(response.json(), slugs)
+                body = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+                return json.loads(body)
             except Exception:
                 return None
         return None
 
-    @staticmethod
-    def _parse(payload: dict, slugs: list[str]) -> list[StyleHit]:
-        body = payload["candidates"][0]["content"]["parts"][0]["text"]
-        data = json.loads(body)
+    def classify_styles(self, text: str, slugs: list[str]) -> list[StyleHit] | None:
+        if not self.api_key:
+            return None
+        prompt = PROMPT.format(text=text, slugs=", ".join(slugs))
+        data = self._query_json(prompt)
+        if not data:
+            return None
         hits: list[StyleHit] = []
         for hit in data.get("hits", []):
             slug = hit.get("slug")
@@ -124,3 +145,18 @@ class GeminiLLM:
                 )
             )
         return hits
+
+    def normalize_identity(self, text: str, fallback_name: str) -> str | None:
+        if not self.api_key:
+            return None
+        prompt = PROMPT_IDENTITY.format(text=(text or "")[:800], fallback=fallback_name)
+        data = self._query_json(prompt)
+        if not isinstance(data, dict):
+            return None
+        name = data.get("name")
+        if not isinstance(name, str):
+            return None
+        cleaned = " ".join(name.split()).strip(" -–|")
+        if not 1 <= len(cleaned) <= 60:
+            return None
+        return cleaned

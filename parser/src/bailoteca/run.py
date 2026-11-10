@@ -255,6 +255,12 @@ def run(
                         continue
 
             enriched = enrich(candidate, fetcher)
+            if llm is not None:
+                cleaned = llm.normalize_identity(
+                    _text_for_classification(enriched), candidate.name
+                )
+                if cleaned:
+                    candidate = replace(candidate, name=cleaned)
 
             if triage is not None:
                 verdict = triage.evaluate(candidate, enriched)
@@ -390,6 +396,13 @@ def refresh(config: Config, slug: str) -> RunSummary:
             else None
         )
         enriched = enrich(candidate, fetcher)
+        if llm is not None:
+            cleaned = llm.normalize_identity(
+                _text_for_classification(enriched) or candidate.name,
+                candidate.name,
+            )
+            if cleaned:
+                candidate = replace(candidate, name=cleaned)
         hits = classify(_text_for_classification(enriched), llm)
         draft = build_proposal(
             candidate,

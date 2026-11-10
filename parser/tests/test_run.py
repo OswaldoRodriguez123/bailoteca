@@ -171,3 +171,33 @@ def test_run_keeps_candidate_on_clef_error(tmp_path):
     assert summary.clef_errors == 1
     assert summary.filtered_clef == 0
     assert summary.proposals == 1
+
+
+def test_run_applies_gemini_identity_normalization(tmp_path):
+    from bailoteca.llm import StyleHit
+
+    class _LLM:
+        def __init__(self):
+            self.calls = 0
+
+        def classify_styles(self, text, slugs):
+            return [StyleHit("salsa-cubana", 0.9)]
+
+        def normalize_identity(self, text, fallback_name):
+            self.calls += 1
+            return "Clean Name Academy"
+
+    summary = run(
+        Config.from_env(
+            {"BAILOTECA_REPORTS_DIR": str(tmp_path), "BAILOTECA_SOURCES": "fake"}
+        ),
+        dry_run=True,
+        sources=[_Source()],
+        fetcher=_Fetcher(),
+        llm=_LLM(),
+    )
+    assert summary.proposals == 1
+    day = next(p for p in tmp_path.iterdir() if p.is_dir())
+    candidates = (day / "candidates.json").read_text()
+    assert '"name": "Clean Name Academy"' in candidates
+    assert '"name": "Academia Dry"' not in candidates
