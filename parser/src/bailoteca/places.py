@@ -90,6 +90,35 @@ def _query_variants(
             unique.append(v)
     return unique
 
+def _in_chile(item: dict) -> bool:
+    """Verifica que el resultado de SerpApi sea de Chile (evita falsos positivos extranjeros)."""
+    gps = item.get("gps_coordinates")
+    if isinstance(gps, dict):
+        try:
+            lat = float(gps.get("latitude"))
+            lng = float(gps.get("longitude"))
+        except (TypeError, ValueError):
+            lat = lng = None
+        if lat is not None and lng is not None:
+            # Bounding box aproximado de Chile continental.
+            if not (-56.0 <= lat <= -17.0 and -76.0 <= lng <= -66.0):
+                return False
+    address = (item.get("address") or "").lower()
+    # Rechazar si la dirección menciona un país extranjero conocido.
+    foreign = (
+        "panama", "panamá", "peru", "perú", "argentina", "colombia",
+        "mexico", "méxico", "españa", "spain", "venezuela", "ecuador",
+        "bolivia", "uruguay", "paraguay", "brasil", "brazil",
+    )
+    if any(country in address for country in foreign):
+        return False
+    phone = (item.get("phone") or "").lower()
+    # Prefijos telefónicos extranjeros comunes.
+    if phone.startswith("+") and not phone.startswith("+56"):
+        return False
+    return True
+
+
 def _pick_result(results: list[dict], name: str, comuna: str | None) -> dict | None:
     if not results:
         return None
@@ -99,6 +128,8 @@ def _pick_result(results: list[dict], name: str, comuna: str | None) -> dict | N
     best = None
     best_score = -1
     for item in results:
+        if not _in_chile(item):
+            continue
         title = (item.get("title") or "").lower()
         address = (item.get("address") or "").lower()
         score = 0

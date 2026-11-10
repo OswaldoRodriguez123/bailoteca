@@ -195,7 +195,14 @@ def cmd_enrich_places(args: argparse.Namespace) -> int:
     failed = 0
     try:
         academies = list_published(conn)
+        target_slug = getattr(args, "slug", None)
+        force = getattr(args, "force", False)
         for academy in academies:
+            if target_slug and academy.get("slug") != target_slug:
+                continue
+            if academy.get("google") and not force:
+                # Ya tiene datos de Google Maps: no gastar cuota SerpApi.
+                continue
             locations = academy.get("locations") or []
             loc = locations[0] if locations else {}
             info = fetch_place(
@@ -359,6 +366,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run",
         action="store_true",
         help="No escribir en la base de datos",
+    )
+    enrich_places.add_argument(
+        "--slug",
+        help="Enriquecer solo la academia con este slug",
+    )
+    enrich_places.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-enriquecer aunque ya tenga datos de Google Maps",
     )
     enrich_places.set_defaults(handler=cmd_enrich_places)
 
