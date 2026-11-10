@@ -46,6 +46,7 @@ class GooglePlace(BaseModel):
     hours: dict | None = None
     open_state: str | None = None
     maps_url: str | None = None
+    thumbnail: str | None = None
     fetched_at: datetime | None = None
 
 

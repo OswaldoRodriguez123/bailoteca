@@ -31,6 +31,7 @@ export interface GooglePlace {
   hours: Record<string, string> | null;
   open_state: string | null;
   maps_url: string | null;
+  thumbnail: string | null;
   fetched_at: string | null;
 }
 

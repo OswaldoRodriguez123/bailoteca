@@ -22,6 +22,7 @@ class PlaceInfo:
     hours: dict[str, str] | None = None
     open_state: str | None = None
     maps_url: str | None = None
+    thumbnail: str | None = None
     fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -150,6 +151,7 @@ def parse_place(data: dict, name: str, comuna: str | None) -> PlaceInfo | None:
     maps_url = None
     if place_id:
         maps_url = f"https://www.google.com/maps/place/?q=place_id:{place_id}"
+    thumbnail = item.get("thumbnail") or item.get("serpapi_thumbnail")
     hours = item.get("operating_hours")
     if not isinstance(hours, dict):
         hours = None
@@ -171,6 +173,7 @@ def parse_place(data: dict, name: str, comuna: str | None) -> PlaceInfo | None:
         hours=hours,
         open_state=item.get("open_state"),
         maps_url=maps_url,
+        thumbnail=thumbnail,
     )
 
 
@@ -226,6 +229,7 @@ def to_dict(info: PlaceInfo) -> dict:
             "hours": info.hours,
             "open_state": info.open_state,
             "maps_url": info.maps_url,
+            "thumbnail": info.thumbnail,
             "fetched_at": info.fetched_at.isoformat()
             if info.fetched_at is not None
             else None,
