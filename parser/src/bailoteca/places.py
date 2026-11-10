@@ -302,6 +302,7 @@ def to_dict(info: PlaceInfo) -> dict:
             "open_state": info.open_state,
             "maps_url": info.maps_url,
             "thumbnail": info.thumbnail,
+            "thumbnail_source": "google" if info.thumbnail else None,
             "phone": info.phone,
             "website": info.website,
             "type": info.place_type,

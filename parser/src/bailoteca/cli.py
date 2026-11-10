@@ -337,22 +337,6 @@ def cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_spike(args: argparse.Namespace) -> int:
-    import subprocess
-    import sys
-
-    # scripts/osm_spike.py está en la raíz del repo (un nivel arriba de src/)
-    script = Path(__file__).parent.parent.parent / "scripts" / "osm_spike.py"
-    if not script.exists():
-        # fallback: si se ejecuta desde source (pip install -e .)
-        script = Path(__file__).parent / "osm_spike.py"
-    cmd = [sys.executable, str(script)]
-    if args.fixture:
-        cmd.extend(["--fixture", args.fixture])
-    result = subprocess.run(cmd)
-    return result.returncode
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="bailoteca",
@@ -436,10 +420,6 @@ def build_parser() -> argparse.ArgumentParser:
     export = subparsers.add_parser("export", help="Exportar las academias publicadas")
     export.add_argument("--csv", action="store_true", help="Escribir CSV a stdout")
     export.set_defaults(handler=cmd_export)
-
-    spike = subparsers.add_parser("spike", help="Resumir la cobertura de OpenStreetMap")
-    spike.add_argument("--fixture", help="Archivo JSON de Overpass ya descargado")
-    spike.set_defaults(handler=cmd_spike)
 
     return parser
 

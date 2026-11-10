@@ -88,7 +88,9 @@ def refresh_images(config, *, dry_run: bool = False, client: HttpClient | None =
         for academy in list_published(conn):
             summary["checked"] += 1
             google = academy.get("google") or {}
-            if google.get("thumbnail_source") == "google":
+            # Fichas enriquecidas por Google Maps (via Places API) no se tocan:
+            # su thumbnail viene de Google, no de redes sociales.
+            if google.get("thumbnail_source") == "google" or google.get("place_id"):
                 summary["kept_google"] += 1
                 continue
             ranked = sorted(
