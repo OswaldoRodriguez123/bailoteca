@@ -158,8 +158,13 @@ def _pick_result(results: list[dict], name: str, comuna: str | None) -> dict | N
             distinctive = [t for t in clean.split() if len(t) >= 4]
         title_token_list = title.split()
         distinctive_match = False
+        collapsed_title = "".join(title_token_list)
         for dt in distinctive:
             if any(dt == tt for tt in title_token_list):
+                distinctive_match = True
+                break
+            # Nombres pegados en Google ("BailemosTodos"), tokens de 6+ letras.
+            if len(dt) >= 6 and dt in collapsed_title:
                 distinctive_match = True
                 break
         if distinctive and not distinctive_match:
@@ -278,14 +283,9 @@ def fetch_place(
             continue
         if not isinstance(data, dict):
             continue
-        results = data.get("local_results")
-        titles = [r.get("title") for r in results[:6]] if isinstance(results, list) else None
-        print(f"[dbg] q={query!r} n={len(results) if isinstance(results,list) else 0} top={titles}", flush=True)
         info = parse_place(data, name, comuna)
         if info is not None:
-            print(f"[dbg] MATCH {name!r} -> {info.name!r}", flush=True)
             return info
-    print(f"[dbg] NO MATCH {name!r}", flush=True)
     return None
 
 
