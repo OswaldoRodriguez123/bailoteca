@@ -134,16 +134,19 @@ def test_redirect_to_private_target_is_not_read():
     assert response.read is False
 
 
-def test_enrich_does_not_fetch_instagram():
-    fetcher = _FakeFetcher(Page("https://instagram.com/soloig", 200, "", ""))
+def test_enrich_fetches_instagram_profile_and_reads_meta():
+    page_html = (FIXTURES / "instagram-profile.html").read_text()
+    fetcher = _FakeFetcher(Page("https://instagram.com/salsawizards", 200, page_html, "Salsa Wizards 5,420 Followers"))
     enriched = enrich(
         Candidate(
-            "Solo IG", "https://www.instagram.com/soloig/", "soloig", "seed"
+            "Salsa Wizards", "https://www.instagram.com/salsawizards/", "salsawizards", "seed"
         ),
         fetcher,
     )
-    assert fetcher.calls == 0
-    assert enriched.links["instagram"] == ["https://instagram.com/soloig"]
+    assert fetcher.calls == 1
+    assert enriched.description is not None
+    assert "Academia de salsa" in enriched.description or "Salsa dancers" in enriched.description
+    assert enriched.links["instagram"] == ["https://instagram.com/salsawizards"]
 
 
 def test_extract_social_links_drops_facebook_nav_urls():

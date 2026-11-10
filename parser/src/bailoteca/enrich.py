@@ -300,18 +300,6 @@ def _text_from_html(html: str) -> str:
     return " ".join(soup.get_text(" ", strip=True).split())
 
 
-def _is_instagram_profile(url: str) -> bool:
-    try:
-        parts = urlsplit(url)
-    except ValueError:
-        return False
-    host = (parts.hostname or "").lower()
-    if host.startswith("www."):
-        host = host[4:]
-    return host == "instagram.com" and parts.path and not parts.path.startswith(
-        ("/p/", "/reel/", "/tv/", "/stories/")
-    )
-
 
 def enrich(candidate: Candidate, fetcher: Fetcher) -> Enriched:
     links: dict[str, list[str]] = {}
@@ -333,9 +321,9 @@ def enrich(candidate: Candidate, fetcher: Fetcher) -> Enriched:
     description = None
     evidence: dict = {"name": {"source_url": candidate.url, "method": candidate.source}}
 
-    if candidate.url and safe_url(candidate.url) and not _is_instagram_profile(
-        candidate.url
-    ):
+    # Los perfiles públicos de IG también sirven meta Open Graph a anónimos
+    # (og:title, og:description) que describen al negocio: no se saltan.
+    if candidate.url and safe_url(candidate.url):
         page = fetcher.get(candidate.url)
         page_url = page.url or page_url
         text = page.text or _text_from_html(page.html)
