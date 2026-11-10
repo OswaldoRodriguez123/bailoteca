@@ -15,7 +15,7 @@ esquema Postgres compartido.
 | `parser/` | Pipeline: descubrir → filtrar → enriquecer → clasificar → proponer | Funcionando |
 | `shared/` | Paquete `bailoteca-shared`: conexión, lecturas y DTOs Pydantic | Funcionando |
 | `api/`    | FastAPI de solo lectura                                        | Funcionando   |
-| `web/`    | Angular                                                        | Documentado   |
+| `web/`    | Angular: listado y detalle de academias                        | Funcionando   |
 | `supabase/migrations/` | Esquema y RLS compartidos                         | Funcionando   |
 
 ```text
@@ -29,10 +29,10 @@ bailoteca/
 │   ├── src/bailoteca_shared/
 │   └── tests/
 ├── api/                     # FastAPI de solo lectura
-├── web/                     # README + .env.example
+├── web/                     # SPA Angular (listado y detalle)
 ├── supabase/migrations/     # 0001_schema.sql, 0002_rls.sql, 0003_api_readonly.sql
 ├── docs/superpowers/        # specs y planes
-└── .github/workflows/       # parser.yml, api.yml
+└── .github/workflows/       # parser.yml, api.yml, web.yml
 ```
 
 ## Quickstart del parser
@@ -74,6 +74,9 @@ Detalles del pipeline, filtro de ruido, fuentes y cuota de SerpApi en
 # integración contra un Postgres de prueba
 TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/bailoteca_test \
   .venv/bin/python -m pytest parser/tests shared/tests -q
+
+# web
+cd web && npm test -- --watch=false
 ```
 
 ## API y web
