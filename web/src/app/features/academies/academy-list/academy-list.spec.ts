@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { of, throwError } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 
 import { routes } from '../../../app.routes';
 import { AcademyQuery } from '../../../core/models/academy.models';
@@ -114,6 +114,30 @@ describe('AcademyListPage', () => {
     expect(lastCall?.[1]).toEqual(
       expect.objectContaining({ queryParams: expect.objectContaining({ q: 'sa', page: 1 }) }),
     );
+  });
+
+  it('cancela la petición anterior al cambiar de filtro', async () => {
+    const requests: Array<{ unsubscribed: boolean }> = [];
+    listAcademies.mockImplementation(
+      () =>
+        new Observable(() => {
+          const record = { unsubscribed: false };
+          requests.push(record);
+          return () => {
+            record.unsubscribed = true;
+          };
+        }),
+    );
+
+    await open('/');
+    expect(requests).toHaveLength(1);
+
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/?page=2');
+    await harness.fixture.whenStable();
+
+    expect(requests.length).toBeGreaterThanOrEqual(2);
+    expect(requests[0].unsubscribed).toBe(true);
   });
 
   it('redirige una página fuera de rango a la última', async () => {

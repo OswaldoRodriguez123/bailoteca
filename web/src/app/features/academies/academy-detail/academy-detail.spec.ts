@@ -82,6 +82,27 @@ describe('AcademyDetailPage', () => {
     expect(text).toContain('Sitio web');
   });
 
+  it('convierte teléfonos y emails en enlaces tel: y mailto:', async () => {
+    getAcademy.mockReturnValue(
+      of(
+        makeAcademy({
+          links: [
+            { kind: 'phone', url: '+56 9 1234 5678' },
+            { kind: 'email', url: 'hola@danson.cl' },
+          ],
+        }),
+      ),
+    );
+
+    const harness = await open('/academias/danson-academy');
+    const hrefs = Array.from(
+      element(harness).querySelectorAll('a') as NodeListOf<HTMLAnchorElement>,
+    ).map(link => link.getAttribute('href'));
+
+    expect(hrefs).toContain('tel:+56912345678');
+    expect(hrefs).toContain('mailto:hola@danson.cl');
+  });
+
   it('muestra "Cómo llegar" solo cuando hay un mapa posible', async () => {
     getAcademy.mockReturnValue(
       of(

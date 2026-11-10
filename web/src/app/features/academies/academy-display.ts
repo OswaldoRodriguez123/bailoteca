@@ -1,4 +1,9 @@
-import { Academy, AcademyLocation, AcademyStyle } from '../../core/models/academy.models';
+import {
+  Academy,
+  AcademyLink,
+  AcademyLocation,
+  AcademyStyle,
+} from '../../core/models/academy.models';
 
 const LINK_LABELS: Record<string, string> = {
   web: 'Sitio web',
@@ -21,6 +26,20 @@ export function styleLabel(style: AcademyStyle): string {
 
 export function linkLabel(kind: string): string {
   return LINK_LABELS[kind.toLowerCase()] ?? 'Enlace';
+}
+
+export function linkHref(link: AcademyLink): string {
+  const kind = link.kind.toLowerCase();
+
+  if (kind === 'phone' && !/^tel:/i.test(link.url)) {
+    return `tel:${link.url.replace(/[^\d+]/g, '')}`;
+  }
+
+  if (kind === 'email' && !/^mailto:/i.test(link.url)) {
+    return `mailto:${link.url}`;
+  }
+
+  return link.url;
 }
 
 export function mapUrl(location: AcademyLocation): string | null {

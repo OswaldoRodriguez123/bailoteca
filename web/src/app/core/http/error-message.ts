@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
-const GENERIC_MESSAGE = 'Ocurrió un error inesperado. Intenta de nuevo.';
+const GENERIC_MESSAGE = 'Ocurrió un error inesperado.';
 
 export function errorMessage(error: unknown): string {
   if (!(error instanceof HttpErrorResponse)) {

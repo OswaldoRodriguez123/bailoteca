@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Params, RouterLink } from '@angular/router';
 import { Observable, Subject, catchError, map, merge, of, switchMap, tap } from 'rxjs';
 
@@ -9,7 +10,7 @@ import { AcademiesApiService } from '../../../core/services/academies-api';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { ErrorState } from '../../../shared/components/error-state/error-state';
 import { LoadingGrid } from '../../../shared/components/loading-grid/loading-grid';
-import { linkLabel, mapUrl } from '../academy-display';
+import { linkHref, linkLabel, mapUrl } from '../academy-display';
 import { StyleBadges } from '../components/style-badges/style-badges';
 
 const LIST_QUERY_KEYS = ['comuna', 'style', 'q', 'page'] as const;
@@ -57,6 +58,7 @@ export class AcademyDetailPage {
             catchError((error): Observable<LoadResult> => of({ academy: null, error })),
           ),
         ),
+        takeUntilDestroyed(),
       )
       .subscribe(({ academy, error }) => {
         if (error) {
@@ -77,6 +79,7 @@ export class AcademyDetailPage {
     this.retry$.next();
   }
 
+  protected linkHref = linkHref;
   protected linkLabel = linkLabel;
   protected mapUrl = mapUrl;
 

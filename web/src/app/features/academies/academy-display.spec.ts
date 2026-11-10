@@ -1,5 +1,12 @@
 import { makeAcademy, makeLocation } from '../../core/testing/academy.fixtures';
-import { linkLabel, mapUrl, styleLabel, truncated, uniqueComunas } from './academy-display';
+import {
+  linkHref,
+  linkLabel,
+  mapUrl,
+  styleLabel,
+  truncated,
+  uniqueComunas,
+} from './academy-display';
 
 describe('academy display helpers', () => {
   it('usa el nombre del estilo o capitaliza el slug', () => {
@@ -15,6 +22,13 @@ describe('academy display helpers', () => {
     expect(linkLabel('instagram')).toBe('Instagram');
     expect(linkLabel('web')).toBe('Sitio web');
     expect(linkLabel('desconocido')).toBe('Enlace');
+  });
+
+  it('convierte teléfonos y emails en enlaces tel: y mailto:', () => {
+    expect(linkHref({ kind: 'phone', url: '+56 9 1234 5678' })).toBe('tel:+56912345678');
+    expect(linkHref({ kind: 'email', url: 'hola@danson.cl' })).toBe('mailto:hola@danson.cl');
+    expect(linkHref({ kind: 'phone', url: 'tel:+56987654321' })).toBe('tel:+56987654321');
+    expect(linkHref({ kind: 'web', url: 'https://danson.cl' })).toBe('https://danson.cl');
   });
 
   it('arma un enlace de mapa con coordenadas', () => {

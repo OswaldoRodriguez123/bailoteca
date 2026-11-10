@@ -18,7 +18,9 @@ describe('errorMessage', () => {
   });
 
   it('usa un mensaje genérico para otros errores', () => {
-    expect(errorMessage(new HttpErrorResponse({ status: 500 }))).toContain('inesperado');
+    expect(errorMessage(new HttpErrorResponse({ status: 500 }))).toBe(
+      'Ocurrió un error inesperado.',
+    );
   });
 
   it('usa un mensaje genérico para valores que no son HttpErrorResponse', () => {

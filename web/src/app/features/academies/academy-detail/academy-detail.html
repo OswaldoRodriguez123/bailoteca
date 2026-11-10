@@ -84,7 +84,7 @@
             @for (link of item.links; track $index) {
               <li>
                 <a
-                  [href]="link.url"
+                  [href]="linkHref(link)"
                   target="_blank"
                   rel="noopener noreferrer"
                   class="inline-block rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600"
