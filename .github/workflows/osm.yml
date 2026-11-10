@@ -28,30 +28,43 @@ jobs:
               "https://lz4.overpass-api.de/api/interpreter",
           ]
           bbox = GRAN_SANTIAGO_BBOX
-          count_query = f'[out:json][timeout:25];(node["amenity"="dancing_school"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]}););out count;'
+          s, w_, n, e = bbox
+          tags = [
+              ("amenity", "dancing_school"),
+              ("leisure", "dance"),
+              ("sport", "dancing"),
+              ("shop", "dance"),
+              ("leisure", "dance_hall"),
+              ("amenity", "dojo"),
+              ("leisure", "arts_centre"),
+              ("amenity", "arts_centre"),
+              ("leisure", "studio"),
+              ("leisure", "sports_centre"),
+          ]
           full_query = build_query(bbox)
 
-          for ep in mirrors:
+          ep = "https://overpass.osm.ch/api/interpreter"
+          for tag, value in tags:
+              q = f'[out:json][timeout:25];(node["{tag}"="{value}"]({s},{w_},{n},{e});way["{tag}"="{value}"]({s},{w_},{n},{e}););out count;'
+              r = httpx.post(ep, content=q, timeout=45)
               try:
-                  t0 = time.time()
-                  r = httpx.post(ep, content=count_query, timeout=45)
-                  print(f"[probe] {ep} status={r.status_code} in {time.time()-t0:.1f}s", flush=True)
-                  if r.status_code == 200:
-                      data = r.json()
-                      print("[probe] count response:", json.dumps(data)[:300], flush=True)
-                      r2 = httpx.post(ep, content=full_query, timeout=60)
-                      print(f"[probe] full query status={r2.status_code} in {time.time()-t0:.1f}s", flush=True)
-                      if r2.status_code == 200:
-                          cands = parse_overpass(r2.json())
-                          print(f"[probe] OSM candidates={len(cands)}", flush=True)
-                          from bailoteca.osm_spike import summarize
-                          print(json.dumps(summarize(cands), ensure_ascii=False), flush=True)
-                          for c in cands:
-                              print(f"[probe] {c.name} | {c.comuna} | {c.url} | {c.handle}", flush=True)
-                      break
-              except Exception as e:
-                  print(f"[probe] {ep} ERROR: {e}", flush=True)
-          else:
-              print("[probe] todos los mirrors fallaron", flush=True)
+                  elements = r.json().get("elements", [])
+                  tags_out = elements[0].get("tags", {}) if elements else {}
+                  print(f"[tag] {tag}={value} status={r.status_code} nodes={tags_out.get('nodes')} ways={tags_out.get('ways')}", flush=True)
+              except Exception as err:
+                  print(f"[tag] {tag}={value} status={r.status_code} parse_error={err}", flush=True)
+
+          try:
+              t0 = time.time()
+              r2 = httpx.post(ep, content=full_query, timeout=60)
+              print(f"[tag] full query status={r2.status_code} in {time.time()-t0:.1f}s", flush=True)
+              cands = parse_overpass(r2.json()) if r2.status_code == 200 else []
+              print(f"[tag] OSM candidates={len(cands)}", flush=True)
+              from bailoteca.osm_spike import summarize
+              print(json.dumps(summarize(cands), ensure_ascii=False), flush=True)
+              for c in cands:
+                  print(f"[tag] {c.name} | {c.comuna} | {c.url} | {c.handle}", flush=True)
+          except Exception as err:
+              print(f"[tag] full query ERROR: {err}", flush=True)
           PY
           python probe.py
