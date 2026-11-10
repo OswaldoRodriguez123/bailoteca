@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -33,6 +34,47 @@ def clean_name(name: str | None) -> str:
     return " ".join(name.split())
 
 
+
+def _unaccent(value: str) -> str:
+    return "".join(
+        c for c in unicodedata.normalize("NFKD", value)
+        if not unicodedata.combining(c)
+    )
+
+
+def _query_variants(
+    name: str,
+    comuna: str | None,
+    address: str | None,
+) -> list[str]:
+    cleaned = clean_name(name)
+    base = cleaned or (name or "").strip()
+    variants: list[str] = []
+    combos = []
+    if address:
+        combos.append([base, address])
+    if comuna:
+        combos.append([base, comuna])
+    combos.append([base])
+    for combo in combos:
+        parts = [p for p in combo if p]
+        if comuna and comuna.lower() not in " ".join(parts).lower():
+            parts = parts + [comuna]
+        if "chile" not in " ".join(parts).lower():
+            parts = parts + ["Chile"]
+        variants.append(" ".join(parts))
+    # Versión sin acentos como respaldo.
+    extra = [_unaccent(v) for v in variants if _unaccent(v) != v]
+    variants.extend(extra)
+    # Deduplicar manteniendo orden.
+    seen: set[str] = set()
+    unique: list[str] = []
+    for v in variants:
+        if v not in seen:
+            seen.add(v)
+            unique.append(v)
+    return unique
+
 def _pick_result(results: list[dict], name: str, comuna: str | None) -> dict | None:
     if not results:
         return None
@@ -60,7 +102,8 @@ def _pick_result(results: list[dict], name: str, comuna: str | None) -> dict | N
             best_score = score
             best = item
     # Si ningún resultado se parece al nombre, no tomar uno arbitrario.
-    if best is None or best_score < 2:
+    threshold = 2 if comuna_l else 1
+    if best is None or best_score < threshold:
         return None
     return best
 
@@ -111,37 +154,34 @@ def fetch_place(
     api_key: str,
     timeout: float = 10.0,
 ) -> PlaceInfo | None:
-    cleaned = clean_name(name)
-    query_parts = [cleaned or name]
-    if address:
-        query_parts.append(address)
-    if comuna and comuna.lower() not in " ".join(query_parts).lower():
-        query_parts.append(comuna)
-    if "chile" not in " ".join(query_parts).lower():
-        query_parts.append("Chile")
-    params: dict[str, str] = {
-        "engine": "google_maps",
-        "type": "search",
-        "q": " ".join(part for part in query_parts if part).strip(),
-        "api_key": api_key,
-        "gl": "cl",
-        "hl": "es",
-    }
-    if lat is not None and lng is not None:
-        params["ll"] = f"@{lat},{lng},14z"
-    try:
-        response = http.get(SERPAPI_URL, params=params, timeout=timeout)
-    except Exception:
-        return None
-    if getattr(response, "status_code", 0) != 200:
-        return None
-    try:
-        data = response.json()
-    except Exception:
-        return None
-    if not isinstance(data, dict):
-        return None
-    return parse_place(data, name, comuna)
+    variants = _query_variants(name, comuna, address)
+    for query in variants:
+        params: dict[str, str] = {
+            "engine": "google_maps",
+            "type": "search",
+            "q": query,
+            "api_key": api_key,
+            "gl": "cl",
+            "hl": "es",
+        }
+        if lat is not None and lng is not None:
+            params["ll"] = f"@{lat},{lng},14z"
+        try:
+            response = http.get(SERPAPI_URL, params=params, timeout=timeout)
+        except Exception:
+            continue
+        if getattr(response, "status_code", 0) != 200:
+            continue
+        try:
+            data = response.json()
+        except Exception:
+            continue
+        if not isinstance(data, dict):
+            continue
+        info = parse_place(data, name, comuna)
+        if info is not None:
+            return info
+    return None
 
 
 def to_dict(info: PlaceInfo) -> dict:
