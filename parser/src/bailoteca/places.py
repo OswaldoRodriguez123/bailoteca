@@ -119,6 +119,13 @@ def _in_chile(item: dict) -> bool:
     return True
 
 
+GENERIC_TOKENS = {
+    "academia", "academias", "baile", "bailes", "clases", "clase",
+    "danza", "danzas", "estudio", "estudios", "chile", "santiago",
+    "danza", "danzas",
+}
+
+
 def _pick_result(results: list[dict], name: str, comuna: str | None) -> dict | None:
     if not results:
         return None
@@ -144,6 +151,26 @@ def _pick_result(results: list[dict], name: str, comuna: str | None) -> dict | N
                 score += 1
         if comuna_l and comuna_l in address:
             score += 1
+        # Rechazar si ningún token distintivo del nombre coincide con el título.
+        # Evita falsos positivos como "Academia Solar" -> "Academia de Baile Baila Conmigo".
+        distinctive = [t for t in clean.split() if len(t) >= 4 and t not in GENERIC_TOKENS]
+        if not distinctive:
+            distinctive = [t for t in clean.split() if len(t) >= 4]
+        title_token_list = title.split()
+        distinctive_match = False
+        for dt in distinctive:
+            if any(dt == tt for tt in title_token_list):
+                distinctive_match = True
+                break
+            if any(
+                len(tt) >= 4
+                and SequenceMatcher(None, dt, tt).ratio() >= 0.6
+                for tt in title_token_list
+            ):
+                distinctive_match = True
+                break
+        if distinctive and not distinctive_match:
+            continue
         # Similitud a nivel de tokens para nombres comerciales
         # (Mambo Roakes ~ Mambo Rock), evitando falsos positivos como
         # Mambo Roakes ~ Mambo Madness.
