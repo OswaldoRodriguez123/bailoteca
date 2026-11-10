@@ -98,8 +98,10 @@ cp api/.env.example api/.env      # completar DATABASE_URL_READONLY
 - **Parser**: GitHub Actions, `.github/workflows/parser.yml`, el **1° de cada
   mes a las 03:00 UTC**. Solo corre por cron o manualmente
   (`workflow_dispatch`); un push no lo dispara.
-- **API**: Vercel con Root Directory `api/`.
-- **Web**: Vercel con Root Directory `web/`.
+- **API**: Vercel con Root Directory `api/`:
+  <https://bailoteca-six.vercel.app> (`/docs` para OpenAPI).
+- **Web**: Vercel con Root Directory `web/`:
+  <https://bailoteca-web.vercel.app>.
 - **Base de datos**: Supabase; las migraciones se aplican a mano desde el SQL
   Editor.
 

@@ -123,3 +123,6 @@ Ambas se cargan con `loadComponent` (lazy). Una ruta desconocida redirige a `/`.
 La API debe permitir el origen del sitio en `CORS_ORIGINS`
 (`https://<proyecto>.vercel.app`). El CI de `.github/workflows/web.yml` corre
 tests y build con un `API_BASE_URL` de relleno cuando cambia `web/**`.
+
+Sitio en producción: <https://bailoteca-web.vercel.app>, con
+`API_BASE_URL=https://bailoteca-six.vercel.app`.
