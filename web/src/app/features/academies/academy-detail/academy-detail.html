@@ -129,6 +129,20 @@
               <p class="text-sm text-stone-600">Precio: {{ item.google.price }}</p>
             }
 
+            @if (item.google.phone) {
+              <p class="text-sm text-stone-600">
+                Teléfono:
+                <a [href]="'tel:' + item.google.phone" class="font-medium text-rose-700 hover:text-rose-800">{{ item.google.phone }}</a>
+              </p>
+            }
+
+            @if (item.google.website) {
+              <p class="text-sm text-stone-600">
+                Sitio web:
+                <a [href]="item.google.website" target="_blank" rel="noopener noreferrer" class="font-medium text-rose-700 hover:text-rose-800">{{ item.google.website }}</a>
+              </p>
+            }
+
             @if (item.google.hours) {
               <div class="text-sm text-stone-600">
                 <p class="font-medium">Horarios</p>
