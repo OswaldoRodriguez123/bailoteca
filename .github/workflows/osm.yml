@@ -1,7 +1,7 @@
 name: OSM spike
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 jobs:
   probe:
@@ -11,8 +11,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e shared -e "parser[dev]"
-      - run: python - <<'PY'
+      - run: |
+          cat > probe.py <<'PY'
           import json, time
           import httpx
           from bailoteca.sources.osm import build_query, parse_overpass, GRAN_SANTIAGO_BBOX
@@ -27,7 +27,7 @@ jobs:
               "https://lz4.overpass-api.de/api/interpreter",
           ]
           bbox = GRAN_SANTIAGO_BBOX
-          count_query = f"[out:json][timeout:25];(node[\"amenity\"=\"dancing_school\"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]}););out count;"
+          count_query = f'[out:json][timeout:25];(node["amenity"="dancing_school"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]}););out count;'
           full_query = build_query(bbox)
 
           for ep in mirrors:
@@ -38,9 +38,19 @@ jobs:
                   if r.status_code == 200:
                       data = r.json()
                       print("[probe] count response:", json.dumps(data)[:300], flush=True)
+                      r2 = httpx.post(ep, content=full_query, timeout=60)
+                      print(f"[probe] full query status={r2.status_code} in {time.time()-t0:.1f}s", flush=True)
+                      if r2.status_code == 200:
+                          cands = parse_overpass(r2.json())
+                          print(f"[probe] OSM candidates={len(cands)}", flush=True)
+                          from bailoteca.osm_spike import summarize
+                          print(json.dumps(summarize(cands), ensure_ascii=False), flush=True)
+                          for c in cands:
+                              print(f"[probe] {c.name} | {c.comuna} | {c.url} | {c.handle}", flush=True)
                       break
               except Exception as e:
                   print(f"[probe] {ep} ERROR: {e}", flush=True)
           else:
               print("[probe] todos los mirrors fallaron", flush=True)
           PY
+          python probe.py
