@@ -10,6 +10,9 @@ def test_defaults_without_environment():
     assert cfg.serpapi_key is None
     assert cfg.cloudflare_account_id is None
     assert cfg.cloudflare_token is None
+    assert cfg.resend_api_key is None
+    assert cfg.review_to_email is None
+    assert cfg.review_from_email == "onboarding@resend.dev"
     assert cfg.cache_dir == Path("data/cache")
     assert cfg.reports_dir == Path("reports")
     assert cfg.sources == ["seed", "search"]
@@ -34,3 +37,16 @@ def test_reads_environment():
     assert cfg.sources == ["seed", "osm"]
     assert cfg.cache_dir == Path("/tmp/cache")
     assert cfg.reports_dir == Path("/tmp/reports")
+
+
+def test_reads_resend_environment():
+    cfg = Config.from_env(
+        {
+            "RESEND_API_KEY": "re_key",
+            "BAILOTECA_REVIEW_TO_EMAIL": "yo@example.com",
+            "BAILOTECA_REVIEW_FROM_EMAIL": "avisos@example.com",
+        }
+    )
+    assert cfg.resend_api_key == "re_key"
+    assert cfg.review_to_email == "yo@example.com"
+    assert cfg.review_from_email == "avisos@example.com"

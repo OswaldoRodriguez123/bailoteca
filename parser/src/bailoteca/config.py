@@ -12,6 +12,9 @@ class Config:
     brave_api_key: str | None
     cloudflare_account_id: str | None
     cloudflare_token: str | None
+    resend_api_key: str | None
+    review_to_email: str | None
+    review_from_email: str
     cache_dir: Path
     reports_dir: Path
     sources: list[str]
@@ -27,6 +30,10 @@ class Config:
             brave_api_key=env.get("BRAVE_API_KEY") or None,
             cloudflare_account_id=env.get("CLOUDFLARE_ACCOUNT_ID") or None,
             cloudflare_token=env.get("CLOUDFLARE_API_TOKEN") or None,
+            resend_api_key=env.get("RESEND_API_KEY") or None,
+            review_to_email=env.get("BAILOTECA_REVIEW_TO_EMAIL") or None,
+            review_from_email=env.get("BAILOTECA_REVIEW_FROM_EMAIL")
+            or "onboarding@resend.dev",
             cache_dir=Path(env.get("BAILOTECA_CACHE_DIR", "data/cache")),
             reports_dir=Path(env.get("BAILOTECA_REPORTS_DIR", "reports")),
             sources=sources,
