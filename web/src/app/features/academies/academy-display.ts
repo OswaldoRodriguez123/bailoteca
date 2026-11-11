@@ -111,6 +111,13 @@ const DAYS: Record<string, string> = {
   viernes: 'Friday',
   sábado: 'Saturday',
   domingo: 'Sunday',
+  monday: 'Monday',
+  tuesday: 'Tuesday',
+  wednesday: 'Wednesday',
+  thursday: 'Thursday',
+  friday: 'Friday',
+  saturday: 'Saturday',
+  sunday: 'Sunday',
 };
 
 interface OpeningHoursSpec {

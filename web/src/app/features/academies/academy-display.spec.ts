@@ -127,6 +127,19 @@ describe('academy display helpers', () => {
     expect(openingHoursSpecification({})).toEqual([]);
   });
 
+  it('acepta días en inglés además de español', () => {
+    const spec = openingHoursSpecification({ monday: '7–9 p. m.', Sunday: 'Cerrado' });
+
+    expect(spec).toEqual([
+      {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: 'https://schema.org/Monday',
+        opens: '19:00',
+        closes: '21:00',
+      },
+    ]);
+  });
+
   it('normaliza teléfonos chilenos a E.164', () => {
     expect(normalizePhone('9 9679 1861')).toBe('+56996791861');
     expect(normalizePhone('+56 9 1234 5678')).toBe('+56912345678');
