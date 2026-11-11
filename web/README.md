@@ -90,8 +90,8 @@ prerendered route. The `postbuild` script (`scripts/write-sitemap.mjs`) reads
 | `API_BASE_URL` | build environment / `.env`     | Base URL of the public API            |
 | `SITE_URL`     | build environment (optional)   | Absolute origin for `sitemap.xml`     |
 
-There are no secrets in the browser. `web/.env.example` only documents
-`API_BASE_URL`.
+There are no secrets in the browser. `web/.env.example` documents
+`API_BASE_URL` and the optional `SITE_URL`.
 
 ## Endpoints consumed
 
