@@ -84,9 +84,9 @@ export class AcademyDetailPage {
   });
 
   protected readonly failedImage = signal<string | null>(null);
-  protected readonly thumbnailSrc = computed(() => {
-    const thumbnail = this.academy()?.google?.thumbnail ?? null;
-    return thumbnail && this.failedImage() !== thumbnail ? thumbnail : null;
+  protected readonly coverSrc = computed(() => {
+    const cover = this.academy()?.cover_url ?? null;
+    return cover && this.failedImage() !== cover ? cover : null;
   });
 
   protected readonly initials = computed(() =>

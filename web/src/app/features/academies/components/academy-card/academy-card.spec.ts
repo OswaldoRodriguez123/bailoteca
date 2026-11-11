@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
-import { makeAcademy, makeGoogle, makeLocation, makeStyle } from '../../../../core/testing/academy.fixtures';
+import { makeAcademy, makeLocation, makeStyle } from '../../../../core/testing/academy.fixtures';
 import { AcademyCard } from './academy-card';
 
 describe('AcademyCard', () => {
@@ -52,10 +52,33 @@ describe('AcademyCard', () => {
     expect(element.querySelectorAll('a')).toHaveLength(1);
   });
 
+  it('muestra la portada cuando la academia tiene cover_url', async () => {
+    fixture.componentRef.setInput(
+      'academy',
+      makeAcademy({ cover_url: 'https://proj.supabase.co/storage/v1/object/public/academy-covers/danson-academy.jpg' }),
+    );
+    await fixture.whenStable();
+
+    const img = fixture.nativeElement.querySelector('img') as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    expect(img!.getAttribute('src')).toBe(
+      'https://proj.supabase.co/storage/v1/object/public/academy-covers/danson-academy.jpg',
+    );
+  });
+
+  it('muestra las iniciales cuando la academia no tiene cover_url', async () => {
+    fixture.componentRef.setInput('academy', makeAcademy({ cover_url: null }));
+    await fixture.whenStable();
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('img')).toBeNull();
+    expect(element.textContent).toContain('DA');
+  });
+
   it('muestra las iniciales cuando la portada falla al cargar', async () => {
     fixture.componentRef.setInput(
       'academy',
-      makeAcademy({ google: makeGoogle({ thumbnail: 'https://img.example/roto.jpg' }) }),
+      makeAcademy({ cover_url: 'https://img.example/roto.jpg' }),
     );
     await fixture.whenStable();
 

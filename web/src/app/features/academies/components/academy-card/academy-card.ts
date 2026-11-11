@@ -15,7 +15,7 @@ import { StyleBadges } from '../style-badges/style-badges';
       [queryParams]="queryParams()"
       class="group grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-start gap-4 border-b border-line py-5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-ink sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:gap-6"
     >
-      @if (thumbnailSrc(); as src) {
+      @if (coverSrc(); as src) {
         <img
           [src]="src"
           alt=""
@@ -87,9 +87,9 @@ export class AcademyCard {
   readonly queryParams = input<Params | null>(null);
 
   protected readonly failedImage = signal<string | null>(null);
-  protected readonly thumbnailSrc = computed(() => {
-    const thumbnail = this.academy().google?.thumbnail ?? null;
-    return thumbnail && this.failedImage() !== thumbnail ? thumbnail : null;
+  protected readonly coverSrc = computed(() => {
+    const cover = this.academy().cover_url ?? null;
+    return cover && this.failedImage() !== cover ? cover : null;
   });
   protected readonly comunas = computed(() => uniqueComunas(this.academy()));
   protected readonly description = computed(() => truncated(this.academy().description));

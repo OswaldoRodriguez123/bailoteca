@@ -31,7 +31,6 @@ export interface GooglePlace {
   hours: Record<string, string> | null;
   open_state: string | null;
   maps_url: string | null;
-  thumbnail: string | null;
   phone: string | null;
   website: string | null;
   type: string | null;
@@ -47,6 +46,7 @@ export interface Academy {
   description: string | null;
   status: string;
   source_urls: string[];
+  cover_url: string | null;
   created_at: string | null;
   updated_at: string | null;
   verified_at: string | null;

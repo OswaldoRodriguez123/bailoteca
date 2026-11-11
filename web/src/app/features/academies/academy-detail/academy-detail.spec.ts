@@ -90,9 +90,35 @@ describe('AcademyDetailPage', () => {
     expect(text).toContain('Sitio web');
   });
 
+  it('muestra la portada cuando la academia tiene cover_url', async () => {
+    getAcademy.mockReturnValue(
+      of(
+        makeAcademy({
+          cover_url:
+            'https://proj.supabase.co/storage/v1/object/public/academy-covers/danson-academy.jpg',
+        }),
+      ),
+    );
+
+    const harness = await open('/academias/danson-academy');
+    const img = element(harness).querySelector('img') as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    expect(img!.getAttribute('src')).toBe(
+      'https://proj.supabase.co/storage/v1/object/public/academy-covers/danson-academy.jpg',
+    );
+  });
+
+  it('muestra las iniciales cuando la academia no tiene cover_url', async () => {
+    getAcademy.mockReturnValue(of(makeAcademy({ cover_url: null })));
+
+    const harness = await open('/academias/danson-academy');
+    expect(element(harness).querySelector('img')).toBeNull();
+    expect(element(harness).textContent).toContain('DA');
+  });
+
   it('muestra las iniciales cuando la portada falla al cargar', async () => {
     getAcademy.mockReturnValue(
-      of(makeAcademy({ google: makeGoogle({ thumbnail: 'https://img.example/roto.jpg' }) })),
+      of(makeAcademy({ cover_url: 'https://img.example/roto.jpg' })),
     );
 
     const harness = await open('/academias/danson-academy');
