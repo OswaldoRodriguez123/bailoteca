@@ -10,6 +10,10 @@ on:
         description: "Solo generar reportes, sin escribir en la base"
         type: boolean
         default: false
+      host_covers:
+        description: "Solo alojar las portadas actuales en Supabase Storage (backfill)"
+        type: boolean
+        default: false
 
 jobs:
   run:
@@ -60,7 +64,17 @@ jobs:
         working-directory: parser
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python -m bailoteca refresh-images
+      - name: Host de portadas (backfill)
+        if: ${{ inputs.host_covers == true }}
+        working-directory: parser
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python -m bailoteca host-covers --recovered-manifest "$GITHUB_WORKSPACE/parser/repair/recovered-sources-2026-11-11.json"
       - uses: actions/upload-artifact@v4
         with:
           name: reportes

@@ -17,6 +17,9 @@ _ACADEMY_SELECT = """
         a.created_at,
         a.updated_at,
         a.verified_at,
+        a.cover_url,
+        a.cover_source,
+        a.cover_fetched_at,
         a.google,
         coalesce(
             (

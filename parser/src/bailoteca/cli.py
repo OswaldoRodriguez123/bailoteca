@@ -280,6 +280,43 @@ def cmd_refresh_images(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_host_covers(args: argparse.Namespace) -> int:
+    from bailoteca.covers import backfill_covers
+
+    recovered_sources: dict[str, str] = {}
+    manifest = getattr(args, "recovered_manifest", None)
+    if manifest:
+        path = Path(manifest)
+        if not path.exists():
+            print(f"No existe el manifiesto: {path}", file=sys.stderr)
+            return 2
+        recovered_sources = json.loads(path.read_text(encoding="utf-8"))
+
+    config = _load_config()
+    if not config.database_url:
+        print(
+            "Falta DATABASE_URL. Configúrala en .env o en el entorno.",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        summary = backfill_covers(
+            config,
+            recovered_sources,
+            dry_run=getattr(args, "dry_run", False),
+        )
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    print(
+        f"subidas={len(summary['hosted'])} "
+        f"omitidas={len(summary['skipped'])} "
+        f"sin_imagen={len(summary['missing'])} "
+        f"fallidas={len(summary['failed'])}"
+    )
+    return 0
+
+
 def cmd_export(args: argparse.Namespace) -> int:
     from bailoteca.db import list_published
 
@@ -416,6 +453,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Imprime los cambios sin escribir en la base de datos",
     )
     refresh_images.set_defaults(handler=cmd_refresh_images)
+
+    host_covers = subparsers.add_parser(
+        "host-covers",
+        help="Alojar las portadas actuales en Supabase Storage (backfill)",
+    )
+    host_covers.add_argument(
+        "--recovered-manifest",
+        help="JSON opcional {slug: url de la portada original} para academias rotas",
+    )
+    host_covers.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Descarga y valida sin subir ni escribir en la base de datos",
+    )
+    host_covers.set_defaults(handler=cmd_host_covers)
 
     export = subparsers.add_parser("export", help="Exportar las academias publicadas")
     export.add_argument("--csv", action="store_true", help="Escribir CSV a stdout")
