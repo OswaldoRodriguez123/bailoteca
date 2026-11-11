@@ -4,56 +4,39 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist/bailoteca-web/browser",
   "routes": [
+    {
+      "src": "/(.*)",
+      "continue": true,
+      "headers": {
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()"
+      }
+    },
+    {
+      "src": "/",
+      "continue": true,
+      "headers": {
+        "Cache-Control": "public, s-maxage=600, stale-while-revalidate=86400"
+      }
+    },
+    {
+      "src": "/academias/(.*)",
+      "continue": true,
+      "headers": {
+        "Cache-Control": "public, s-maxage=600, stale-while-revalidate=86400"
+      }
+    },
+    {
+      "src": "/academias/?$",
+      "status": 301,
+      "headers": {
+        "Location": "/"
+      }
+    },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/404.html", "status": 404 }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Config-Probe",
-          "value": "routes-404"
-        },
-        {
-          "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "SAMEORIGIN"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        },
-        {
-          "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=()"
-        }
-      ]
-    },
-    {
-      "source": "/",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, s-maxage=600, stale-while-revalidate=86400"
-        }
-      ]
-    },
-    {
-      "source": "/academias/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, s-maxage=600, stale-while-revalidate=86400"
-        }
-      ]
-    }
   ]
 }
