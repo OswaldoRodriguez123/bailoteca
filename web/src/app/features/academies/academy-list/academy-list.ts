@@ -16,6 +16,7 @@ import {
 
 import { AcademyPage, PAGE_SIZE, StyleOption } from '../../../core/models/academy.models';
 import { errorMessage } from '../../../core/http/error-message';
+import { SeoService } from '../../../core/seo/seo.service';
 import { AcademiesApiService } from '../../../core/services/academies-api';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { ErrorState } from '../../../shared/components/error-state/error-state';
@@ -35,6 +36,7 @@ export class AcademyListPage {
   private readonly api = inject(AcademiesApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly seo = inject(SeoService);
   private readonly search$ = new Subject<string>();
   private readonly reload$ = new Subject<void>();
 
@@ -75,6 +77,13 @@ export class AcademyListPage {
       distinctUntilChanged(sameQuery),
       tap(query => {
         this.query.set(query);
+        this.seo.set({
+          title: 'Academias de baile en Santiago',
+          description:
+            'Directorio de academias de baile en Santiago: salsa, bachata, tango y más, por comuna y estilo.',
+          path: '/',
+          noindex: Boolean(query.comuna || query.style || query.q),
+        });
 
         if (this.needsRewrite(this.route.snapshot.queryParamMap, query)) {
           void this.router.navigate([], {

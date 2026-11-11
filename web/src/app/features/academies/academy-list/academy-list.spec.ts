@@ -208,4 +208,23 @@ describe('AcademyListPage', () => {
 
     expect(navigate).toHaveBeenCalledWith(['/']);
   });
+
+  it('escribe el título, canonical y noindex según los filtros', async () => {
+    await open('/');
+
+    expect(document.title).toBe('Academias de baile en Santiago · Bailoteca');
+    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
+      'https://bailoteca.vercel.app/',
+    );
+    expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe(
+      'index, follow',
+    );
+
+    await harness.navigateByUrl('/?comuna=Providencia', AcademyListPage);
+    await harness.fixture.whenStable();
+
+    expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe(
+      'noindex, follow',
+    );
+  });
 });
