@@ -36,6 +36,22 @@ export class SeoService {
     this.title.setTitle(title);
     this.addMeta('name', 'description', meta.description);
     this.addMeta('name', 'robots', meta.noindex ? 'noindex, follow' : 'index, follow');
+    this.addMeta('property', 'og:title', title);
+    this.addMeta('property', 'og:description', meta.description);
+    this.addMeta('property', 'og:url', url);
+    this.addMeta('property', 'og:type', 'website');
+    this.addMeta('property', 'og:site_name', SITE_NAME);
+    this.addMeta('property', 'og:locale', 'es_CL');
+    this.addMeta('name', 'twitter:card', 'summary_large_image');
+    this.addMeta('name', 'twitter:title', title);
+    this.addMeta('name', 'twitter:description', meta.description);
+
+    if (meta.image) {
+      const image = this.absolute(meta.image);
+      this.addMeta('property', 'og:image', image);
+      this.addMeta('name', 'twitter:image', image);
+    }
+
     this.addCanonical(url);
   }
 

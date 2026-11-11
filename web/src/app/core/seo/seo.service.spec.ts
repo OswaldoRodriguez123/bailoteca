@@ -65,4 +65,46 @@ describe('SeoService', () => {
     expect(doc.querySelectorAll('[data-seo]')).toHaveLength(0);
     expect(doc.title).toBe('Bailoteca — Academias de baile en Santiago');
   });
+
+  it('escribe Open Graph y Twitter Cards', () => {
+    service.set({
+      title: 'Dansón Academy',
+      description: 'Clases de salsa en Providencia',
+      path: '/academias/danson-academy',
+    });
+
+    expect(doc.querySelector('meta[property="og:title"]')?.getAttribute('content')).toBe(
+      'Dansón Academy · Bailoteca',
+    );
+    expect(doc.querySelector('meta[property="og:description"]')?.getAttribute('content')).toBe(
+      'Clases de salsa en Providencia',
+    );
+    expect(doc.querySelector('meta[property="og:url"]')?.getAttribute('content')).toBe(
+      'https://bailoteca.test/academias/danson-academy',
+    );
+    expect(doc.querySelector('meta[property="og:type"]')?.getAttribute('content')).toBe('website');
+    expect(doc.querySelector('meta[property="og:site_name"]')?.getAttribute('content')).toBe(
+      'Bailoteca',
+    );
+    expect(doc.querySelector('meta[property="og:locale"]')?.getAttribute('content')).toBe('es_CL');
+    expect(doc.querySelector('meta[name="twitter:card"]')?.getAttribute('content')).toBe(
+      'summary_large_image',
+    );
+    expect(doc.querySelector('meta[name="twitter:title"]')?.getAttribute('content')).toBe(
+      'Dansón Academy · Bailoteca',
+    );
+  });
+
+  it('escribe og:image y twitter:image solo si hay imagen', () => {
+    service.set({ title: 'A', description: 'B', path: '/a' });
+    expect(doc.querySelector('meta[property="og:image"]')).toBeNull();
+
+    service.set({ title: 'A', description: 'B', path: '/a', image: '/og.png' });
+    expect(doc.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe(
+      'https://bailoteca.test/og.png',
+    );
+    expect(doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content')).toBe(
+      'https://bailoteca.test/og.png',
+    );
+  });
 });
