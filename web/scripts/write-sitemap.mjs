@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SITE_URL = process.env.SITE_URL ?? 'https://bailoteca.vercel.app';
+const API_BASE_URL = process.env.API_BASE_URL?.replace(/\/$/, '');
 const dist = new URL('../dist/bailoteca-web/', import.meta.url).pathname;
 const routesFile = join(dist, 'prerendered-routes.json');
 const outputDir = join(dist, 'browser');
@@ -16,8 +17,16 @@ const routes = Object.keys(parsed.routes ?? parsed).filter(
   route => route === '/' || route.startsWith('/academias/'),
 );
 
+const lastmod = await loadLastmod();
+const homeLastmod = [...lastmod.values()].sort().at(-1);
+
 const urls = routes
-  .map(route => `  <url><loc>${new URL(route, SITE_URL).toString()}</loc></url>`)
+  .map(route => {
+    const loc = new URL(route, SITE_URL).toString();
+    const date = route === '/' ? homeLastmod : lastmod.get(route);
+    const lastmodTag = date ? `<lastmod>${date}</lastmod>` : '';
+    return `  <url><loc>${loc}</loc>${lastmodTag}</url>`;
+  })
   .join('\n');
 
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
@@ -34,4 +43,42 @@ Sitemap: ${new URL('/sitemap.xml', SITE_URL).toString()}
 
 writeFileSync(join(outputDir, 'sitemap.xml'), sitemap);
 writeFileSync(join(outputDir, 'robots.txt'), robots);
-console.log(`sitemap.xml con ${routes.length} rutas y robots.txt escritos en ${outputDir}`);
+console.log(
+  `sitemap.xml con ${routes.length} rutas (${lastmod.size} con lastmod) y robots.txt escritos en ${outputDir}`,
+);
+
+async function loadLastmod() {
+  const dates = new Map();
+
+  if (!API_BASE_URL) {
+    return dates;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/academies?page=1&page_size=100`);
+    if (!response.ok) {
+      return dates;
+    }
+
+    const data = await response.json();
+    for (const academy of data.items ?? []) {
+      const date = toDate(academy.updated_at ?? academy.verified_at);
+      if (date) {
+        dates.set(`/academias/${academy.slug}`, date);
+      }
+    }
+  } catch {
+    // Sin red o API caída: el sitemap se publica sin lastmod.
+  }
+
+  return dates;
+}
+
+function toDate(value) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
+}
