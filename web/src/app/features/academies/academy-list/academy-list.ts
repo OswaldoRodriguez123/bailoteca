@@ -82,28 +82,41 @@ export class AcademyListPage {
         this.seo.set({
           title: 'Academias de baile en Santiago',
           description:
-            'Directorio de academias de baile en Santiago: salsa, bachata, tango y más, por comuna y estilo.',
+            'Directorio de academias de baile en Santiago: salsa, bachata, tango y otros ritmos latinos. Encuentra clases por comuna y estilo.',
           path: '/',
           image: '/og-image.png',
           imageAlt: 'Bailoteca — academias de baile en Santiago',
           imageWidth: 1200,
           imageHeight: 630,
           noindex: Boolean(query.comuna || query.style || query.q || query.page > 1),
-          jsonLd: {
-            '@context': 'https://schema.org',
-            '@type': 'WebSite',
-            name: 'Bailoteca',
-            url: `${this.siteUrl}/`,
-            inLanguage: 'es-CL',
-            potentialAction: {
-              '@type': 'SearchAction',
-              target: {
-                '@type': 'EntryPoint',
-                urlTemplate: `${this.siteUrl}/?q={search_term_string}`,
+          jsonLd: [
+            {
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              name: 'Bailoteca',
+              url: `${this.siteUrl}/`,
+              inLanguage: 'es-CL',
+              publisher: { '@id': `${this.siteUrl}/#organization` },
+              potentialAction: {
+                '@type': 'SearchAction',
+                target: {
+                  '@type': 'EntryPoint',
+                  urlTemplate: `${this.siteUrl}/?q={search_term_string}`,
+                },
+                'query-input': 'required name=search_term_string',
               },
-              'query-input': 'required name=search_term_string',
             },
-          },
+            {
+              '@context': 'https://schema.org',
+              '@type': 'Organization',
+              '@id': `${this.siteUrl}/#organization`,
+              name: 'Bailoteca',
+              url: `${this.siteUrl}/`,
+              logo: `${this.siteUrl}/icon-512.png`,
+              description:
+                'Directorio de academias de baile en Santiago de Chile, con sedes, estilos y datos de contacto.',
+            },
+          ],
         });
 
         if (this.needsRewrite(this.route.snapshot.queryParamMap, query)) {
@@ -183,10 +196,6 @@ export class AcademyListPage {
 
   onQ(value: string): void {
     this.search$.next(value);
-  }
-
-  onPage(page: number): void {
-    this.navigate({ page });
   }
 
   clearFilters(): void {

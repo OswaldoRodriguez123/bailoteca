@@ -95,15 +95,27 @@ used for absolute URLs.
   `noindex, follow`.
 - **Structured data**: `DanceSchool` with address, `sameAs`, `telephone`,
   `geo`, `hasMap`, `aggregateRating` and `openingHoursSpecification` when the
-  API has the data, plus `BreadcrumbList` on details and `WebSite` with
-  `SearchAction` on the home page.
+  API has the data, plus `BreadcrumbList` on details. The home page publishes
+  `WebSite` with `SearchAction` and `publisher`, and `Organization` with name,
+  URL and logo.
 - **Social image**: `public/og-image.png` (1200×630) is used on every page.
 - **Internal linking**: detail pages list up to four academies from the same
-  comuna, falling back to the same style.
+  comuna, falling back to the same style. Pagination renders real `<a>` links
+  with `rel="prev"`/`rel="next"` and keeps the active filters, so crawlers can
+  reach every page of the list even though those URLs are `noindex`.
+- **AI discovery**: `public/llms.txt` describes the directory and links to the
+  home page, the sitemap and the public API. `robots.txt` explicitly allows
+  GPTBot, ChatGPT-User, ClaudeBot, PerplexityBot, Google-Extended,
+  Applebot-Extended and CCBot.
 - **Fonts**: Bricolage Grotesque and Instrument Sans are self-hosted in
   `public/fonts/` and preloaded; there is no request to Google Fonts.
 - **Caching**: `vercel.json` sets `s-maxage=600, stale-while-revalidate=86400`
   for the home page and detail pages.
+- **Security headers**: `vercel.json` sets `X-Content-Type-Options`,
+  `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` and a CSP. The CSP
+  allows `'unsafe-inline'` scripts because Angular's prerendered event-replay
+  bootstrap is inline; everything else is restricted to the site origin and the
+  API.
 
 ## Variables
 

@@ -243,10 +243,11 @@ describe('AcademyListPage', () => {
 
     const jsonLd = JSON.parse(
       document.querySelector('script[type="application/ld+json"]')!.textContent!,
-    );
-    expect(jsonLd['@type']).toBe('WebSite');
-    expect(jsonLd.url).toBe('https://bailoteca.vercel.app/');
-    expect(jsonLd.potentialAction).toEqual({
+    ) as Array<Record<string, unknown>>;
+    const website = jsonLd.find(item => item['@type'] === 'WebSite')!;
+
+    expect(website['url']).toBe('https://bailoteca.vercel.app/');
+    expect(website['potentialAction']).toEqual({
       '@type': 'SearchAction',
       target: {
         '@type': 'EntryPoint',
@@ -254,9 +255,41 @@ describe('AcademyListPage', () => {
       },
       'query-input': 'required name=search_term_string',
     });
+    expect(website['publisher']).toEqual({ '@id': 'https://bailoteca.vercel.app/#organization' });
 
     expect(document.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe(
       'https://bailoteca.vercel.app/og-image.png',
     );
+  });
+
+  it('publica Organization con nombre, url y logo', async () => {
+    await open('/');
+
+    const jsonLd = JSON.parse(
+      document.querySelector('script[type="application/ld+json"]')!.textContent!,
+    ) as Array<Record<string, unknown>>;
+    const organization = jsonLd.find(item => item['@type'] === 'Organization');
+
+    expect(organization).toEqual({
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      '@id': 'https://bailoteca.vercel.app/#organization',
+      name: 'Bailoteca',
+      url: 'https://bailoteca.vercel.app/',
+      logo: 'https://bailoteca.vercel.app/icon-512.png',
+      description:
+        'Directorio de academias de baile en Santiago de Chile, con sedes, estilos y datos de contacto.',
+    });
+  });
+
+  it('mantiene la meta description del home dentro del rango de SERP', async () => {
+    await open('/');
+
+    const description = document
+      .querySelector('meta[name="description"]')!
+      .getAttribute('content')!;
+
+    expect(description.length).toBeGreaterThanOrEqual(110);
+    expect(description.length).toBeLessThanOrEqual(170);
   });
 });

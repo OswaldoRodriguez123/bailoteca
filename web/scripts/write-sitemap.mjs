@@ -38,6 +38,16 @@ ${urls}
 const robots = `User-agent: *
 Allow: /
 
+# Crawlers de IA: mismo permiso de lectura que el resto del sitio.
+User-agent: GPTBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: PerplexityBot
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: CCBot
+Allow: /
+
 Sitemap: ${new URL('/sitemap.xml', SITE_URL).toString()}
 `;
 

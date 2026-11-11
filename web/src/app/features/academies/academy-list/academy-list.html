@@ -52,7 +52,7 @@
           [page]="current.page"
           [total]="current.total"
           [pageSize]="current.page_size"
-          (pageChange)="onPage($event)"
+          [queryParams]="queryParams()"
         />
       }
     </div>

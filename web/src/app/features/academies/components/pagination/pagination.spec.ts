@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 
 import { Pagination } from './pagination';
 
@@ -6,45 +7,48 @@ describe('Pagination', () => {
   let fixture: ComponentFixture<Pagination>;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [Pagination] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [Pagination],
+      providers: [provideRouter([])],
+    }).compileComponents();
     fixture = TestBed.createComponent(Pagination);
     fixture.componentRef.setInput('total', 45);
     fixture.componentRef.setInput('pageSize', 20);
   });
 
-  function button(label: string): HTMLButtonElement {
+  function link(label: string): HTMLAnchorElement | null {
     return Array.from(
-      fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
-    ).find(candidate => candidate.textContent?.includes(label)) as HTMLButtonElement;
+      fixture.nativeElement.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>,
+    ).find(candidate => candidate.textContent?.includes(label)) ?? null;
   }
 
-  it('muestra la página actual y deshabilita Anterior en la primera', async () => {
+  it('enlaza la página siguiente para que los buscadores la sigan', async () => {
     fixture.componentRef.setInput('page', 1);
     await fixture.whenStable();
 
     const text = (fixture.nativeElement as HTMLElement).textContent;
     expect(text).toContain('Página 1 de 3');
-    expect(button('Anterior').disabled).toBe(true);
-    expect(button('Siguiente').disabled).toBe(false);
+    expect(link('Anterior')).toBeNull();
+    expect(text).toContain('← Anterior');
+    expect(link('Siguiente')?.getAttribute('href')).toBe('/?page=2');
   });
 
-  it('deshabilita Siguiente en la última página', async () => {
+  it('conserva los filtros en los enlaces de paginación', async () => {
+    fixture.componentRef.setInput('page', 2);
+    fixture.componentRef.setInput('queryParams', { comuna: 'Maipú' });
+    await fixture.whenStable();
+
+    expect(link('Anterior')?.getAttribute('href')).toBe('/?comuna=Maip%C3%BA&page=1');
+    expect(link('Siguiente')?.getAttribute('href')).toBe('/?comuna=Maip%C3%BA&page=3');
+  });
+
+  it('no enlaza fuera de rango en la última página', async () => {
     fixture.componentRef.setInput('page', 3);
     await fixture.whenStable();
 
-    expect(button('Siguiente').disabled).toBe(true);
-    expect(button('Anterior').disabled).toBe(false);
-  });
-
-  it('emite pageChange al avanzar', async () => {
-    fixture.componentRef.setInput('page', 1);
-    const changes = vi.fn();
-    fixture.componentInstance.pageChange.subscribe(changes);
-    await fixture.whenStable();
-
-    button('Siguiente').click();
-
-    expect(changes).toHaveBeenCalledWith(2);
+    expect(link('Siguiente')).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Siguiente →');
+    expect(link('Anterior')?.getAttribute('href')).toBe('/?page=2');
   });
 
   it('no renderiza controles sin resultados', async () => {
