@@ -114,6 +114,12 @@ export class AcademyDetailPage {
             });
           } else {
             this.error.set(errorMessage(error));
+            this.seo.set({
+              title: 'No pudimos cargar la academia',
+              description: 'Hubo un problema al cargar esta academia en Bailoteca.',
+              path: `/academias/${this.currentSlug}`,
+              noindex: true,
+            });
           }
         } else if (academy) {
           this.academy.set(academy);
@@ -142,13 +148,14 @@ export class AcademyDetailPage {
   }
 
   private updateMetadata(academy: Academy): void {
-    const comuna = academy.locations[0]?.comuna ?? 'Santiago';
+    const comuna = academy.locations[0]?.comuna?.trim() || 'Santiago';
     const path = `/academias/${academy.slug}`;
+    const description = academy.description?.trim() || `Academia de baile en ${comuna}.`;
     const jsonLd: SeoJsonLd = {
       '@context': 'https://schema.org',
       '@type': 'DanceSchool',
       name: academy.name,
-      description: academy.description ?? undefined,
+      description: academy.description?.trim() || undefined,
       url: `${this.siteUrl}${path}`,
     };
 
@@ -167,7 +174,7 @@ export class AcademyDetailPage {
 
     this.seo.set({
       title: `${academy.name} — ${comuna}`,
-      description: academy.description ?? `Academia de baile en ${comuna}.`,
+      description,
       path,
       jsonLd,
     });

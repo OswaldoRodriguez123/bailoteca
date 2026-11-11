@@ -227,4 +227,14 @@ describe('AcademyListPage', () => {
       'noindex, follow',
     );
   });
+
+  it('marca noindex en páginas posteriores a la primera', async () => {
+    listAcademies.mockImplementation(() => of(makePage([], { page: 2, total: 40 })));
+
+    await open('/?page=2');
+
+    expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe(
+      'noindex, follow',
+    );
+  });
 });

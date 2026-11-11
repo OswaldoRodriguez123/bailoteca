@@ -277,4 +277,37 @@ describe('AcademyDetailPage', () => {
       'noindex, follow',
     );
   });
+
+  it('trata la descripción y la comuna vacías como ausentes', async () => {
+    getAcademy.mockReturnValue(
+      of(
+        makeAcademy({
+          description: '   ',
+          locations: [makeLocation({ comuna: '' })],
+        }),
+      ),
+    );
+
+    await open('/academias/danson-academy');
+
+    expect(document.title).toBe('Dansón Academy — Santiago · Bailoteca');
+    expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
+      'Academia de baile en Santiago.',
+    );
+
+    const jsonLd = JSON.parse(
+      document.querySelector('script[type="application/ld+json"]')!.textContent!,
+    );
+    expect(jsonLd.description).toBeUndefined();
+  });
+
+  it('marca noindex cuando la academia falla con un error del servidor', async () => {
+    getAcademy.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
+
+    await open('/academias/danson-academy');
+
+    expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe(
+      'noindex, follow',
+    );
+  });
 });

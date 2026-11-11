@@ -82,7 +82,7 @@ export class AcademyListPage {
           description:
             'Directorio de academias de baile en Santiago: salsa, bachata, tango y más, por comuna y estilo.',
           path: '/',
-          noindex: Boolean(query.comuna || query.style || query.q),
+          noindex: Boolean(query.comuna || query.style || query.q || query.page > 1),
         });
 
         if (this.needsRewrite(this.route.snapshot.queryParamMap, query)) {
