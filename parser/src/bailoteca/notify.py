@@ -145,6 +145,22 @@ def build_review_email(
     return Email(subject=subject, html=html, text=text)
 
 
+def notify_review(
+    config: "Config",
+    drafts: "list[ProposalDraft]",
+    summary: "RunSummary",
+    *,
+    dry_run: bool,
+    actions_url: str | None = None,
+    http=None,
+) -> bool:
+    if dry_run or getattr(summary, "proposals", 0) == 0:
+        return False
+    return send_review_email(
+        drafts, summary, config, http=http, actions_url=actions_url
+    )
+
+
 def send_review_email(
     drafts: "list[ProposalDraft]",
     summary: "RunSummary",

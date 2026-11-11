@@ -1,7 +1,7 @@
 import logging
 
 from bailoteca.config import Config
-from bailoteca.notify import actions_url_from_env, build_review_email, send_review_email
+from bailoteca.notify import actions_url_from_env, build_review_email, notify_review, send_review_email
 from bailoteca.propose import ProposalDraft
 from bailoteca.run import RunSummary
 
@@ -144,3 +144,46 @@ def test_actions_url_from_env():
         == "https://github.com/o/r/actions/runs/42"
     )
     assert actions_url_from_env({}) is None
+
+
+def test_notify_skips_dry_run():
+    http = _FakeHttp()
+    assert (
+        notify_review(
+            _config(),
+            [_draft("Salsa Norte")],
+            RunSummary(proposals=1),
+            dry_run=True,
+            http=http,
+        )
+        is False
+    )
+    assert http.calls == []
+
+
+def test_notify_skips_zero_proposals():
+    http = _FakeHttp()
+    assert (
+        notify_review(
+            _config(), [], RunSummary(proposals=0), dry_run=False, http=http
+        )
+        is False
+    )
+    assert http.calls == []
+
+
+def test_notify_sends_when_proposals_exist():
+    http = _FakeHttp()
+    assert (
+        notify_review(
+            _config(),
+            [_draft("Salsa Norte")],
+            RunSummary(proposals=1),
+            dry_run=False,
+            http=http,
+            actions_url="https://github.com/o/r/actions/runs/1",
+        )
+        is True
+    )
+    assert len(http.calls) == 1
+    assert "https://github.com/o/r/actions/runs/1" in http.calls[0][1]["json"]["text"]
