@@ -1,0 +1,25 @@
+{
+  "name": "Bailoteca — Academias de baile en Santiago",
+  "short_name": "Bailoteca",
+  "description": "Directorio de academias de baile en Santiago por comuna y estilo.",
+  "lang": "es",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4eee4",
+  "theme_color": "#f4eee4",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
