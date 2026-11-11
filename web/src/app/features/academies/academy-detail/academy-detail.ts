@@ -7,6 +7,8 @@ import { Observable, Subject, catchError, map, merge, of, switchMap, tap } from 
 
 import { Academy } from '../../../core/models/academy.models';
 import { errorMessage } from '../../../core/http/error-message';
+import { SeoJsonLd, SeoService } from '../../../core/seo/seo.service';
+import { SITE_URL } from '../../../core/seo/site-url';
 import { AcademiesApiService } from '../../../core/services/academies-api';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { ErrorState } from '../../../shared/components/error-state/error-state';
@@ -30,6 +32,8 @@ interface LoadResult {
 export class AcademyDetailPage {
   private readonly api = inject(AcademiesApiService);
   private readonly route = inject(ActivatedRoute);
+  private readonly seo = inject(SeoService);
+  private readonly siteUrl = inject(SITE_URL);
   private readonly retry$ = new Subject<void>();
   private currentSlug = '';
 
@@ -102,11 +106,18 @@ export class AcademyDetailPage {
         if (error) {
           if (error instanceof HttpErrorResponse && error.status === 404) {
             this.notFound.set(true);
+            this.seo.set({
+              title: 'Academia no encontrada',
+              description: 'La academia que buscas no está en el directorio de Bailoteca.',
+              path: `/academias/${this.currentSlug}`,
+              noindex: true,
+            });
           } else {
             this.error.set(errorMessage(error));
           }
-        } else {
+        } else if (academy) {
           this.academy.set(academy);
+          this.updateMetadata(academy);
         }
 
         this.loading.set(false);
@@ -128,6 +139,38 @@ export class AcademyDetailPage {
       return [];
     }
     return Object.entries(hours);
+  }
+
+  private updateMetadata(academy: Academy): void {
+    const comuna = academy.locations[0]?.comuna ?? 'Santiago';
+    const path = `/academias/${academy.slug}`;
+    const jsonLd: SeoJsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'DanceSchool',
+      name: academy.name,
+      description: academy.description ?? undefined,
+      url: `${this.siteUrl}${path}`,
+    };
+
+    if (academy.locations.length > 0) {
+      jsonLd['address'] = academy.locations.map(location => ({
+        '@type': 'PostalAddress',
+        streetAddress: location.address ?? undefined,
+        addressLocality: location.comuna ?? undefined,
+        addressCountry: 'CL',
+      }));
+    }
+
+    if (academy.links.length > 0) {
+      jsonLd['sameAs'] = academy.links.map(link => link.url);
+    }
+
+    this.seo.set({
+      title: `${academy.name} — ${comuna}`,
+      description: academy.description ?? `Academia de baile en ${comuna}.`,
+      path,
+      jsonLd,
+    });
   }
 
   private captureBackQuery(): void {

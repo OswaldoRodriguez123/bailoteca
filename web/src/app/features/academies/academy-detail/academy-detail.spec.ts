@@ -239,4 +239,42 @@ describe('AcademyDetailPage', () => {
     expect(text).toContain('Dansón Academy');
     expect(text).not.toContain('undefined');
   });
+
+  it('escribe título, canonical y JSON-LD de la academia', async () => {
+    getAcademy.mockReturnValue(
+      of(
+        makeAcademy({
+          name: 'Dansón Academy',
+          description: 'Clases de salsa y bachata.',
+          locations: [makeLocation({ comuna: 'Providencia', address: 'Av. Providencia 123' })],
+          links: [{ kind: 'instagram', url: 'https://instagram.com/danson' }],
+        }),
+      ),
+    );
+
+    await open('/academias/danson-academy');
+
+    expect(document.title).toBe('Dansón Academy — Providencia · Bailoteca');
+    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
+      'https://bailoteca.vercel.app/academias/danson-academy',
+    );
+
+    const jsonLd = JSON.parse(
+      document.querySelector('script[type="application/ld+json"]')!.textContent!,
+    );
+    expect(jsonLd['@type']).toBe('DanceSchool');
+    expect(jsonLd.name).toBe('Dansón Academy');
+    expect(jsonLd.address[0].addressLocality).toBe('Providencia');
+    expect(jsonLd.sameAs).toEqual(['https://instagram.com/danson']);
+  });
+
+  it('marca noindex cuando la academia no existe', async () => {
+    getAcademy.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+
+    await open('/academias/no-existe');
+
+    expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe(
+      'noindex, follow',
+    );
+  });
 });
