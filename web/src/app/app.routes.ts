@@ -11,5 +11,9 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/academies/academy-detail/academy-detail').then(m => m.AcademyDetailPage),
   },
+  {
+    path: 'acerca',
+    loadComponent: () => import('./features/about/about').then(m => m.AboutPage),
+  },
   { path: '**', redirectTo: '' },
 ];

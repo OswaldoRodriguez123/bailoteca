@@ -11,6 +11,10 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Prerender,
   },
   {
+    path: 'acerca',
+    renderMode: RenderMode.Prerender,
+  },
+  {
     path: 'academias/:slug',
     renderMode: RenderMode.Prerender,
     async getPrerenderParams() {

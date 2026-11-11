@@ -13,6 +13,12 @@ describe('serverRoutes', () => {
     );
   });
 
+  it('prerenderiza la página Acerca de', () => {
+    expect(serverRoutes).toContainEqual(
+      expect.objectContaining({ path: 'acerca', renderMode: RenderMode.Prerender }),
+    );
+  });
+
   it('prerenderiza el detalle con un slug por academia', () => {
     const detail = serverRoutes.find(route => route.path === 'academias/:slug');
 

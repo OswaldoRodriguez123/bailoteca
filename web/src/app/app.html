@@ -23,7 +23,15 @@
 </main>
 
 <footer class="border-t border-line">
-  <p class="mx-auto max-w-6xl px-4 py-6 text-sm text-muted">
-    Directorio público · Santiago de Chile
-  </p>
+  <div
+    class="mx-auto flex max-w-6xl flex-wrap items-baseline justify-between gap-3 px-4 py-6 text-sm text-muted"
+  >
+    <p>Directorio público · Santiago de Chile</p>
+    <a
+      routerLink="/acerca"
+      class="font-medium text-accent-ink underline-offset-4 transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink"
+    >
+      Acerca de
+    </a>
+  </div>
 </footer>

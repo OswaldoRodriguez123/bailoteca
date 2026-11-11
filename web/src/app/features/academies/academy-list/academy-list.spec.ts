@@ -277,6 +277,7 @@ describe('AcademyListPage', () => {
       name: 'Bailoteca',
       url: 'https://bailoteca.vercel.app/',
       logo: 'https://bailoteca.vercel.app/icon-512.png',
+      email: 'oswaldo_rodriguez_1@hotmail.com',
       description:
         'Directorio de academias de baile en Santiago de Chile, con sedes, estilos y datos de contacto.',
     });

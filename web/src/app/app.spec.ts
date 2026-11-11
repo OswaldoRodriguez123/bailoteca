@@ -19,4 +19,14 @@ describe('App', () => {
     expect(compiled.querySelector('header')?.textContent).toContain('Bailoteca');
     expect(compiled.querySelector('router-outlet')).not.toBeNull();
   });
+
+  it('enlaza la página Acerca de desde el pie', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('footer a[href="/acerca"]')?.textContent).toContain(
+      'Acerca de',
+    );
+  });
 });

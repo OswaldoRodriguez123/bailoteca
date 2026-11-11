@@ -14,7 +14,7 @@ if (!existsSync(routesFile)) {
 
 const parsed = JSON.parse(readFileSync(routesFile, 'utf8'));
 const routes = Object.keys(parsed.routes ?? parsed).filter(
-  route => route === '/' || route.startsWith('/academias/'),
+  route => route === '/' || route === '/acerca' || route.startsWith('/academias/'),
 );
 
 const lastmod = await loadLastmod();

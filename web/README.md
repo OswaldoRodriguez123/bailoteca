@@ -88,8 +88,11 @@ used for absolute URLs.
 
 ## SEO
 
-- **Prerender**: `/` and every `/academias/:slug` are rendered to static HTML at
-  build time; unknown paths fall back to the SPA.
+- **Prerender**: `/`, `/acerca` and every `/academias/:slug` are rendered to
+  static HTML at build time; unknown paths fall back to the SPA.
+- **About**: `/acerca` explains the directory and its methodology, names the
+  maintainer and publishes `AboutPage` + `Person` schema with email, location
+  and GitHub/LinkedIn profiles. The footer links to it from every page.
 - **Meta**: `SeoService` writes title, description, canonical, robots, Open
   Graph and Twitter tags per page. Filtered and paginated list URLs are
   `noindex, follow`.
