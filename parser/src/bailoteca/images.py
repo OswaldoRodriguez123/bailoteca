@@ -14,6 +14,7 @@ import re
 from datetime import datetime, timezone
 from html import unescape
 from typing import Protocol, Iterable
+from urllib.parse import urlparse
 
 from psycopg.types.json import Jsonb
 
@@ -55,6 +56,10 @@ def _fetch_og_image(
     if not match:
         return None
     og = unescape(match.group(1))
+    # Instagram sirve su logo de UI (static.cdninstagram.com/rsrc.php/...) como
+    # og:image cuando el scraper anónimo es bloqueado; no es contenido de la academia.
+    if (urlparse(og).hostname or "").lower() == "static.cdninstagram.com":
+        return None
     try:
         img = http.get(
             og,

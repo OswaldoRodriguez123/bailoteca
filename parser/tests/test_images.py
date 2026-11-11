@@ -72,6 +72,59 @@ def test_fetch_og_image_image_too_small():
     assert _fetch_og_image("https://ig.example/profile", client=client) is None
 
 
+def test_fetch_og_image_rejects_instagram_static_logo():
+    # Instagram devuelve su logo de UI (static.cdninstagram.com/rsrc.php/...)
+    # como og:image cuando el scraper anónimo es bloqueado; no es contenido de la academia.
+    html = (
+        '<html><head><meta property="og:image" '
+        'content="https://static.cdninstagram.com/rsrc.php/v4/yD/r/R0fBIMurK8v.png">'
+        "</head></html>"
+    )
+    client = _FakeHttp({
+        "https://ig.example/blocked": _FakeResponse(200, html),
+        "https://static.cdninstagram.com/rsrc.php/v4/yD/r/R0fBIMurK8v.png": _FakeResponse(
+            200, "<html></html>", _image_body, "image/png"
+        ),
+    })
+    assert _fetch_og_image("https://ig.example/blocked", client=client) is None
+
+
+def test_refresh_images_keeps_thumbnail_when_only_instagram_logo():
+    academies = [
+        {
+            "id": "1",
+            "slug": "logo-only",
+            "name": "logo only",
+            "status": "published",
+            "google": {"thumbnail": "https://cdn.example/keep.jpg", "thumbnail_source": "instagram"},
+            "locations": [],
+            "links": [{"kind": "instagram", "url": "https://ig.example/logo"}],
+            "styles": [],
+        },
+    ]
+    fake_db = _FakeImagesDB(academies)
+    import bailoteca.images as images_module
+    images_module.connect = lambda url: fake_db
+    images_module.list_published = lambda conn: list(conn._academies)
+
+    html = (
+        '<html><head><meta property="og:image" '
+        'content="https://static.cdninstagram.com/rsrc.php/v4/yD/r/R0fBIMurK8v.png">'
+        "</head></html>"
+    )
+    client = _FakeHttp({
+        "https://ig.example/logo": _FakeResponse(200, html),
+        "https://static.cdninstagram.com/rsrc.php/v4/yD/r/R0fBIMurK8v.png": _FakeResponse(
+            200, "<html></html>", _image_body, "image/png"
+        ),
+    })
+    summary = refresh_images(_FakeConfig(), client=client, dry_run=False)
+
+    assert summary["updated"] == 0
+    assert summary["no_image"] == 1
+    assert fake_db._updated == []
+
+
 class _FakeConfig:
     def __init__(self, database_url: str | None = None):
         self.database_url = database_url or "postgresql://noop"
