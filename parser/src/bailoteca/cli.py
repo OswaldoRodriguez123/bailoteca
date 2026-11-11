@@ -275,6 +275,7 @@ def cmd_refresh_images(args: argparse.Namespace) -> int:
         f"revisadas={summary['checked']} "
         f"actualizadas={summary['updated']} "
         f"mantienen_google={summary['kept_google']} "
+        f"al_dia={summary['fresh']} "
         f"sin_imagen={summary['no_image']}"
     )
     return 0

@@ -1,9 +1,8 @@
-"""Actualización mensual de portadas de academias.
+"""Actualización semestral de portadas de academias.
 
 Relee og:image desde los enlaces públicos (Instagram/Facebook/web) de cada
-academia y vuelve a firmar/refrescar la URL guardada. Las fichas con
-thumbnail proveniente de Google Maps (`thumbnail_source = 'google'`)
-no se tocan porque actualizarlas es tarea de enrich-places.
+academia y aloja la imagen resultante en Supabase Storage. Las fichas con
+portada reciente (< 180 días) o vinculadas a Google Maps no se tocan.
 """
 
 from __future__ import annotations
@@ -11,13 +10,17 @@ from __future__ import annotations
 import httpx
 import re
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from html import unescape
 from typing import Protocol, Iterable
 from urllib.parse import urlparse
 
-from psycopg.types.json import Jsonb
-
+from bailoteca.covers import (
+    BUCKET,
+    IMAGES_MAX_AGE_DAYS,
+    _resolve_source,
+    download_image,
+)
 from bailoteca.db import connect, list_published
 
 _HEADERS = {
@@ -86,44 +89,98 @@ def _iter_link_urls(links: Iterable[dict]) -> Iterable[tuple[str, str]]:
         yield kind, url
 
 
-def refresh_images(config, *, dry_run: bool = False, client: HttpClient | None = None) -> dict:
-    summary = {"checked": 0, "updated": 0, "kept_google": 0, "no_image": 0}
+def _parse_fetched_at(value) -> datetime | None:
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str) and value.strip():
+        try:
+            parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    else:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _is_fresh(academy: dict, *, now: datetime | None = None) -> bool:
+    fetched_at = _parse_fetched_at(academy.get("cover_fetched_at"))
+    if fetched_at is None:
+        return False
+    reference = now or datetime.now(timezone.utc)
+    return reference - fetched_at < timedelta(days=IMAGES_MAX_AGE_DAYS)
+
+
+def _ensure_storage(config, storage):
+    if storage is not None:
+        return storage
+    if not config.supabase_url or not config.supabase_service_role_key:
+        raise RuntimeError(
+            "Faltan SUPABASE_URL y/o SUPABASE_SERVICE_ROLE_KEY para alojar portadas."
+        )
+    from bailoteca.supabase_storage import StorageClient
+
+    return StorageClient(config.supabase_url, config.supabase_service_role_key)
+
+
+def refresh_images(
+    config,
+    *,
+    dry_run: bool = False,
+    client: HttpClient | None = None,
+    storage=None,
+) -> dict:
+    summary = {
+        "checked": 0,
+        "updated": 0,
+        "kept_google": 0,
+        "fresh": 0,
+        "no_image": 0,
+    }
     conn = connect(config.database_url)
+    storage_ready = False
     try:
         for academy in list_published(conn):
             summary["checked"] += 1
+            if _is_fresh(academy):
+                summary["fresh"] += 1
+                continue
             google = academy.get("google") or {}
             # Fichas enriquecidas por Google Maps (via Places API) no se tocan:
-            # su thumbnail viene de Google, no de redes sociales.
+            # su portada la gestiona enrich-places.
             if google.get("thumbnail_source") == "google" or google.get("place_id"):
                 summary["kept_google"] += 1
                 continue
-            ranked = sorted(
-                _iter_link_urls(academy.get("links") or []),
-                key=lambda pair: _LINK_ORDER.get(pair[0], 99),
-            )
-            picked: str | None = None
-            source_kind: str | None = None
-            for kind, url in ranked:
-                image = _fetch_og_image(url, client=client)
-                if image:
-                    picked, source_kind = image, kind
-                    break
-            if picked is None:
+            source = _resolve_source(academy, {}, client=client)
+            if source is None:
                 summary["no_image"] += 1
                 continue
-            new_google = dict(google)
-            new_google.update(
-                {
-                    "thumbnail": picked,
-                    "thumbnail_source": source_kind,
-                    "thumbnail_fetched_at": datetime.now(timezone.utc).isoformat(),
-                }
-            )
+            source_url, source_kind = source
+            image = download_image(source_url, client=client)
+            if image is None:
+                summary["no_image"] += 1
+                continue
             if not dry_run:
+                if storage is None:
+                    storage = _ensure_storage(config, storage)
+                if not storage_ready:
+                    storage.ensure_bucket(BUCKET)
+                    storage_ready = True
+                slug = academy["slug"]
+                key = f"{slug}.jpg"
+                storage.upload(BUCKET, key, image, "image/jpeg")
+                cover_url = storage.public_url(BUCKET, key)
                 conn.execute(
-                    "update academies set google = %s, updated_at = now() where id = %s",
-                    (Jsonb(new_google), academy["id"]),
+                    """
+                    update academies
+                    set cover_url = %s,
+                        cover_source = %s,
+                        cover_fetched_at = now(),
+                        updated_at = now()
+                    where id = %s
+                    """,
+                    (cover_url, source_kind, academy["id"]),
                 )
             summary["updated"] += 1
         conn.commit()

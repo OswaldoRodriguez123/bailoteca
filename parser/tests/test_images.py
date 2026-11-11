@@ -1,4 +1,4 @@
-import time
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from bailoteca.images import _fetch_og_image, refresh_images
@@ -96,7 +96,7 @@ def test_refresh_images_keeps_thumbnail_when_only_instagram_logo():
             "slug": "logo-only",
             "name": "logo only",
             "status": "published",
-            "google": {"thumbnail": "https://cdn.example/keep.jpg", "thumbnail_source": "instagram"},
+            "google": {"thumbnail": "https://static.cdninstagram.com/rsrc.php/v4/yD/r/R0fBIMurK8v.png", "thumbnail_source": "instagram"},
             "locations": [],
             "links": [{"kind": "instagram", "url": "https://ig.example/logo"}],
             "styles": [],
@@ -114,20 +114,41 @@ def test_refresh_images_keeps_thumbnail_when_only_instagram_logo():
     )
     client = _FakeHttp({
         "https://ig.example/logo": _FakeResponse(200, html),
-        "https://static.cdninstagram.com/rsrc.php/v4/yD/r/R0fBIMurK8v.png": _FakeResponse(
-            200, "<html></html>", _image_body, "image/png"
-        ),
     })
-    summary = refresh_images(_FakeConfig(), client=client, dry_run=False)
+    storage = _FakeStorage()
+    summary = refresh_images(_FakeConfig(), client=client, storage=storage, dry_run=False)
 
     assert summary["updated"] == 0
     assert summary["no_image"] == 1
+    assert summary["kept_google"] == 0
+    assert storage.uploads == []
     assert fake_db._updated == []
 
 
 class _FakeConfig:
     def __init__(self, database_url: str | None = None):
         self.database_url = database_url or "postgresql://noop"
+        self.supabase_url = "https://proj.supabase.co"
+        self.supabase_service_role_key = "secret"
+
+
+class _FakeStorage:
+    def __init__(self):
+        self.ensured = []
+        self.uploads = []
+
+    def ensure_bucket(self, bucket):
+        self.ensured.append(bucket)
+
+    def upload(self, bucket, key, content, content_type="image/jpeg"):
+        self.uploads.append((bucket, key, content, content_type))
+
+    def public_url(self, bucket, key):
+        return f"{self.supabase_url}/storage/v1/object/public/{bucket}/{key}"
+
+    @property
+    def supabase_url(self):
+        return "https://proj.supabase.co"
 
 
 class _FakeImagesDB:
@@ -188,11 +209,13 @@ def test_refresh_images_prefers_google_thumbnails():
     import bailoteca.images as images_module
     images_module.connect = lambda url: fake_db
     images_module.list_published = lambda conn: list(conn._academies)
+    storage = _FakeStorage()
 
-    summary = refresh_images(_FakeConfig(), client=client, dry_run=False)
+    summary = refresh_images(_FakeConfig(), client=client, storage=storage, dry_run=False)
 
     assert summary["kept_google"] == 1
     assert summary["updated"] == 1
+    assert storage.uploads
     assert fake_db._commit == 1
 
 
@@ -220,4 +243,122 @@ def test_refresh_images_dry_run_does_not_write():
     })
     summary = refresh_images(_FakeConfig(), client=client, dry_run=True)
     assert summary["updated"] == 1
+    assert fake_db._updated == []
+
+
+def _cover_academy(slug, *, google, cover_url=None, age_days=0, links=None):
+    return {
+        "id": f"id-{slug}",
+        "slug": slug,
+        "name": slug,
+        "status": "published",
+        "google": google,
+        "cover_url": cover_url,
+        "cover_source": "instagram" if cover_url else None,
+        "cover_fetched_at": datetime.now(timezone.utc) - timedelta(days=age_days) if cover_url or age_days else None,
+        "locations": [],
+        "links": links or [{"kind": "instagram", "url": f"https://ig.example/{slug}"}],
+        "styles": [],
+    }
+
+
+def test_refresh_images_skips_fresh_cover_without_http_or_write():
+    academy = _cover_academy(
+        "fresh",
+        google=None,
+        cover_url="https://proj.supabase.co/storage/v1/object/public/academy-covers/fresh.jpg",
+        age_days=10,
+    )
+    fake_db = _FakeImagesDB([academy])
+    import bailoteca.images as images_module
+    images_module.connect = lambda url: fake_db
+    images_module.list_published = lambda conn: list(conn._academies)
+    client = _FakeHttp({})
+    storage = _FakeStorage()
+
+    summary = refresh_images(_FakeConfig(), client=client, storage=storage, dry_run=False)
+
+    assert summary["fresh"] == 1
+    assert summary["updated"] == 0
+    assert client.calls == 0
+    assert storage.ensured == []
+    assert storage.uploads == []
+    assert fake_db._updated == []
+
+
+def test_refresh_images_refreshes_stale_cover_and_hosts_it():
+    academy = _cover_academy(
+        "stale",
+        google=None,
+        cover_url="https://proj.supabase.co/storage/v1/object/public/academy-covers/stale.jpg",
+        age_days=181,
+    )
+    fake_db = _FakeImagesDB([academy])
+    import bailoteca.images as images_module
+    images_module.connect = lambda url: fake_db
+    images_module.list_published = lambda conn: list(conn._academies)
+    client = _FakeHttp({
+        "https://ig.example/stale": _FakeResponse(200, _HTML_WITH_OG),
+        "https://img.example/cover.jpg": _FakeResponse(200, _HTML_WITH_OG, _image_body, "image/jpeg"),
+    })
+    storage = _FakeStorage()
+
+    summary = refresh_images(_FakeConfig(), client=client, storage=storage, dry_run=False)
+
+    assert summary["updated"] == 1
+    assert summary["fresh"] == 0
+    assert storage.ensured == ["academy-covers"]
+    assert storage.uploads == [("academy-covers", "stale.jpg", _image_body, "image/jpeg")]
+    assert fake_db._updated[0][0] == "https://proj.supabase.co/storage/v1/object/public/academy-covers/stale.jpg"
+    assert fake_db._updated[0][1] == "instagram"
+
+
+def test_refresh_images_keeps_cover_when_only_instagram_logo():
+    academy = _cover_academy(
+        "logo",
+        google={"thumbnail": "https://static.cdninstagram.com/rsrc.php/R0fBIMurK8v.png"},
+        cover_url="https://proj.supabase.co/storage/v1/object/public/academy-covers/logo.jpg",
+        age_days=181,
+    )
+    html = (
+        '<html><head><meta property="og:image" '
+        'content="https://static.cdninstagram.com/rsrc.php/v4/yD/r/R0fBIMurK8v.png">'
+        "</head></html>"
+    )
+    fake_db = _FakeImagesDB([academy])
+    import bailoteca.images as images_module
+    images_module.connect = lambda url: fake_db
+    images_module.list_published = lambda conn: list(conn._academies)
+    client = _FakeHttp({
+        "https://ig.example/logo": _FakeResponse(200, html),
+    })
+    storage = _FakeStorage()
+
+    summary = refresh_images(_FakeConfig(), client=client, storage=storage, dry_run=False)
+
+    assert summary["no_image"] == 1
+    assert summary["updated"] == 0
+    assert storage.uploads == []
+    assert fake_db._updated == []
+
+
+def test_refresh_images_skips_place_linked_academy():
+    academy = _cover_academy(
+        "place",
+        google={"place_id": "place-123"},
+        cover_url="https://proj.supabase.co/storage/v1/object/public/academy-covers/place.jpg",
+        age_days=181,
+    )
+    fake_db = _FakeImagesDB([academy])
+    import bailoteca.images as images_module
+    images_module.connect = lambda url: fake_db
+    images_module.list_published = lambda conn: list(conn._academies)
+    client = _FakeHttp({})
+    storage = _FakeStorage()
+
+    summary = refresh_images(_FakeConfig(), client=client, storage=storage, dry_run=False)
+
+    assert summary["kept_google"] == 1
+    assert client.calls == 0
+    assert storage.uploads == []
     assert fake_db._updated == []
