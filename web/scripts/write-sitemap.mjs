@@ -60,6 +60,18 @@ Allow: /
 User-agent: CCBot
 Allow: /
 
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: FacebookBot
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
 Sitemap: ${new URL('/sitemap.xml', SITE_URL).toString()}
 `;
 
