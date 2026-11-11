@@ -20,13 +20,6 @@ class Email:
     text: str
 
 
-@dataclass(frozen=True)
-class Email:
-    subject: str
-    html: str
-    text: str
-
-
 def _escape(value: object) -> str:
     text = "" if value is None else str(value)
     return (
@@ -153,11 +146,12 @@ def notify_review(
     dry_run: bool,
     actions_url: str | None = None,
     http=None,
+    day: str | None = None,
 ) -> bool:
     if dry_run or getattr(summary, "proposals", 0) == 0:
         return False
     return send_review_email(
-        drafts, summary, config, http=http, actions_url=actions_url
+        drafts, summary, config, http=http, actions_url=actions_url, day=day
     )
 
 
@@ -180,8 +174,6 @@ def send_review_email(
     if day is None:
         day = datetime.now(timezone.utc).date().isoformat()
 
-    email = build_review_email(drafts, summary, day=day, actions_url=actions_url)
-
     close_http = False
     if http is None:
         import httpx
@@ -190,6 +182,7 @@ def send_review_email(
         close_http = True
 
     try:
+        email = build_review_email(drafts, summary, day=day, actions_url=actions_url)
         response = http.post(
             "https://api.resend.com/emails",
             headers={"Authorization": f"Bearer {config.resend_api_key}"},

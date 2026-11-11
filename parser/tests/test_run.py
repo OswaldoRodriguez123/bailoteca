@@ -43,6 +43,30 @@ def test_run_dry_run_writes_reports(tmp_path):
     assert (day / "proposals.json").exists()
 
 
+def test_run_dry_run_does_not_notify(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        "bailoteca.notify.send_review_email",
+        lambda *args, **kwargs: calls.append((args, kwargs)) or True,
+    )
+    summary = run(
+        Config.from_env(
+            {
+                "BAILOTECA_REPORTS_DIR": str(tmp_path),
+                "BAILOTECA_SOURCES": "fake",
+                "RESEND_API_KEY": "re_key",
+                "BAILOTECA_REVIEW_TO_EMAIL": "yo@example.com",
+            }
+        ),
+        dry_run=True,
+        sources=[_Source()],
+        fetcher=_Fetcher(),
+        llm=None,
+    )
+    assert summary.proposals >= 1
+    assert calls == []
+
+
 def test_run_skips_already_published_academy(tmp_path, monkeypatch):
     import os
     import uuid

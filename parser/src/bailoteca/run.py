@@ -347,6 +347,8 @@ def run(
             conn.close()
 
     _write_reports(config, summary, kept, drafts, dead, stale)
+    summary.duration_s = round(time.monotonic() - started, 3)
+
     from bailoteca.notify import actions_url_from_env, notify_review
 
     notify_review(
@@ -355,8 +357,8 @@ def run(
         summary,
         dry_run=dry_run,
         actions_url=actions_url_from_env(os.environ),
+        day=datetime.now(timezone.utc).date().isoformat(),
     )
-    summary.duration_s = round(time.monotonic() - started, 3)
     return summary
 
 
