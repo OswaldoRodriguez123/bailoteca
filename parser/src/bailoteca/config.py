@@ -15,6 +15,8 @@ class Config:
     resend_api_key: str | None
     review_to_email: str | None
     review_from_email: str
+    supabase_url: str | None
+    supabase_service_role_key: str | None
     cache_dir: Path
     reports_dir: Path
     sources: list[str]
@@ -34,6 +36,8 @@ class Config:
             review_to_email=env.get("BAILOTECA_REVIEW_TO_EMAIL") or None,
             review_from_email=env.get("BAILOTECA_REVIEW_FROM_EMAIL")
             or "onboarding@resend.dev",
+            supabase_url=env.get("SUPABASE_URL") or None,
+            supabase_service_role_key=env.get("SUPABASE_SERVICE_ROLE_KEY") or None,
             cache_dir=Path(env.get("BAILOTECA_CACHE_DIR", "data/cache")),
             reports_dir=Path(env.get("BAILOTECA_REPORTS_DIR", "reports")),
             sources=sources,
