@@ -276,6 +276,24 @@ describe('AcademyDetailPage', () => {
     expect(jsonLd[0].sameAs).toEqual(['https://instagram.com/danson']);
   });
 
+  it('declara @context en cada nodo del JSON-LD', async () => {
+    getAcademy.mockReturnValue(
+      of(makeAcademy({ name: 'Dansón Academy', slug: 'danson-academy' })),
+    );
+
+    await open('/academias/danson-academy');
+
+    const jsonLd = JSON.parse(
+      document.querySelector('script[type="application/ld+json"]')!.textContent!,
+    ) as Record<string, unknown>[];
+    const nodes = Array.isArray(jsonLd) ? jsonLd : [jsonLd];
+
+    expect(nodes.map(node => node['@type'])).toEqual(['DanceSchool', 'BreadcrumbList']);
+    for (const node of nodes) {
+      expect(node['@context']).toBe('https://schema.org');
+    }
+  });
+
   it('completa el JSON-LD con los datos de Google y breadcrumbs', async () => {
     getAcademy.mockReturnValue(
       of(

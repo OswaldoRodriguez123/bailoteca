@@ -151,6 +151,7 @@ describe('academy display helpers', () => {
 
   it('arma un BreadcrumbList con la portada y la academia', () => {
     expect(breadcrumbList('Dansón Academy', '/academias/danson-academy', 'https://bailoteca.test')).toEqual({
+      '@context': 'https://schema.org',
       '@type': 'BreadcrumbList',
       itemListElement: [
         {

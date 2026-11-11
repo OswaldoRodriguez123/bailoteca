@@ -217,6 +217,7 @@ export function normalizePhone(value: string | null): string | null {
 
 export function breadcrumbList(name: string, path: string, siteUrl: string): Record<string, unknown> {
   return {
+    '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
       {
