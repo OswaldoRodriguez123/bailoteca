@@ -55,17 +55,35 @@ async function loadLastmod() {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/academies?page=1&page_size=100`);
-    if (!response.ok) {
-      return dates;
-    }
+    let page = 1;
+    let total = Number.POSITIVE_INFINITY;
+    let seen = 0;
 
-    const data = await response.json();
-    for (const academy of data.items ?? []) {
-      const date = toDate(academy.updated_at ?? academy.verified_at);
-      if (date) {
-        dates.set(`/academias/${academy.slug}`, date);
+    while (seen < total) {
+      const response = await fetch(
+        `${API_BASE_URL}/academies?page=${page}&page_size=100`,
+      );
+      if (!response.ok) {
+        break;
       }
+
+      const data = await response.json();
+      const items = data.items ?? [];
+      total = data.total ?? 0;
+
+      for (const academy of items) {
+        const date = toDate(academy.updated_at ?? academy.verified_at);
+        if (date) {
+          dates.set(`/academias/${academy.slug}`, date);
+        }
+      }
+
+      if (items.length === 0) {
+        break;
+      }
+
+      seen += items.length;
+      page += 1;
     }
   } catch {
     // Sin red o API caída: el sitemap se publica sin lastmod.

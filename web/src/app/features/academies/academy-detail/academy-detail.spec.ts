@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 
 import { routes } from '../../../app.routes';
 import { AcademiesApiService } from '../../../core/services/academies-api';
@@ -393,6 +393,37 @@ describe('AcademyDetailPage', () => {
     expect(listAcademies).toHaveBeenCalledWith(expect.objectContaining({ comuna: 'La Reina' }));
     expect(listAcademies).toHaveBeenCalledWith(expect.objectContaining({ style: 'mambo' }));
     expect(hrefs).toContain('/academias/otra-academia');
+  });
+
+  it('descarta las relacionadas de la academia anterior al navegar', async () => {
+    const first = new Subject<ReturnType<typeof makePage>>();
+    const second = new Subject<ReturnType<typeof makePage>>();
+
+    getAcademy.mockImplementation((slug: string) =>
+      of(
+        makeAcademy({
+          slug,
+          locations: [makeLocation({ comuna: slug === 'primera' ? 'Providencia' : 'Ñuñoa' })],
+        }),
+      ),
+    );
+    listAcademies.mockImplementation((query: { comuna?: string }) =>
+      query.comuna === 'Providencia' ? first : second,
+    );
+
+    const harness = await open('/academias/primera');
+    await harness.navigateByUrl('/academias/segunda', AcademyDetailPage);
+    await harness.fixture.whenStable();
+
+    first.next(makePage([makeAcademy({ slug: 'vieja', name: 'Vieja' })]));
+    second.next(makePage([makeAcademy({ slug: 'nueva', name: 'Nueva' })]));
+    await harness.fixture.whenStable();
+
+    const hrefs = Array.from(element(harness).querySelectorAll('a')).map(link =>
+      link.getAttribute('href'),
+    );
+    expect(hrefs).toContain('/academias/nueva');
+    expect(hrefs).not.toContain('/academias/vieja');
   });
 
   it('no rompe la página si las relacionadas fallan', async () => {

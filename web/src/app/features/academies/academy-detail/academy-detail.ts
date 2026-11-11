@@ -1,12 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  DestroyRef,
-  computed,
-  inject,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Params, RouterLink } from '@angular/router';
@@ -50,8 +43,8 @@ export class AcademyDetailPage {
   private readonly route = inject(ActivatedRoute);
   private readonly seo = inject(SeoService);
   private readonly siteUrl = inject(SITE_URL);
-  private readonly destroyRef = inject(DestroyRef);
   private readonly retry$ = new Subject<void>();
+  private readonly related$ = new Subject<Academy>();
   private currentSlug = '';
 
   readonly academy = signal<Academy | null>(null);
@@ -99,6 +92,13 @@ export class AcademyDetailPage {
   );
 
   constructor() {
+    this.related$
+      .pipe(
+        switchMap(academy => this.relatedFor(academy)),
+        takeUntilDestroyed(),
+      )
+      .subscribe(others => this.related.set(others));
+
     const slug$ = this.route.paramMap.pipe(map(params => params.get('slug') ?? ''));
     const retrySlug$ = this.retry$.pipe(map(() => this.currentSlug));
 
@@ -237,11 +237,15 @@ export class AcademyDetailPage {
   }
 
   private loadRelated(academy: Academy): void {
+    this.related$.next(academy);
+  }
+
+  private relatedFor(academy: Academy): Observable<Academy[]> {
     const comuna = academy.locations.find(location => location.comuna?.trim())?.comuna?.trim();
     const style = academy.styles[0]?.slug;
 
     if (!comuna && !style) {
-      return;
+      return of([]);
     }
 
     const byComuna = comuna
@@ -251,19 +255,17 @@ export class AcademyDetailPage {
         )
       : of([]);
 
-    byComuna
-      .pipe(
-        switchMap(others =>
-          others.length > 0 || !style
-            ? of(others)
-            : this.api.listAcademies({ style, pageSize: 5 }).pipe(
-                map(page => this.others(page.items, academy)),
-                catchError(() => of([])),
-              ),
-        ),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe(others => this.related.set(others.slice(0, 4)));
+    return byComuna.pipe(
+      switchMap(others =>
+        others.length > 0 || !style
+          ? of(others)
+          : this.api.listAcademies({ style, pageSize: 5 }).pipe(
+              map(page => this.others(page.items, academy)),
+              catchError(() => of([])),
+            ),
+      ),
+      map(others => others.slice(0, 4)),
+    );
   }
 
   private others(items: Academy[], academy: Academy): Academy[] {
