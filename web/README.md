@@ -114,8 +114,9 @@ used for absolute URLs.
 - **Security headers**: `vercel.json` sets `X-Content-Type-Options`,
   `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` and a CSP. The CSP
   allows `'unsafe-inline'` scripts because Angular's prerendered event-replay
-  bootstrap is inline; everything else is restricted to the site origin and the
-  API.
+  bootstrap is inline, and `connect-src`/`img-src` allow HTTPS so a deployment
+  can point `API_BASE_URL` at another host. Scripts stay limited to the site
+  origin.
 
 ## Variables
 
