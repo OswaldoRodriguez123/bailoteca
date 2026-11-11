@@ -4,6 +4,7 @@ import {
   linkHref,
   linkLabel,
   mapUrl,
+  metaDescription,
   normalizePhone,
   openingHoursSpecification,
   socialProfiles,
@@ -147,6 +148,26 @@ describe('academy display helpers', () => {
     expect(normalizePhone('223456789')).toBe('+56223456789');
     expect(normalizePhone(null)).toBeNull();
     expect(normalizePhone('   ')).toBeNull();
+  });
+
+  it('deja intactas las descripciones que caben en una meta', () => {
+    expect(metaDescription('Clases de salsa en Providencia.', 'Respaldo.')).toBe(
+      'Clases de salsa en Providencia.',
+    );
+    expect(metaDescription(null, 'Respaldo.')).toBe('Respaldo.');
+    expect(metaDescription('   ', 'Respaldo.')).toBe('Respaldo.');
+  });
+
+  it('recorta por palabra las descripciones largas sin pasar de 160 caracteres', () => {
+    const long = `${'Clases de salsa y bachata para principiantes en Providencia. '.repeat(4)}Fin.`;
+    const result = metaDescription(long, 'Respaldo.');
+
+    expect(result.length).toBeLessThanOrEqual(160);
+    expect(result.endsWith('…')).toBe(true);
+    expect(result).not.toContain('  ');
+    expect(long.startsWith(result.slice(0, -1).trimEnd())).toBe(true);
+    // Corta en un límite de palabra: lo que sigue en el original es un espacio.
+    expect(long.charAt(result.slice(0, -1).trimEnd().length)).toBe(' ');
   });
 
   it('arma un BreadcrumbList con la portada y la academia', () => {

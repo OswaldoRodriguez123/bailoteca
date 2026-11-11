@@ -18,6 +18,7 @@ import {
   linkHref,
   linkLabel,
   mapUrl,
+  metaDescription,
   normalizePhone,
   openingHoursSpecification,
   socialProfiles,
@@ -170,7 +171,10 @@ export class AcademyDetailPage {
   private updateMetadata(academy: Academy): void {
     const comuna = academy.locations[0]?.comuna?.trim() || 'Santiago';
     const path = `/academias/${academy.slug}`;
-    const description = academy.description?.trim() || `Academia de baile en ${comuna}.`;
+    const description = metaDescription(
+      academy.description,
+      `Academia de baile en ${comuna}.`,
+    );
     const jsonLd: SeoJsonLd = {
       '@context': 'https://schema.org',
       '@type': 'DanceSchool',

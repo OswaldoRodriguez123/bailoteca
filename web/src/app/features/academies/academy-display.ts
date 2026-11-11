@@ -15,6 +15,25 @@ const LINK_LABELS: Record<string, string> = {
   email: 'Email',
 };
 
+/** Tope de la meta description: 160 caracteres contando los puntos suspensivos. */
+export const META_DESCRIPTION_LIMIT = 159;
+
+/**
+ * Recorta una descripción para `<meta name="description">` sin cortar palabras.
+ * El texto completo se queda en la página y en el JSON-LD.
+ */
+export function metaDescription(text: string | null | undefined, fallback: string): string {
+  const source = text?.trim() || fallback;
+  if (source.length <= META_DESCRIPTION_LIMIT) {
+    return source;
+  }
+
+  const cut = source.slice(0, META_DESCRIPTION_LIMIT);
+  const lastSpace = cut.lastIndexOf(' ');
+  const head = lastSpace > 0 ? cut.slice(0, lastSpace) : cut;
+  return `${head.replace(/[\s,;:.–—-]+$/, '')}…`;
+}
+
 export function styleLabel(style: AcademyStyle): string {
   if (style.name) {
     return style.name;

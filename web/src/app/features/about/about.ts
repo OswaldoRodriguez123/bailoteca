@@ -3,6 +3,9 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { SeoService } from '../../core/seo/seo.service';
 import { SITE_URL } from '../../core/seo/site-url';
 
+/** Fecha de la última edición del contenido de esta página; la usa el sitemap. */
+export const ABOUT_UPDATED_AT = '2026-11-11';
+
 const EMAIL = 'oswaldo_rodriguez_1@hotmail.com';
 const GITHUB = 'https://github.com/OswaldoRodriguez123';
 const LINKEDIN = 'https://www.linkedin.com/in/oswaldorodriguez20';

@@ -488,6 +488,22 @@ describe('AcademyDetailPage', () => {
     expect(jsonLd[0].description).toBeUndefined();
   });
 
+  it('recorta la meta description larga y deja el texto completo en el JSON-LD', async () => {
+    const long = `${'Clases de salsa y bachata para principiantes en Providencia. '.repeat(4)}Fin.`;
+    getAcademy.mockReturnValue(of(makeAcademy({ description: long })));
+
+    await open('/academias/danson-academy');
+
+    const meta = document.querySelector('meta[name="description"]')?.getAttribute('content') ?? '';
+    expect(meta.length).toBeLessThanOrEqual(160);
+    expect(meta.endsWith('…')).toBe(true);
+
+    const jsonLd = JSON.parse(
+      document.querySelector('script[type="application/ld+json"]')!.textContent!,
+    );
+    expect(jsonLd[0].description).toBe(long);
+  });
+
   it('marca noindex cuando la academia falla con un error del servidor', async () => {
     getAcademy.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
 
