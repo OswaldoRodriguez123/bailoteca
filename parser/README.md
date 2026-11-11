@@ -144,6 +144,20 @@ Configure in GitHub `Settings → Secrets and variables → Actions`:
 **recommended** for web discovery). Optionally `BRAVE_API_KEY`,
 `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` for noise triage.
 
+### Aviso por correo
+
+Cuando una corrida guarda propuestas nuevas, el parser envía un correo a la
+dirección configurada con el resumen y la lista de propuestas (nombre, tipo,
+confianza y si es dudosa). Se envía solo si la corrida no es `--dry-run` y
+escribió al menos una propuesta; las corridas vacías o en seco no avisan.
+
+Variables (opcionales, en `.env` o como secrets del workflow):
+
+- `RESEND_API_KEY`: API key de Resend. Sin ella el aviso se omite con un
+  warning y la corrida termina igual.
+- `BAILOTECA_REVIEW_TO_EMAIL`: correo personal destino.
+- `BAILOTECA_REVIEW_FROM_EMAIL`: remitente, por defecto `onboarding@resend.dev`.
+
 ### Noise filter
 
 Every run goes through two stages before creating proposals:
