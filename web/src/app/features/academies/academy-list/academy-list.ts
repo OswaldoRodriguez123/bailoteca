@@ -114,6 +114,7 @@ export class AcademyListPage {
               url: `${this.siteUrl}/`,
               logo: `${this.siteUrl}/icon-512.png`,
               email: 'oswaldo_rodriguez_1@hotmail.com',
+              sameAs: ['https://github.com/OswaldoRodriguez123/bailoteca'],
               description:
                 'Directorio de academias de baile en Santiago de Chile, con sedes, estilos y datos de contacto.',
             },

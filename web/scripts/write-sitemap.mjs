@@ -40,11 +40,23 @@ Allow: /
 
 # Crawlers de IA: mismo permiso de lectura que el resto del sitio.
 User-agent: GPTBot
+Allow: /
+
 User-agent: ChatGPT-User
+Allow: /
+
 User-agent: ClaudeBot
+Allow: /
+
 User-agent: PerplexityBot
+Allow: /
+
 User-agent: Google-Extended
+Allow: /
+
 User-agent: Applebot-Extended
+Allow: /
+
 User-agent: CCBot
 Allow: /
 
