@@ -176,6 +176,7 @@ def cmd_refresh(args: argparse.Namespace) -> int:
 
 
 def cmd_enrich_places(args: argparse.Namespace) -> int:
+    from bailoteca.covers import BUCKET, download_image
     from bailoteca.db import list_published
     from bailoteca.places import fetch_place, to_dict
 
@@ -194,6 +195,8 @@ def cmd_enrich_places(args: argparse.Namespace) -> int:
     http = httpx.Client(timeout=10)
     enriched = 0
     failed = 0
+    storage = None
+    storage_ready = False
     try:
         academies = list_published(conn)
         target_slug = getattr(args, "slug", None)
@@ -219,19 +222,44 @@ def cmd_enrich_places(args: argparse.Namespace) -> int:
                 failed += 1
                 continue
             data = to_dict(info)
+            cover_url = None
+            if info.thumbnail and not getattr(args, "dry_run", False):
+                image = download_image(info.thumbnail, client=http, timeout=20.0)
+                if image is None:
+                    print(
+                        f"aviso: no se pudo descargar la portada de Google Maps para {academy.get('slug')}",
+                        file=sys.stderr,
+                    )
+                else:
+                    if storage is None:
+                        if not config.supabase_url or not config.supabase_service_role_key:
+                            raise RuntimeError(
+                                "Faltan SUPABASE_URL y/o SUPABASE_SERVICE_ROLE_KEY para alojar la portada de Google Maps."
+                            )
+                        from bailoteca.supabase_storage import StorageClient
+
+                        storage = StorageClient(
+                            config.supabase_url, config.supabase_service_role_key
+                        )
+                    if not storage_ready:
+                        storage.ensure_bucket(BUCKET)
+                        storage_ready = True
+                    key = f"{academy['slug']}.jpg"
+                    storage.upload(BUCKET, key, image, "image/jpeg")
+                    cover_url = storage.public_url(BUCKET, key)
             if not getattr(args, "dry_run", False):
-                conn.execute(
-                    """
+                sql = """
                     update academies set
                       google = %s,
                       updated_at = now()
-                    where id = %s
-                    """,
-                    (
-                        Jsonb(data["google"]),
-                        academy["id"],
-                    ),
-                )
+                """
+                params = [Jsonb(data["google"])]
+                if cover_url:
+                    sql += ",\n                      cover_url = %s,\n                      cover_source = %s,\n                      cover_fetched_at = now()"
+                    params.extend([cover_url, "google"])
+                sql += "\n                    where id = %s"
+                params.append(academy["id"])
+                conn.execute(sql, tuple(params))
             enriched += 1
         if not getattr(args, "dry_run", False):
             conn.commit()
