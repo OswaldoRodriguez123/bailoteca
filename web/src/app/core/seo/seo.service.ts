@@ -1,0 +1,66 @@
+import { DOCUMENT } from '@angular/common';
+import { Injectable, inject } from '@angular/core';
+import { Meta, Title } from '@angular/platform-browser';
+
+import { SITE_URL } from './site-url';
+
+export type SeoJsonLd = Record<string, unknown>;
+
+export interface SeoMetadata {
+  title: string;
+  description: string;
+  path: string;
+  image?: string;
+  noindex?: boolean;
+  jsonLd?: SeoJsonLd | SeoJsonLd[];
+}
+
+const SITE_NAME = 'Bailoteca';
+const DEFAULT_TITLE = 'Bailoteca — Academias de baile en Santiago';
+const MANAGED_ATTRIBUTE = 'data-seo';
+const MANAGED_SELECTOR = `[${MANAGED_ATTRIBUTE}]`;
+
+@Injectable({ providedIn: 'root' })
+export class SeoService {
+  private readonly title = inject(Title);
+  private readonly meta = inject(Meta);
+  private readonly doc = inject(DOCUMENT);
+  private readonly siteUrl = inject(SITE_URL);
+
+  set(meta: SeoMetadata): void {
+    this.clear();
+
+    const title = `${meta.title} · ${SITE_NAME}`;
+    const url = this.absolute(meta.path);
+
+    this.title.setTitle(title);
+    this.addMeta('name', 'description', meta.description);
+    this.addMeta('name', 'robots', meta.noindex ? 'noindex, follow' : 'index, follow');
+    this.addCanonical(url);
+  }
+
+  clear(): void {
+    this.doc.head
+      .querySelectorAll(
+        `meta${MANAGED_SELECTOR}, link${MANAGED_SELECTOR}, script${MANAGED_SELECTOR}`,
+      )
+      .forEach(element => element.remove());
+    this.title.setTitle(DEFAULT_TITLE);
+  }
+
+  private addMeta(attribute: 'name' | 'property', key: string, content: string): void {
+    this.meta.addTag({ [attribute]: key, content, 'data-seo': '' });
+  }
+
+  private addCanonical(url: string): void {
+    const link = this.doc.createElement('link');
+    link.setAttribute('rel', 'canonical');
+    link.setAttribute('href', url);
+    link.setAttribute('data-seo', '');
+    this.doc.head.appendChild(link);
+  }
+
+  private absolute(path: string): string {
+    return new URL(path, this.siteUrl).toString();
+  }
+}
