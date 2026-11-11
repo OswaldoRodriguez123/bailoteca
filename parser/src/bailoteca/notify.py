@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Mapping
 
 if TYPE_CHECKING:
+    from bailoteca.config import Config
     from bailoteca.propose import ProposalDraft
     from bailoteca.run import RunSummary
+
+
+@dataclass(frozen=True)
+class Email:
+    subject: str
+    html: str
+    text: str
 
 
 @dataclass(frozen=True)
@@ -133,3 +143,66 @@ def build_review_email(
     )
 
     return Email(subject=subject, html=html, text=text)
+
+
+def send_review_email(
+    drafts: "list[ProposalDraft]",
+    summary: "RunSummary",
+    config: "Config",
+    *,
+    http=None,
+    actions_url: str | None = None,
+    day: str | None = None,
+) -> bool:
+    if not config.resend_api_key:
+        logging.warning("Correo de revisión omitido: falta RESEND_API_KEY.")
+        return False
+    if not config.review_to_email:
+        logging.warning("Correo de revisión omitido: falta BAILOTECA_REVIEW_TO_EMAIL.")
+        return False
+
+    if day is None:
+        day = datetime.now(timezone.utc).date().isoformat()
+
+    email = build_review_email(drafts, summary, day=day, actions_url=actions_url)
+
+    close_http = False
+    if http is None:
+        import httpx
+
+        http = httpx.Client(timeout=10)
+        close_http = True
+
+    try:
+        response = http.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {config.resend_api_key}"},
+            json={
+                "from": config.review_from_email,
+                "to": config.review_to_email,
+                "subject": email.subject,
+                "html": email.html,
+                "text": email.text,
+            },
+        )
+    except Exception as exc:  # noqa: BLE001
+        logging.warning("No se pudo enviar el correo de revisión: %s", exc)
+        if close_http:
+            http.close()
+        return False
+
+    if close_http:
+        http.close()
+
+    if getattr(response, "status_code", 0) >= 400:
+        try:
+            message = response.json().get("message", "")
+        except Exception:  # noqa: BLE001
+            message = ""
+        logging.warning(
+            "Resend rechazó el correo de revisión (HTTP %s): %s",
+            response.status_code,
+            message,
+        )
+        return False
+    return True
