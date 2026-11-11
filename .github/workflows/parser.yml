@@ -33,6 +33,7 @@ jobs:
       - run: pip install -e shared -e "parser[dev]"
       - run: python -m pytest parser/tests shared/tests -q
       - name: Correr pipeline
+        if: ${{ inputs.host_covers != true }}
         working-directory: parser
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -52,7 +53,7 @@ jobs:
             python -m bailoteca run
           fi
       - name: Enriquecer con Google Maps
-        if: ${{ inputs.dry_run != true }}
+        if: ${{ inputs.dry_run != true && inputs.host_covers != true }}
         working-directory: parser
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -60,7 +61,7 @@ jobs:
           BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
         run: python -m bailoteca enrich-places
       - name: Refrescar portadas (og:image)
-        if: ${{ inputs.dry_run != true }}
+        if: ${{ inputs.dry_run != true && inputs.host_covers != true }}
         working-directory: parser
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
