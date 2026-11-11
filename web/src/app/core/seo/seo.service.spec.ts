@@ -107,4 +107,43 @@ describe('SeoService', () => {
       'https://bailoteca.test/og.png',
     );
   });
+
+  it('escribe un objeto JSON-LD en un script', () => {
+    service.set({
+      title: 'Dansón Academy',
+      description: 'Clases de salsa',
+      path: '/academias/danson-academy',
+      jsonLd: { '@context': 'https://schema.org', '@type': 'DanceSchool', name: 'Dansón Academy' },
+    });
+
+    const script = doc.querySelector('script[type="application/ld+json"]');
+    expect(script).not.toBeNull();
+    expect(JSON.parse(script!.textContent!)).toEqual({
+      '@context': 'https://schema.org',
+      '@type': 'DanceSchool',
+      name: 'Dansón Academy',
+    });
+  });
+
+  it('escribe un array de objetos JSON-LD', () => {
+    service.set({
+      title: 'A',
+      description: 'B',
+      path: '/a',
+      jsonLd: [{ '@type': 'WebSite' }, { '@type': 'BreadcrumbList' }],
+    });
+
+    const script = doc.querySelector('script[type="application/ld+json"]');
+    expect(JSON.parse(script!.textContent!)).toHaveLength(2);
+  });
+
+  it('reemplaza el JSON-LD anterior', () => {
+    service.set({ title: 'A', description: 'B', path: '/a', jsonLd: { '@type': 'WebSite' } });
+    service.set({ title: 'C', description: 'D', path: '/c', jsonLd: { '@type': 'DanceSchool' } });
+
+    expect(doc.querySelectorAll('script[type="application/ld+json"]')).toHaveLength(1);
+    expect(JSON.parse(doc.querySelector('script[type="application/ld+json"]')!.textContent!)).toEqual({
+      '@type': 'DanceSchool',
+    });
+  });
 });

@@ -52,6 +52,10 @@ export class SeoService {
       this.addMeta('name', 'twitter:image', image);
     }
 
+    if (meta.jsonLd) {
+      this.addJsonLd(meta.jsonLd);
+    }
+
     this.addCanonical(url);
   }
 
@@ -66,6 +70,14 @@ export class SeoService {
 
   private addMeta(attribute: 'name' | 'property', key: string, content: string): void {
     this.meta.addTag({ [attribute]: key, content, 'data-seo': '' });
+  }
+
+  private addJsonLd(value: SeoJsonLd | SeoJsonLd[]): void {
+    const script = this.doc.createElement('script');
+    script.setAttribute('type', 'application/ld+json');
+    script.setAttribute('data-seo', '');
+    script.textContent = JSON.stringify(value);
+    this.doc.head.appendChild(script);
   }
 
   private addCanonical(url: string): void {
