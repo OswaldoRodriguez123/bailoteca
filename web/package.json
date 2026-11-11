@@ -6,7 +6,7 @@
     "start": "ng serve",
     "build": "ng build",
     "prebuild": "node scripts/write-env.mjs",
-    "postbuild": "node scripts/write-sitemap.mjs",
+    "postbuild": "node scripts/write-sitemap.mjs && node scripts/indexnow.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },

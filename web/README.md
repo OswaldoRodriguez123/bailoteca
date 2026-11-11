@@ -109,7 +109,10 @@ used for absolute URLs.
 - **AI discovery**: `public/llms.txt` describes the directory and links to the
   home page, the sitemap and the public API. `robots.txt` explicitly allows
   GPTBot, ChatGPT-User, ClaudeBot, PerplexityBot, Google-Extended,
-  Applebot-Extended and CCBot.
+  Applebot-Extended, CCBot, anthropic-ai, Bytespider, FacebookBot and Amazonbot.
+- **IndexNow**: production builds ping `api.indexnow.org` with every URL from
+  the sitemap, so Bing and Yandex learn about new pages right after a deploy.
+  The key lives in `public/<key>.txt`; preview and CI builds skip the ping.
 - **Fonts**: Bricolage Grotesque and Instrument Sans are self-hosted in
   `public/fonts/` and preloaded; there is no request to Google Fonts.
 - **Caching**: `vercel.json` sets `s-maxage=600, stale-while-revalidate=86400`
