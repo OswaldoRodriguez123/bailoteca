@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
-import { makeAcademy, makeLocation, makeStyle } from '../../../../core/testing/academy.fixtures';
+import { makeAcademy, makeGoogle, makeLocation, makeStyle } from '../../../../core/testing/academy.fixtures';
 import { AcademyCard } from './academy-card';
 
 describe('AcademyCard', () => {
@@ -50,6 +50,24 @@ describe('AcademyCard', () => {
     const element = fixture.nativeElement as HTMLElement;
     expect(element.textContent).toContain('Cerrada');
     expect(element.querySelectorAll('a')).toHaveLength(1);
+  });
+
+  it('muestra las iniciales cuando la portada falla al cargar', async () => {
+    fixture.componentRef.setInput(
+      'academy',
+      makeAcademy({ google: makeGoogle({ thumbnail: 'https://img.example/roto.jpg' }) }),
+    );
+    await fixture.whenStable();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const img = element.querySelector('img');
+    expect(img).not.toBeNull();
+
+    img!.dispatchEvent(new Event('error'));
+    await fixture.whenStable();
+
+    expect(element.querySelector('img')).toBeNull();
+    expect(element.textContent).toContain('DA');
   });
 
   it('tolera descripción, ubicaciones y estilos vacíos', async () => {

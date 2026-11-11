@@ -90,6 +90,22 @@ describe('AcademyDetailPage', () => {
     expect(text).toContain('Sitio web');
   });
 
+  it('muestra las iniciales cuando la portada falla al cargar', async () => {
+    getAcademy.mockReturnValue(
+      of(makeAcademy({ google: makeGoogle({ thumbnail: 'https://img.example/roto.jpg' }) })),
+    );
+
+    const harness = await open('/academias/danson-academy');
+    const img = element(harness).querySelector('img');
+    expect(img).not.toBeNull();
+
+    img!.dispatchEvent(new Event('error'));
+    await harness.fixture.whenStable();
+
+    expect(element(harness).querySelector('img')).toBeNull();
+    expect(element(harness).textContent).toContain('DA');
+  });
+
   it('convierte teléfonos y emails en enlaces tel: y mailto:', async () => {
     getAcademy.mockReturnValue(
       of(

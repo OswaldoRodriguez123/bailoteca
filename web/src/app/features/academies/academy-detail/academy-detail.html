@@ -51,14 +51,15 @@
           }
         </div>
 
-        @if (item.google?.thumbnail) {
+        @if (thumbnailSrc(); as src) {
           <img
-            [src]="item.google!.thumbnail!"
+            [src]="src"
             alt=""
             width="400"
             height="400"
             fetchpriority="high"
             class="aspect-square w-full max-w-[16rem] border border-ink object-cover sm:w-64 sm:max-w-none"
+            (error)="failedImage.set(src)"
           />
         } @else {
           <div

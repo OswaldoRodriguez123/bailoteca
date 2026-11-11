@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { Params, RouterLink } from '@angular/router';
 
 import { Academy } from '../../../../core/models/academy.models';
@@ -15,14 +15,15 @@ import { StyleBadges } from '../style-badges/style-badges';
       [queryParams]="queryParams()"
       class="group grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-start gap-4 border-b border-line py-5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-ink sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:gap-6"
     >
-      @if (academy().google?.thumbnail) {
+      @if (thumbnailSrc(); as src) {
         <img
-          [src]="academy().google!.thumbnail!"
+          [src]="src"
           alt=""
           width="96"
           height="96"
           class="h-18 w-18 border border-ink object-cover sm:h-24 sm:w-24"
           loading="lazy"
+          (error)="failedImage.set(src)"
         />
       } @else {
         <div
@@ -85,6 +86,11 @@ export class AcademyCard {
   readonly academy = input.required<Academy>();
   readonly queryParams = input<Params | null>(null);
 
+  protected readonly failedImage = signal<string | null>(null);
+  protected readonly thumbnailSrc = computed(() => {
+    const thumbnail = this.academy().google?.thumbnail ?? null;
+    return thumbnail && this.failedImage() !== thumbnail ? thumbnail : null;
+  });
   protected readonly comunas = computed(() => uniqueComunas(this.academy()));
   protected readonly description = computed(() => truncated(this.academy().description));
   protected readonly initials = computed(() =>
