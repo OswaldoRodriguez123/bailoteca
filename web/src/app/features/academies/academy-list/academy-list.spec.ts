@@ -237,4 +237,26 @@ describe('AcademyListPage', () => {
       'noindex, follow',
     );
   });
+
+  it('publica WebSite con SearchAction y la imagen social', async () => {
+    await open('/');
+
+    const jsonLd = JSON.parse(
+      document.querySelector('script[type="application/ld+json"]')!.textContent!,
+    );
+    expect(jsonLd['@type']).toBe('WebSite');
+    expect(jsonLd.url).toBe('https://bailoteca.vercel.app/');
+    expect(jsonLd.potentialAction).toEqual({
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: 'https://bailoteca.vercel.app/?q={search_term_string}',
+      },
+      'query-input': 'required name=search_term_string',
+    });
+
+    expect(document.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe(
+      'https://bailoteca.vercel.app/og-image.png',
+    );
+  });
 });

@@ -6,19 +6,27 @@ import { of, throwError } from 'rxjs';
 
 import { routes } from '../../../app.routes';
 import { AcademiesApiService } from '../../../core/services/academies-api';
-import { makeAcademy, makeLocation, makeStyle } from '../../../core/testing/academy.fixtures';
+import {
+  makeAcademy,
+  makeGoogle,
+  makeLocation,
+  makePage,
+  makeStyle,
+} from '../../../core/testing/academy.fixtures';
 import { AcademyDetailPage } from './academy-detail';
 
 describe('AcademyDetailPage', () => {
   let getAcademy: ReturnType<typeof vi.fn>;
+  let listAcademies: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     getAcademy = vi.fn(() => of(makeAcademy()));
+    listAcademies = vi.fn(() => of(makePage([])));
 
     TestBed.configureTestingModule({
       providers: [
         provideRouter(routes),
-        { provide: AcademiesApiService, useValue: { getAcademy } },
+        { provide: AcademiesApiService, useValue: { getAcademy, listAcademies } },
       ],
     });
   });
@@ -262,10 +270,140 @@ describe('AcademyDetailPage', () => {
     const jsonLd = JSON.parse(
       document.querySelector('script[type="application/ld+json"]')!.textContent!,
     );
-    expect(jsonLd['@type']).toBe('DanceSchool');
-    expect(jsonLd.name).toBe('Dansón Academy');
-    expect(jsonLd.address[0].addressLocality).toBe('Providencia');
+    expect(jsonLd[0]['@type']).toBe('DanceSchool');
+    expect(jsonLd[0].name).toBe('Dansón Academy');
+    expect(jsonLd[0].address[0].addressLocality).toBe('Providencia');
+    expect(jsonLd[0].sameAs).toEqual(['https://instagram.com/danson']);
+  });
+
+  it('completa el JSON-LD con los datos de Google y breadcrumbs', async () => {
+    getAcademy.mockReturnValue(
+      of(
+        makeAcademy({
+          name: 'Dansón Academy',
+          locations: [makeLocation({ comuna: 'Providencia', address: 'Av. Providencia 123' })],
+          links: [
+            { kind: 'instagram', url: 'https://instagram.com/danson' },
+            { kind: 'facebook', url: 'https://facebook.com/share.php/' },
+            { kind: 'phone', url: 'tel:+56912345678' },
+          ],
+          google: makeGoogle({
+            rating: 4.8,
+            reviews: 42,
+            phone: '+56 9 1234 5678',
+            maps_url: 'https://maps.google.com/?cid=1',
+            hours: { lunes: '7–9 p. m.', martes: 'Cerrado' },
+            gps_coordinates: { latitude: -33.43, longitude: -70.61 },
+          }),
+        }),
+      ),
+    );
+
+    await open('/academias/danson-academy');
+
+    const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+    expect(scripts).toHaveLength(1);
+
+    const [jsonLd, breadcrumb] = JSON.parse(scripts[0].textContent!);
+    expect(jsonLd.image).toBe('https://bailoteca.vercel.app/og-image.png');
+    expect(jsonLd.telephone).toBe('+56912345678');
+    expect(jsonLd.hasMap).toBe('https://maps.google.com/?cid=1');
+    expect(jsonLd.geo).toEqual({
+      '@type': 'GeoCoordinates',
+      latitude: -33.43,
+      longitude: -70.61,
+    });
+    expect(jsonLd.aggregateRating).toEqual({
+      '@type': 'AggregateRating',
+      ratingValue: 4.8,
+      reviewCount: 42,
+      bestRating: 5,
+    });
+    expect(jsonLd.openingHoursSpecification).toEqual([
+      {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: 'https://schema.org/Monday',
+        opens: '19:00',
+        closes: '21:00',
+      },
+    ]);
     expect(jsonLd.sameAs).toEqual(['https://instagram.com/danson']);
+
+    expect(breadcrumb['@type']).toBe('BreadcrumbList');
+    expect(breadcrumb.itemListElement).toHaveLength(2);
+
+    expect(document.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe(
+      'https://bailoteca.vercel.app/og-image.png',
+    );
+    expect(document.querySelector('meta[property="og:type"]')?.getAttribute('content')).toBe(
+      'place',
+    );
+  });
+
+  it('enlaza academias de la misma comuna y excluye la actual', async () => {
+    getAcademy.mockReturnValue(
+      of(makeAcademy({ locations: [makeLocation({ comuna: 'Providencia' })] })),
+    );
+    listAcademies.mockReturnValue(
+      of(
+        makePage([
+          makeAcademy({ slug: 'danson-academy', name: 'Dansón Academy' }),
+          makeAcademy({ slug: 'otra-academia', name: 'Otra Academia' }),
+        ]),
+      ),
+    );
+
+    const harness = await open('/academias/danson-academy');
+    const hrefs = Array.from(element(harness).querySelectorAll('a')).map(link =>
+      link.getAttribute('href'),
+    );
+
+    expect(listAcademies).toHaveBeenCalledWith(
+      expect.objectContaining({ comuna: 'Providencia' }),
+    );
+    expect(hrefs).toContain('/academias/otra-academia');
+    expect(hrefs).not.toContain('/academias/danson-academy');
+    expect(element(harness).textContent).toContain('Otra Academia');
+  });
+
+  it('cae al estilo cuando la comuna no tiene otras academias', async () => {
+    getAcademy.mockReturnValue(
+      of(
+        makeAcademy({
+          locations: [makeLocation({ comuna: 'La Reina' })],
+          styles: [makeStyle({ slug: 'mambo' })],
+        }),
+      ),
+    );
+    listAcademies.mockImplementation(query =>
+      of(
+        makePage(
+          query.comuna
+            ? [makeAcademy({ slug: 'danson-academy' })]
+            : [makeAcademy({ slug: 'otra-academia', name: 'Otra Academia' })],
+        ),
+      ),
+    );
+
+    const harness = await open('/academias/danson-academy');
+    const hrefs = Array.from(element(harness).querySelectorAll('a')).map(link =>
+      link.getAttribute('href'),
+    );
+
+    expect(listAcademies).toHaveBeenCalledWith(expect.objectContaining({ comuna: 'La Reina' }));
+    expect(listAcademies).toHaveBeenCalledWith(expect.objectContaining({ style: 'mambo' }));
+    expect(hrefs).toContain('/academias/otra-academia');
+  });
+
+  it('no rompe la página si las relacionadas fallan', async () => {
+    getAcademy.mockReturnValue(
+      of(makeAcademy({ locations: [makeLocation({ comuna: 'Providencia' })] })),
+    );
+    listAcademies.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
+
+    const harness = await open('/academias/danson-academy');
+
+    expect(element(harness).querySelector('h1')?.textContent).toContain('Dansón Academy');
   });
 
   it('marca noindex cuando la academia no existe', async () => {
@@ -298,7 +436,7 @@ describe('AcademyDetailPage', () => {
     const jsonLd = JSON.parse(
       document.querySelector('script[type="application/ld+json"]')!.textContent!,
     );
-    expect(jsonLd.description).toBeUndefined();
+    expect(jsonLd[0].description).toBeUndefined();
   });
 
   it('marca noindex cuando la academia falla con un error del servidor', async () => {

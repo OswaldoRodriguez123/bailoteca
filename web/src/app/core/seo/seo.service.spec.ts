@@ -108,6 +108,34 @@ describe('SeoService', () => {
     );
   });
 
+  it('escribe alt y dimensiones de la imagen social', () => {
+    service.set({
+      title: 'A',
+      description: 'B',
+      path: '/a',
+      image: '/og.png',
+      imageAlt: 'Bailoteca',
+      imageWidth: 1200,
+      imageHeight: 630,
+    });
+
+    expect(doc.querySelector('meta[property="og:image:alt"]')?.getAttribute('content')).toBe(
+      'Bailoteca',
+    );
+    expect(doc.querySelector('meta[property="og:image:width"]')?.getAttribute('content')).toBe(
+      '1200',
+    );
+    expect(doc.querySelector('meta[property="og:image:height"]')?.getAttribute('content')).toBe(
+      '630',
+    );
+  });
+
+  it('permite cambiar og:type', () => {
+    service.set({ title: 'A', description: 'B', path: '/a', type: 'place' });
+
+    expect(doc.querySelector('meta[property="og:type"]')?.getAttribute('content')).toBe('place');
+  });
+
   it('escribe un objeto JSON-LD en un script', () => {
     service.set({
       title: 'Dansón Academy',

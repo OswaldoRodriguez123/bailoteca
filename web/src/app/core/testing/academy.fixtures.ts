@@ -3,6 +3,7 @@ import {
   AcademyLocation,
   AcademyPage,
   AcademyStyle,
+  GooglePlace,
   PAGE_SIZE,
 } from '../models/academy.models';
 
@@ -53,6 +54,28 @@ export function makePage(items: Academy[], overrides: Partial<AcademyPage> = {})
     page: 1,
     page_size: PAGE_SIZE,
     total: items.length,
+    ...overrides,
+  };
+}
+
+export function makeGoogle(overrides: Partial<GooglePlace> = {}): GooglePlace {
+  return {
+    place_id: 'place-1',
+    name: 'Dansón Academy',
+    address: 'Av. Providencia 123',
+    rating: null,
+    reviews: null,
+    price: null,
+    hours: null,
+    open_state: null,
+    maps_url: null,
+    thumbnail: null,
+    phone: null,
+    website: null,
+    type: null,
+    gps_coordinates: null,
+    raw: null,
+    fetched_at: null,
     ...overrides,
   };
 }

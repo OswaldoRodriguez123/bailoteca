@@ -17,6 +17,7 @@ import {
 import { AcademyPage, PAGE_SIZE, StyleOption } from '../../../core/models/academy.models';
 import { errorMessage } from '../../../core/http/error-message';
 import { SeoService } from '../../../core/seo/seo.service';
+import { SITE_URL } from '../../../core/seo/site-url';
 import { AcademiesApiService } from '../../../core/services/academies-api';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { ErrorState } from '../../../shared/components/error-state/error-state';
@@ -37,6 +38,7 @@ export class AcademyListPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly seo = inject(SeoService);
+  private readonly siteUrl = inject(SITE_URL);
   private readonly search$ = new Subject<string>();
   private readonly reload$ = new Subject<void>();
 
@@ -82,7 +84,26 @@ export class AcademyListPage {
           description:
             'Directorio de academias de baile en Santiago: salsa, bachata, tango y más, por comuna y estilo.',
           path: '/',
+          image: '/og-image.png',
+          imageAlt: 'Bailoteca — academias de baile en Santiago',
+          imageWidth: 1200,
+          imageHeight: 630,
           noindex: Boolean(query.comuna || query.style || query.q || query.page > 1),
+          jsonLd: {
+            '@context': 'https://schema.org',
+            '@type': 'WebSite',
+            name: 'Bailoteca',
+            url: `${this.siteUrl}/`,
+            inLanguage: 'es-CL',
+            potentialAction: {
+              '@type': 'SearchAction',
+              target: {
+                '@type': 'EntryPoint',
+                urlTemplate: `${this.siteUrl}/?q={search_term_string}`,
+              },
+              'query-input': 'required name=search_term_string',
+            },
+          },
         });
 
         if (this.needsRewrite(this.route.snapshot.queryParamMap, query)) {

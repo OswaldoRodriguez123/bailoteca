@@ -1,5 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Params, RouterLink } from '@angular/router';
@@ -13,7 +20,16 @@ import { AcademiesApiService } from '../../../core/services/academies-api';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { ErrorState } from '../../../shared/components/error-state/error-state';
 import { LoadingGrid } from '../../../shared/components/loading-grid/loading-grid';
-import { linkHref, linkLabel, mapUrl } from '../academy-display';
+import {
+  breadcrumbList,
+  linkHref,
+  linkLabel,
+  mapUrl,
+  normalizePhone,
+  openingHoursSpecification,
+  socialProfiles,
+} from '../academy-display';
+import { AcademyCard } from '../components/academy-card/academy-card';
 import { StyleBadges } from '../components/style-badges/style-badges';
 
 const LIST_QUERY_KEYS = ['comuna', 'style', 'q', 'page'] as const;
@@ -25,7 +41,7 @@ interface LoadResult {
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, EmptyState, ErrorState, LoadingGrid, RouterLink, StyleBadges],
+  imports: [AcademyCard, DatePipe, EmptyState, ErrorState, LoadingGrid, RouterLink, StyleBadges],
   selector: 'app-academy-detail',
   templateUrl: './academy-detail.html',
 })
@@ -34,10 +50,12 @@ export class AcademyDetailPage {
   private readonly route = inject(ActivatedRoute);
   private readonly seo = inject(SeoService);
   private readonly siteUrl = inject(SITE_URL);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly retry$ = new Subject<void>();
   private currentSlug = '';
 
   readonly academy = signal<Academy | null>(null);
+  readonly related = signal<Academy[]>([]);
   readonly loading = signal(true);
   readonly notFound = signal(false);
   readonly error = signal<string | null>(null);
@@ -93,6 +111,7 @@ export class AcademyDetailPage {
           this.notFound.set(false);
           this.error.set(null);
           this.academy.set(null);
+          this.related.set([]);
         }),
         switchMap(slug =>
           this.api.getAcademy(slug).pipe(
@@ -124,6 +143,7 @@ export class AcademyDetailPage {
         } else if (academy) {
           this.academy.set(academy);
           this.updateMetadata(academy);
+          this.loadRelated(academy);
         }
 
         this.loading.set(false);
@@ -157,6 +177,7 @@ export class AcademyDetailPage {
       name: academy.name,
       description: academy.description?.trim() || undefined,
       url: `${this.siteUrl}${path}`,
+      image: `${this.siteUrl}/og-image.png`,
     };
 
     if (academy.locations.length > 0) {
@@ -168,16 +189,85 @@ export class AcademyDetailPage {
       }));
     }
 
-    if (academy.links.length > 0) {
-      jsonLd['sameAs'] = academy.links.map(link => link.url);
+    const profiles = socialProfiles(academy.links);
+    if (profiles.length > 0) {
+      jsonLd['sameAs'] = profiles;
+    }
+
+    const google = academy.google;
+    const phone = normalizePhone(google?.phone ?? null);
+    if (phone) {
+      jsonLd['telephone'] = phone;
+    }
+    if (google?.maps_url) {
+      jsonLd['hasMap'] = google.maps_url;
+    }
+    if (google?.gps_coordinates) {
+      jsonLd['geo'] = {
+        '@type': 'GeoCoordinates',
+        latitude: google.gps_coordinates.latitude,
+        longitude: google.gps_coordinates.longitude,
+      };
+    }
+    if (google?.rating !== null && google?.rating !== undefined && google.reviews) {
+      jsonLd['aggregateRating'] = {
+        '@type': 'AggregateRating',
+        ratingValue: google.rating,
+        reviewCount: google.reviews,
+        bestRating: 5,
+      };
+    }
+
+    const hours = openingHoursSpecification(google?.hours ?? null);
+    if (hours.length > 0) {
+      jsonLd['openingHoursSpecification'] = hours;
     }
 
     this.seo.set({
       title: `${academy.name} — ${comuna}`,
       description,
       path,
-      jsonLd,
+      type: 'place',
+      image: '/og-image.png',
+      imageAlt: `${academy.name} — academias de baile en ${comuna}`,
+      imageWidth: 1200,
+      imageHeight: 630,
+      jsonLd: [jsonLd, breadcrumbList(academy.name, path, this.siteUrl)],
     });
+  }
+
+  private loadRelated(academy: Academy): void {
+    const comuna = academy.locations.find(location => location.comuna?.trim())?.comuna?.trim();
+    const style = academy.styles[0]?.slug;
+
+    if (!comuna && !style) {
+      return;
+    }
+
+    const byComuna = comuna
+      ? this.api.listAcademies({ comuna, pageSize: 5 }).pipe(
+          map(page => this.others(page.items, academy)),
+          catchError(() => of([])),
+        )
+      : of([]);
+
+    byComuna
+      .pipe(
+        switchMap(others =>
+          others.length > 0 || !style
+            ? of(others)
+            : this.api.listAcademies({ style, pageSize: 5 }).pipe(
+                map(page => this.others(page.items, academy)),
+                catchError(() => of([])),
+              ),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(others => this.related.set(others.slice(0, 4)));
+  }
+
+  private others(items: Academy[], academy: Academy): Academy[] {
+    return items.filter(item => item.slug !== academy.slug);
   }
 
   private captureBackQuery(): void {

@@ -1,8 +1,12 @@
 import { makeAcademy, makeLocation } from '../../core/testing/academy.fixtures';
 import {
+  breadcrumbList,
   linkHref,
   linkLabel,
   mapUrl,
+  normalizePhone,
+  openingHoursSpecification,
+  socialProfiles,
   styleLabel,
   truncated,
   uniqueComunas,
@@ -69,5 +73,86 @@ describe('academy display helpers', () => {
     expect(truncated(null)).toBe('');
     expect(truncated('x'.repeat(200), 20)).toHaveLength(21);
     expect(truncated('corto')).toBe('corto');
+  });
+
+  it('deja en sameAs solo perfiles http(s) y descarta enlaces de compartir', () => {
+    const profiles = socialProfiles([
+      { kind: 'instagram', url: 'https://instagram.com/danson' },
+      { kind: 'facebook', url: 'https://facebook.com/share.php/' },
+      { kind: 'facebook', url: 'https://facebook.com/danson' },
+      { kind: 'phone', url: 'tel:+56912345678' },
+      { kind: 'email', url: 'mailto:hola@danson.cl' },
+      { kind: 'instagram', url: 'https://instagram.com/danson' },
+    ]);
+
+    expect(profiles).toEqual([
+      'https://instagram.com/danson',
+      'https://facebook.com/danson',
+    ]);
+  });
+
+  it('convierte horarios legibles en OpeningHoursSpecification', () => {
+    const spec = openingHoursSpecification({
+      lunes: '7–9 p. m.',
+      martes: '9 a. m.–6 p. m.',
+      miércoles: '10:00–20:00',
+      jueves: 'Cerrado',
+      viernes: 'a convenir',
+    });
+
+    expect(spec).toEqual([
+      {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: 'https://schema.org/Monday',
+        opens: '19:00',
+        closes: '21:00',
+      },
+      {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: 'https://schema.org/Tuesday',
+        opens: '09:00',
+        closes: '18:00',
+      },
+      {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: 'https://schema.org/Wednesday',
+        opens: '10:00',
+        closes: '20:00',
+      },
+    ]);
+  });
+
+  it('no inventa horarios cuando no hay datos', () => {
+    expect(openingHoursSpecification(null)).toEqual([]);
+    expect(openingHoursSpecification({})).toEqual([]);
+  });
+
+  it('normaliza teléfonos chilenos a E.164', () => {
+    expect(normalizePhone('9 9679 1861')).toBe('+56996791861');
+    expect(normalizePhone('+56 9 1234 5678')).toBe('+56912345678');
+    expect(normalizePhone('56912345678')).toBe('+56912345678');
+    expect(normalizePhone('223456789')).toBe('+56223456789');
+    expect(normalizePhone(null)).toBeNull();
+    expect(normalizePhone('   ')).toBeNull();
+  });
+
+  it('arma un BreadcrumbList con la portada y la academia', () => {
+    expect(breadcrumbList('Dansón Academy', '/academias/danson-academy', 'https://bailoteca.test')).toEqual({
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'Inicio',
+          item: 'https://bailoteca.test/',
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: 'Dansón Academy',
+          item: 'https://bailoteca.test/academias/danson-academy',
+        },
+      ],
+    });
   });
 });

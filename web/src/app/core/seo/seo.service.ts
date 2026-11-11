@@ -11,6 +11,10 @@ export interface SeoMetadata {
   description: string;
   path: string;
   image?: string;
+  imageAlt?: string;
+  imageWidth?: number;
+  imageHeight?: number;
+  type?: string;
   noindex?: boolean;
   jsonLd?: SeoJsonLd | SeoJsonLd[];
 }
@@ -39,7 +43,7 @@ export class SeoService {
     this.addMeta('property', 'og:title', title);
     this.addMeta('property', 'og:description', meta.description);
     this.addMeta('property', 'og:url', url);
-    this.addMeta('property', 'og:type', 'website');
+    this.addMeta('property', 'og:type', meta.type ?? 'website');
     this.addMeta('property', 'og:site_name', SITE_NAME);
     this.addMeta('property', 'og:locale', 'es_CL');
     this.addMeta('name', 'twitter:card', 'summary_large_image');
@@ -50,6 +54,17 @@ export class SeoService {
       const image = this.absolute(meta.image);
       this.addMeta('property', 'og:image', image);
       this.addMeta('name', 'twitter:image', image);
+
+      if (meta.imageAlt) {
+        this.addMeta('property', 'og:image:alt', meta.imageAlt);
+        this.addMeta('name', 'twitter:image:alt', meta.imageAlt);
+      }
+      if (meta.imageWidth) {
+        this.addMeta('property', 'og:image:width', String(meta.imageWidth));
+      }
+      if (meta.imageHeight) {
+        this.addMeta('property', 'og:image:height', String(meta.imageHeight));
+      }
     }
 
     if (meta.jsonLd) {
