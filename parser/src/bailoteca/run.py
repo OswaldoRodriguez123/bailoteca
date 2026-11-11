@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
@@ -346,6 +347,15 @@ def run(
             conn.close()
 
     _write_reports(config, summary, kept, drafts, dead, stale)
+    from bailoteca.notify import actions_url_from_env, notify_review
+
+    notify_review(
+        config,
+        [draft for draft, _ in drafts],
+        summary,
+        dry_run=dry_run,
+        actions_url=actions_url_from_env(os.environ),
+    )
     summary.duration_s = round(time.monotonic() - started, 3)
     return summary
 

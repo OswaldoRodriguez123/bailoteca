@@ -38,6 +38,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           BAILOTECA_SOURCES: ${{ secrets.BAILOTECA_SOURCES }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          BAILOTECA_REVIEW_TO_EMAIL: ${{ secrets.BAILOTECA_REVIEW_TO_EMAIL }}
+          BAILOTECA_REVIEW_FROM_EMAIL: ${{ secrets.BAILOTECA_REVIEW_FROM_EMAIL }}
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             python -m bailoteca run --dry-run
