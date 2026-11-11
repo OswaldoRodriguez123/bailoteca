@@ -46,7 +46,6 @@ class GooglePlace(BaseModel):
     hours: dict | None = None
     open_state: str | None = None
     maps_url: str | None = None
-    thumbnail: str | None = None
     phone: str | None = None
     website: str | None = None
     type: str | None = None
@@ -64,6 +63,7 @@ class Academy(BaseModel):
     description: str | None = None
     status: str
     source_urls: list[str] = []
+    cover_url: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
     verified_at: datetime | None = None
