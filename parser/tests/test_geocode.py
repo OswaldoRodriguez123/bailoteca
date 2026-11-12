@@ -91,3 +91,37 @@ def test_dry_run_does_not_write():
     conn = _Conn([_row(google_lat=-33.4, google_lng=-70.6)])
     run(conn, _Client([]), apply=False)
     assert conn.updates == []
+
+
+def test_piso_segmento_is_stripped_from_nominatim_query():
+    rows = [_row(address="San Antonio 580, Piso 11, Santiago Centro")]
+    client = _Client([_Response(data=[{"lat": "-33.43", "lon": "-70.64"}])])
+
+    result = run(_Conn(rows), client, sleep=lambda s: None)
+
+    _, params, _ = client.calls[0]
+    assert "Piso" not in params["q"]
+    assert params["q"].startswith("San Antonio 580")
+    assert "Santiago Centro" in params["q"]
+    assert result[0].source == "nominatim"
+
+
+def test_oficina_and_depto_segments_are_stripped():
+    rows = [_row(address="Av. Siempre Viva 100, Oficina 402")]
+    client = _Client([_Response(data=[{"lat": "-33.45", "lon": "-70.66"}])])
+
+    result = run(_Conn(rows), client, sleep=lambda s: None)
+
+    _, params, _ = client.calls[0]
+    assert "Oficina" not in params["q"] and "402" not in params["q"]
+    assert result[0].source == "nominatim"
+
+
+def test_address_without_piso_is_unchanged():
+    rows = [_row(address="Calle 1")]
+    client = _Client([_Response(data=[{"lat": "-33.45", "lon": "-70.66"}])])
+
+    run(_Conn(rows), client, sleep=lambda s: None)
+
+    _, params, _ = client.calls[0]
+    assert params["q"] == "Calle 1, Santiago, Chile"

@@ -15,11 +15,17 @@ Por defecto (dry-run) solo devuelve el plan; con ``apply=True`` escribe
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass
 
 USER_AGENT = "Bailoteca/1.0 (+https://bailoteca.cl)"
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
+
+_FLOOR_SEGMENT_RE = re.compile(
+    r",?\s*\b(?:piso|of|oficina|depto|departamento)\s*\.?\s*\d+\w*\b",
+    re.IGNORECASE,
+)
 
 LOCATIONS_QUERY = """
 select al.id::text as location_id,
@@ -71,6 +77,13 @@ def plan(conn) -> list[dict]:
         else:
             rows.append(dict(zip(_LOCATIONS_KEYS, row)))
     return rows
+
+
+def _strip_floor_segments(address: str) -> str:
+    cleaned = _FLOOR_SEGMENT_RE.sub("", address)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned)
+    cleaned = re.sub(r",\s*,", ",", cleaned)
+    return cleaned.strip(" ,")
 
 
 def nominatim_search(
@@ -142,7 +155,7 @@ def run(
             continue
         if requests:
             sleep(delay)
-        query = ", ".join(filter(None, [address, comuna, "Chile"]))
+        query = ", ".join(filter(None, [_strip_floor_segments(address), comuna, "Chile"]))
         coords = nominatim_search(query, client)
         requests += 1
         if coords is None:
