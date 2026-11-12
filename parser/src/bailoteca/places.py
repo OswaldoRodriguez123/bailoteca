@@ -90,6 +90,15 @@ def _query_variants(
             unique.append(v)
     return unique
 
+FOREIGN_COUNTRIES = (
+    "panama", "panamá", "peru", "perú", "argentina", "colombia",
+    "mexico", "méxico", "españa", "spain", "venezuela", "ecuador",
+    "bolivia", "uruguay", "paraguay", "brasil", "brazil",
+)
+# Bounding box aproximado de Chile continental: (sur, oeste, norte, este).
+CHILE_BBOX = (-56.0, -76.0, -17.0, -66.0)
+
+
 def _in_chile(item: dict) -> bool:
     """Verifica que el resultado de SerpApi sea de Chile (evita falsos positivos extranjeros)."""
     gps = item.get("gps_coordinates")
@@ -100,17 +109,12 @@ def _in_chile(item: dict) -> bool:
         except (TypeError, ValueError):
             lat = lng = None
         if lat is not None and lng is not None:
-            # Bounding box aproximado de Chile continental.
-            if not (-56.0 <= lat <= -17.0 and -76.0 <= lng <= -66.0):
+            south, west, north, east = CHILE_BBOX
+            if not (south <= lat <= north and west <= lng <= east):
                 return False
     address = (item.get("address") or "").lower()
     # Rechazar si la dirección menciona un país extranjero conocido.
-    foreign = (
-        "panama", "panamá", "peru", "perú", "argentina", "colombia",
-        "mexico", "méxico", "españa", "spain", "venezuela", "ecuador",
-        "bolivia", "uruguay", "paraguay", "brasil", "brazil",
-    )
-    if any(country in address for country in foreign):
+    if any(country in address for country in FOREIGN_COUNTRIES):
         return False
     phone = (item.get("phone") or "").lower()
     # Prefijos telefónicos extranjeros comunes.
