@@ -655,8 +655,8 @@ def test_run_prepass_direccion_es_la_oracion_con_la_comuna(capsys):
     assert "Clases en Providencia desde 2010" in out
 
 
-def test_sede_from_text_direccion_truncada_a_200_y_via_texto():
-    long_sentence = "Clases en Providencia " + "x" * 300
+def test_sede_from_text_direccion_truncada_a_160_y_via_texto():
+    long_sentence = "Clases en Providencia 12345 " + "x" * 300
     academy = dict(
         ARTFIT,
         source_urls=[],
@@ -667,9 +667,43 @@ def test_sede_from_text_direccion_truncada_a_200_y_via_texto():
     sede = _sede_from_text(academy)
 
     assert sede is not None
-    assert len(sede["address"]) == 200
+    assert len(sede["address"]) == 160
     assert sede["via"] == "texto"
     assert sede["comuna"] == "Providencia"
+
+
+def test_address_prefix_academia_en_se_limpia():
+    academy = dict(
+        ARTFIT,
+        description="Academia en Av. Siempreviva 742, Providencia",
+        source_urls=[],
+        links=[{"kind": "web", "url": "https://artfit.cl"}],
+    )
+
+    sede = _sede_from_text(academy)
+
+    assert sede is not None
+    assert sede["address"] == "Av. Siempreviva 742, Providencia"
+
+
+def test_address_sin_numero_de_calle_queda_none():
+    academy = dict(ARTFIT, description="Presencial en Las Condes y virtual")
+
+    sede = _sede_from_text(academy)
+
+    assert sede is not None
+    assert sede["comuna"] == "Las Condes"
+    assert sede["address"] is None
+
+
+def test_address_sede_colon_se_limpia():
+    academy = dict(ARTFIT, description="Sede: Irarrázaval 1520 A, Ñuñoa")
+
+    sede = _sede_from_text(academy)
+
+    assert sede is not None
+    assert sede["comuna"] == "Ñuñoa"
+    assert sede["address"] == "Irarrázaval 1520 A, Ñuñoa"
 
 
 def test_run_prepass_evita_gemini_aunque_devolveria_otra_comuna():

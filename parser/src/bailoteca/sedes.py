@@ -216,11 +216,58 @@ def _has_foreign_google_address(academy: dict) -> bool:
     return bool(address) and not looks_chilean(address)
 
 
+_ADDRESS_PREFIXES = ("sede:", "academia en", "academia de baile en")
+_PERIOD_PLACEHOLDER = "\x00"
+_ADDRESS_ABBREVIATIONS = ("avda", "av", "dr", "dra", "sr", "sra", "srta", "stgo", "núm", "num")
+
+
+def _split_sentences(text: str) -> list[str]:
+    """Split en fin de oración (. ! ? \\n) sin cortar abreviaturas comunes de
+
+    dirección/tratamiento (Av., Avda., Dr., ...). El punto de la abreviatura se
+    protege con un placeholder antes del split y se restaura después.
+    """
+
+    protected = text
+    for abbr in _ADDRESS_ABBREVIATIONS:
+        protected = re.sub(
+            rf"\b{re.escape(abbr)}\.",
+            lambda m: m.group(0)[:-1] + _PERIOD_PLACEHOLDER,
+            protected,
+            flags=re.IGNORECASE,
+        )
+    return [piece.replace(_PERIOD_PLACEHOLDER, ".") for piece in re.split(r"[.!?\n]", protected)]
+
+
+def _address_from_text(sentence: str | None, comuna: str) -> str | None:
+    """Limpia la oración candidata a dirección.
+
+    None/vacío → None. Quita prefijos de marketing ("Sede:", "Academia en",
+    "Academia de baile en", case-insensitive), espacios y punto final. Devuelve
+    la oración limpia (≤160 chars) SOLO si contiene un número (nº de calle);
+    si no, None (sin inventar). La comuna no se toca.
+    """
+
+    if not sentence:
+        return None
+    cleaned = sentence.strip()
+    lower = cleaned.lower()
+    for prefix in _ADDRESS_PREFIXES:
+        if lower.startswith(prefix):
+            cleaned = cleaned[len(prefix):].strip()
+            break
+    cleaned = cleaned.rstrip(". ").strip()
+    if not cleaned or not re.search(r"\d", cleaned):
+        return None
+    return cleaned[:160]
+
+
 def _sede_from_text(academy: dict) -> dict | None:
     """Sede desde el pre-paso determinista sobre la descripción (sin LLM).
 
     address = primera oración de la descripción que contiene la comuna
-    (split en . ! ? \\n; trim; truncada a 200 chars; None si no hay).
+    (ver ``_split_sentences``; trim), limpia y solo si parece dirección (ver
+    ``_address_from_text``).
     source_url = fallback de links de la academia (web > facebook > instagram >
     tiktok > youtube > other). via='texto' es solo para trazabilidad interna.
     """
@@ -230,14 +277,15 @@ def _sede_from_text(academy: dict) -> dict | None:
     if comuna is None:
         return None
     needle = _word_pad(comuna)
-    address = None
-    for piece in re.split(r"[.!?\n]", description):
+    sentence_found = None
+    for piece in _split_sentences(description):
         sentence = " ".join(piece.split())
         if not sentence:
             continue
         if needle in _word_pad(sentence):
-            address = sentence[:200]
+            sentence_found = sentence
             break
+    address = _address_from_text(sentence_found, comuna)
     return {
         "address": address,
         "comuna": comuna,
