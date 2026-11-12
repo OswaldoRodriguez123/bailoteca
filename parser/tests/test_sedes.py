@@ -410,6 +410,114 @@ def test_run_sin_sede_cuando_todo_falla(capsys):
     assert "AMBIGUA" in out
 
 
+def test_pass_a_fallback_fuente_prioriza_web_sobre_instagram():
+    academy = dict(
+        ARTFIT,
+        source_urls=[],
+        links=[
+            {"kind": "instagram", "url": "https://instagram.com/artfit"},
+            {"kind": "web", "url": "https://artfit.cl"},
+        ],
+    )
+    llm = FakeLLM([{"comuna": "Estación Central", "address": "Radal 189"}])
+
+    sede = pass_a(academy, llm)
+
+    assert sede is not None
+    assert sede["source_url"] == "https://artfit.cl"
+
+
+def test_pass_a_fallback_fuente_prioriza_orden_completo():
+    # web > facebook > instagram > tiktok > youtube > other
+    academy = dict(
+        ARTFIT,
+        source_urls=[],
+        links=[
+            {"kind": "other", "url": "https://otro.cl/"},
+            {"kind": "instagram", "url": "https://instagram.com/artfit"},
+            {"kind": "facebook", "url": "https://facebook.com/artfit"},
+        ],
+    )
+    llm = FakeLLM([{"comuna": "Estación Central", "address": "Radal 189"}])
+
+    assert pass_a(academy, llm)["source_url"] == "https://facebook.com/artfit"
+
+
+def test_pass_a_fallback_excluye_email_phone_whatsapp_y_prefijos():
+    academy = dict(
+        ARTFIT,
+        source_urls=[],
+        links=[
+            {"kind": "whatsapp", "url": "https://wa.me/56912345678"},
+            {"kind": "email", "url": "mailto:hola@artfit.cl"},
+            {"kind": "phone", "url": "tel:+56912345678"},
+            {"kind": "web", "url": "https://wa.me/56999999999"},  # prefijo wa.me excluido aun como web
+        ],
+    )
+    llm = FakeLLM([{"comuna": "Providencia", "address": "Av. X 1"}])
+
+    assert pass_a(academy, llm)["source_url"] is None
+
+
+def test_pass_a_fallback_no_se_usa_si_hay_source_urls():
+    academy = dict(
+        ARTFIT,
+        source_urls=["https://primary.cl/"],
+        links=[{"kind": "web", "url": "https://artfit.cl"}],
+    )
+    llm = FakeLLM([{"comuna": "Estación Central", "address": "Radal 189"}])
+
+    assert pass_a(academy, llm)["source_url"] == "https://primary.cl/"
+
+
+def test_run_apply_sin_fuente_ni_link_usable_queda_omitida(capsys):
+    academy = dict(
+        ARTFIT,
+        id="44444444-4444-4444-4444-444444444444",
+        slug="sin-links",
+        source_urls=[],
+        links=[
+            {"kind": "whatsapp", "url": "https://wa.me/56912345678"},
+            {"kind": "email", "url": "mailto:hola@artfit.cl"},
+        ],
+    )
+    conn = _FakeConn([academy])
+
+    def brave_factory(query):
+        return FakeBrave([])
+
+    llm = FakeLLM([{"comuna": "Providencia", "address": "Av. Providencia 1234"}])
+
+    assert run(conn, llm=llm, brave_factory=brave_factory, apply=True) == 0
+
+    assert conn.inserts == []
+    out = capsys.readouterr().out
+    assert "con_sede=0" in out
+    assert "omitidas_sin_fuente=1" in out
+    assert "insertadas=0" in out
+
+
+def test_run_apply_inserta_con_fuente_fallback_de_links():
+    academy = dict(
+        ARTFIT,
+        id="55555555-5555-5555-5555-555555555555",
+        slug="con-links",
+        source_urls=[],
+        links=[{"kind": "instagram", "url": "https://instagram.com/artfit"}],
+    )
+    conn = _FakeConn([academy])
+
+    def brave_factory(query):
+        return FakeBrave([])
+
+    llm = FakeLLM([{"comuna": "Providencia", "address": "Av. Providencia 1234"}])
+
+    assert run(conn, llm=llm, brave_factory=brave_factory, apply=True) == 0
+
+    assert len(conn.inserts) == 1
+    assert conn.inserts[0][7] == "https://instagram.com/artfit"
+
+
 def test_build_pass_a_prompt_no_incluye_google_no_chileno():
     prompt = build_pass_a_prompt(SALA_MARINA)
 

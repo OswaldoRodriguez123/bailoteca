@@ -1,7 +1,11 @@
 """Backfill asistido de sedes para academias publicadas sin sede.
 
 Pasada A: extrae comuna + dirección desde nombre, descripción y (solo si
-``looks_chilean``) la dirección de Google Maps. Pasada B: busca en Brave
+``looks_chilean``) la dirección de Google Maps. ``source_url`` = primer
+``source_urls`` de la academia; si está vacío, fallback al link de la propia
+academia (prioridad web > facebook > instagram > tiktok > youtube > other;
+excluye email/phone/whatsapp y URLs mailto:/tel:/https://wa.me/). Sin nada
+usable, la sede queda SIN FUENTE y con --apply no se inserta. Pasada B: busca en Brave
 (``f'"{name}" Santiago comuna'``, una query, num=3) y extrae por candidato.
 Compuerta (``extract_rm_comuna``): match normalizado EXACTO contra las comunas
 RM del catálogo oficial; cualquier otra cosa → None (sin sede). Con ``--apply``
@@ -28,7 +32,9 @@ _RM_LOOKUP = {normalize_comuna(c): c for c in RM_COMUNAS}
 _RM_LIST = ", ".join(RM_COMUNAS)
 
 ACADEMIES_QUERY = """
-select a.id::text, a.slug, a.name, a.description, a.source_urls, a.google
+select a.id::text, a.slug, a.name, a.description, a.source_urls, a.google,
+       coalesce((select json_agg(json_build_object('kind', l.kind, 'url', l.url) order by l.kind)
+                 from academy_links l where l.academy_id = a.id), '[]') as links
 from academies a
 where a.status <> 'closed' and not exists (select 1 from academy_locations al where al.academy_id=a.id)
 order by a.slug
@@ -158,11 +164,14 @@ def _pass_a(academy: dict, llm) -> tuple[dict | None, bool]:
     if comuna is None or not isinstance(address, str) or not address.strip():
         return None, True
     source_urls = academy.get("source_urls") or []
+    # Fallback: si la academia no declara source_urls, usar su propio link
+    # (web > facebook > instagram > tiktok > youtube > other) como evidencia.
+    source_url = source_urls[0] if source_urls else _fallback_link(academy.get("links"))
     return (
         {
             "address": " ".join(address.split()),
             "comuna": comuna,
-            "source_url": source_urls[0] if source_urls else None,
+            "source_url": source_url,
         },
         False,
     )
@@ -209,11 +218,52 @@ def _pass_b(academy: dict, brave, llm) -> tuple[dict | None, bool]:
     return None, ambiguous
 
 
+_KIND_RANK = {"web": 0, "facebook": 1, "instagram": 2, "tiktok": 3, "youtube": 4, "other": 5}
+_EXCLUDED_KINDS = {"email", "phone", "whatsapp"}
+_EXCLUDED_URL_PREFIXES = ("mailto:", "tel:", "https://wa.me/")
+
+
+def _fallback_link(links) -> str | None:
+    """Primer link usable por prioridad web > facebook > instagram > tiktok > youtube > other.
+
+    Excluye kinds email/phone/whatsapp y URLs mailto:/tel:/https://wa.me/.
+    Kinds desconocidos cuentan como 'other'. None si no hay nada usable.
+    """
+
+    if isinstance(links, str):
+        try:
+            links = json.loads(links)
+        except Exception:
+            return None
+    if not isinstance(links, list):
+        return None
+    usable: list[tuple[int, int, str]] = []
+    for index, link in enumerate(links):
+        if not isinstance(link, dict):
+            continue
+        kind = str(link.get("kind") or "").strip().lower()
+        url = link.get("url")
+        if not isinstance(url, str):
+            continue
+        url = url.strip()
+        if not url:
+            continue
+        if kind in _EXCLUDED_KINDS:
+            continue
+        if url.lower().startswith(_EXCLUDED_URL_PREFIXES):
+            continue
+        usable.append((_KIND_RANK.get(kind, _KIND_RANK["other"]), index, url))
+    if not usable:
+        return None
+    usable.sort(key=lambda item: (item[0], item[1]))
+    return usable[0][2]
+
+
 def _row_to_dict(row) -> dict:
     if isinstance(row, dict):
         return dict(row)
     # La conexión real usa dict_row; el fake de los tests puede entregar tuplas.
-    keys = ("id", "slug", "name", "description", "source_urls", "google")
+    keys = ("id", "slug", "name", "description", "source_urls", "google", "links")
     return dict(zip(keys, row))
 
 
