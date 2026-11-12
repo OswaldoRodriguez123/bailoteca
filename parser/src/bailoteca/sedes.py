@@ -5,7 +5,12 @@ Pasada A: extrae comuna + dirección desde nombre, descripción y (solo si
 ``source_urls`` de la academia; si está vacío, fallback al link de la propia
 academia (prioridad web > facebook > instagram > tiktok > youtube > other;
 excluye email/phone/whatsapp y URLs mailto:/tel:/https://wa.me/). Sin nada
-usable, la sede queda SIN FUENTE y con --apply no se inserta. Pasada B: busca en Brave
+usable, la sede queda SIN FUENTE y con --apply no se inserta.
+
+Antes de Gemini corre un pre-paso determinista (``comuna_from_text``) sobre la
+descripción; salta si ``google.address`` existe y no parezca chilena (ni el
+pre-paso ni Gemini asignan sede en ese caso). El pre-paso marca ``via='texto'``
+(solo trazabilidad, no se persiste); ``source_url`` sale del fallback de links. Pasada B: busca en Brave
 (``f'"{name}" Santiago comuna'``, una query, num=3) y extrae por candidato.
 Compuerta (``extract_rm_comuna``): match normalizado EXACTO contra las comunas
 RM del catálogo oficial; cualquier otra cosa → None (sin sede). Con ``--apply``
@@ -135,6 +140,88 @@ def parse_llm_json(text: str | None) -> dict | None:
         except Exception:
             return None
     return data if isinstance(data, dict) else None
+
+
+def comuna_from_text(text: str) -> str | None:
+    """Pre-paso determinista: comuna RM desde el texto.
+
+    Busca comunas RM (catálogo oficial) en el texto normalizado con límites de
+    palabra: cualquier carácter no alfanumérico colapsa a espacio y el texto
+    queda padded con espacios. Devuelve el match con
+    menor posición, EXCEPTO: si el primero es ``Santiago`` y existe otro match
+    posterior distinto de Santiago, devuelve ese otro (p. ej. "Radal 189,
+    Estación Central, Santiago" → "Estación Central"). Si hay 2+ comunas RM
+    distintas no-Santiago en el texto → None (ambiguo). Siempre devuelve el
+    nombre oficial del catálogo, nunca el texto crudo.
+    """
+
+    padded = _word_pad(text or "")
+    matches: list[tuple[int, str]] = []
+    for comuna in RM_COMUNAS:
+        token = _word_pad(comuna)
+        start = 0
+        while True:
+            index = padded.find(token, start)
+            if index == -1:
+                break
+            matches.append((index, comuna))
+            start = index + 1
+    if not matches:
+        return None
+    matches.sort(key=lambda match: match[0])
+    distinct_non_santiago = {name for _, name in matches if name != "Santiago"}
+    if len(distinct_non_santiago) >= 2:
+        return None
+    first = matches[0][1]
+    if first == "Santiago":
+        for _, name in matches:
+            if name != "Santiago":
+                return name
+    return first
+
+
+def _word_pad(text: str) -> str:
+    """normalize_comuna + cualquier no-alfanumérico como separador + pad con espacios."""
+
+    words = re.sub(r"[^a-z0-9 ]+", " ", normalize_comuna(text)).split()
+    return f" {' '.join(words)} "
+
+
+def _has_foreign_google_address(academy: dict) -> bool:
+    """True si hay google.address y NO parece chilena (sala-marina: España)."""
+
+    address = _google_address(academy)
+    return bool(address) and not looks_chilean(address)
+
+
+def _sede_from_text(academy: dict) -> dict | None:
+    """Sede desde el pre-paso determinista sobre la descripción (sin LLM).
+
+    address = primera oración de la descripción que contiene la comuna
+    (split en . ! ? \\n; trim; truncada a 200 chars; None si no hay).
+    source_url = fallback de links de la academia (web > facebook > instagram >
+    tiktok > youtube > other). via='texto' es solo para trazabilidad interna.
+    """
+
+    description = academy.get("description") or ""
+    comuna = comuna_from_text(description)
+    if comuna is None:
+        return None
+    needle = _word_pad(comuna)
+    address = None
+    for piece in re.split(r"[.!?\n]", description):
+        sentence = " ".join(piece.split())
+        if not sentence:
+            continue
+        if needle in _word_pad(sentence):
+            address = sentence[:200]
+            break
+    return {
+        "address": address,
+        "comuna": comuna,
+        "source_url": _fallback_link(academy.get("links")),
+        "via": "texto",
+    }
 
 
 def extract_rm_comuna(comuna_raw: str | None) -> str | None:
@@ -268,8 +355,17 @@ def _row_to_dict(row) -> dict:
 
 
 def _assign(academy: dict, llm, brave_factory) -> tuple[dict | None, str]:
-    """Devuelve (sede|None, estado) con estado en {'sede','ambigua','sin-sede'}."""
+    """Devuelve (sede|None, estado) con estado en {'sede','ambigua','sin-sede'}.
 
+    Orden: (0) google extranjero → sin sede (ni pre-paso ni LLM); (1) pre-paso
+    determinista sobre la descripción; (2) Gemini Pasada A; (3) Pasada B.
+    """
+
+    if _has_foreign_google_address(academy):
+        return None, "sin-sede"
+    sede = _sede_from_text(academy)
+    if sede is not None:
+        return sede, "sede"
     if llm is None:
         return None, "sin-sede"
     sede, ambiguous_a = _pass_a(academy, llm)
@@ -289,8 +385,10 @@ def _print_table(results: list[tuple[dict, dict | None, str]]) -> None:
     for academy, sede, status in results:
         slug = academy.get("slug") or "-"
         if sede is not None:
-            address = sede["address"][:46]
+            address = (sede["address"] or "-")[:46]
             source = sede["source_url"] or "SIN FUENTE (no se inserta)"
+            if sede.get("via") == "texto":
+                source = f"{source} [texto]"
             print(f"{slug:<32}  {sede['comuna']:<20}  {address:<46}  {source}")
         else:
             label = "AMBIGUA" if status == "ambigua" else "SIN SEDE"
@@ -309,7 +407,7 @@ def run(conn, llm=None, brave_factory=None, apply: bool = False) -> int:
     academies = [_row_to_dict(row) for row in raw_rows]
 
     if llm is None:
-        print("aviso: sin LLM configurado; todas las academias quedan SIN SEDE")
+        print("aviso: sin LLM configurado; solo corre el pre-paso determinista")
     if brave_factory is None:
         print("aviso: sin Brave configurado; se omite la Pasada B")
 

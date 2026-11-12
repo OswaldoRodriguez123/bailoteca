@@ -2,7 +2,9 @@ from types import SimpleNamespace
 
 from bailoteca.models import Candidate
 from bailoteca.sedes import (
+    _sede_from_text,
     build_pass_a_prompt,
+    comuna_from_text,
     extract_rm_comuna,
     looks_chilean,
     parse_llm_json,
@@ -15,7 +17,7 @@ ARTFIT = {
     "id": "11111111-1111-1111-1111-111111111111",
     "slug": "artfit",
     "name": "artfit",
-    "description": "Academia de baile en Santiago",
+    "description": "Academia de baile latino",
     "source_urls": ["https://artfit.cl/web", "https://instagram.com/artfit"],
     "google": None,
 }
@@ -532,3 +534,156 @@ def test_build_pass_a_prompt_exige_lista_rm_y_null():
     assert "Estación Central" in prompt
     assert "null" in prompt
     assert "artfit" in prompt
+
+
+# --- pre-paso determinista comuna_from_text ---
+
+
+def test_comuna_from_text_estacion_central_gana_a_santiago():
+    assert comuna_from_text("Radal 189, Estación Central, Santiago") == "Estación Central"
+
+
+def test_comuna_from_text_providencia_santiago():
+    assert comuna_from_text("Providencia, Santiago") == "Providencia"
+
+
+def test_comuna_from_text_la_florida_santiago():
+    assert comuna_from_text("La Florida, Santiago") == "La Florida"
+
+
+def test_comuna_from_text_san_antonio_es_santiago():
+    assert comuna_from_text("San Antonio 580, Piso 11, Santiago Centro") == "Santiago"
+
+
+def test_comuna_from_text_excepcion_santiago_primero_devuelve_otro():
+    assert comuna_from_text("Santiago, Estación Central") == "Estación Central"
+
+
+def test_comuna_from_text_ambiguo_devuelve_none():
+    assert comuna_from_text("Clases en Providencia y Ñuñoa") is None
+    assert comuna_from_text("Santiago, Providencia y Ñuñoa") is None
+
+
+def test_comuna_from_text_sin_comuna_devuelve_none():
+    assert comuna_from_text("Academia de baile moderno") is None
+    assert comuna_from_text("") is None
+
+
+def test_comuna_from_text_limites_de_palabra():
+    # "Las Condesas" no es "Las Condes" (límite de palabra real en texto normalizado)
+    assert comuna_from_text("Las Condesas") is None
+
+
+# --- pre-paso dentro de run() ---
+
+
+def test_run_sala_marina_google_espana_sin_sede_y_llm_no_llamado(capsys):
+    # La descripción dice Santiago, pero google.address es España: ni pre-paso
+    # ni Gemini asignan sede.
+    conn = _FakeConn([SALA_MARINA])  # descripción: "...en Santiago"
+
+    def brave_factory(query):
+        return FakeBrave([])
+
+    llm = FakeLLM([{"comuna": "Providencia", "address": "Av. Providencia 1"}])
+
+    assert run(conn, llm=llm, brave_factory=brave_factory, apply=False) == 0
+
+    assert llm.prompts == []
+    out = capsys.readouterr().out
+    assert "con_sede=0" in out
+    assert "sin_sede=1" in out
+
+
+def test_run_prepass_texto_evita_llm_y_usa_fallback_de_links():
+    academy = dict(
+        ARTFIT,
+        source_urls=[],
+        links=[{"kind": "web", "url": "https://artfit.cl"}],
+        description="Sede en Estación Central, Santiago",
+    )
+    conn = _FakeConn([academy])
+    llm = FakeLLM([])  # el LLM no debe ser llamado
+
+    assert run(conn, llm=llm, brave_factory=lambda q: FakeBrave([]), apply=True) == 0
+
+    assert llm.prompts == []
+    assert len(conn.inserts) == 1
+    params = conn.inserts[0]
+    assert params[3] == "Estación Central"
+    assert params[6] == "metropolitana"
+    assert params[7] == "https://artfit.cl"
+
+
+def test_run_prepass_sin_link_usable_queda_omitida(capsys):
+    academy = dict(
+        ARTFIT,
+        id="66666666-6666-6666-6666-666666666666",
+        slug="sin-links-texto",
+        source_urls=[],
+        links=[
+            {"kind": "whatsapp", "url": "https://wa.me/56912345678"},
+            {"kind": "email", "url": "mailto:hola@artfit.cl"},
+        ],
+        description="Clases en Estación Central, Santiago",
+    )
+    conn = _FakeConn([academy])
+    llm = FakeLLM([])
+
+    assert run(conn, llm=llm, brave_factory=lambda q: FakeBrave([]), apply=True) == 0
+
+    assert conn.inserts == []
+    assert llm.prompts == []
+    out = capsys.readouterr().out
+    assert "con_sede=0" in out
+    assert "omitidas_sin_fuente=1" in out
+
+
+def test_run_prepass_direccion_es_la_oracion_con_la_comuna(capsys):
+    academy = dict(
+        ARTFIT,
+        source_urls=[],
+        links=[{"kind": "web", "url": "https://artfit.cl"}],
+        description="Primero otro dato. Clases en Providencia desde 2010. Ultima frase.",
+    )
+    conn = _FakeConn([academy])
+    llm = FakeLLM([])
+
+    assert run(conn, llm=llm, brave_factory=lambda q: FakeBrave([]), apply=False) == 0
+
+    out = capsys.readouterr().out
+    assert "Clases en Providencia desde 2010" in out
+
+
+def test_sede_from_text_direccion_truncada_a_200_y_via_texto():
+    long_sentence = "Clases en Providencia " + "x" * 300
+    academy = dict(
+        ARTFIT,
+        source_urls=[],
+        links=[{"kind": "web", "url": "https://artfit.cl"}],
+        description=long_sentence,
+    )
+
+    sede = _sede_from_text(academy)
+
+    assert sede is not None
+    assert len(sede["address"]) == 200
+    assert sede["via"] == "texto"
+    assert sede["comuna"] == "Providencia"
+
+
+def test_run_prepass_evita_gemini_aunque_devolveria_otra_comuna():
+    # Aunque Gemini dijera Antofagasta, el pre-paso es determinista y gana.
+    academy = dict(
+        ARTFIT,
+        source_urls=[],
+        links=[{"kind": "instagram", "url": "https://instagram.com/artfit"}],
+        description="Sede en La Florida",
+    )
+    conn = _FakeConn([academy])
+    llm = FakeLLM([{"comuna": "Antofagasta", "address": "Av. Grecia 123"}])
+
+    assert run(conn, llm=llm, brave_factory=lambda q: FakeBrave([]), apply=True) == 0
+
+    assert llm.prompts == []
+    assert conn.inserts[0][3] == "La Florida"
