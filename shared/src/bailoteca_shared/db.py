@@ -8,20 +8,32 @@ from psycopg.rows import dict_row
 
 SORTS = ("destacadas", "nombre", "nuevas", "cercanas")
 
-_DESTACADAS_ORDER = """
+_RATING_OK = (
+    r"case when a.google->>'rating' ~ '^-?[0-9]+(\.[0-9]+)?$'"
+    r" then (a.google->>'rating')::float else null end"
+)
+_REVIEWS_OK = (
+    r"case when a.google->>'reviews' ~ '^[0-9]+(\.[0-9]+)?$'"
+    r" then (a.google->>'reviews')::float else null end"
+)
+
+_DESTACADAS_ORDER = f"""
 order by
-    case
-        when a.google->>'rating' is null then 0
-        else 0.55 * (
-            (
-                coalesce((a.google->>'reviews')::int, 0) * (a.google->>'rating')::float
-                + 10 * coalesce(avg((a.google->>'rating')::float) over (), 0)
-            )
-            / (coalesce((a.google->>'reviews')::int, 0) + 10)
-        ) / 5.0
-    end
-    + 0.25 * ln(1 + coalesce((a.google->>'reviews')::int, 0))
-        / ln(1 + greatest(1, max((a.google->>'reviews')::int) over ()))
+    coalesce(
+        case
+            when a.google->>'rating' is null then 0
+            else 0.55 * (
+                (
+                    coalesce({_REVIEWS_OK}, 0) * {_RATING_OK}
+                    + 10 * coalesce(avg({_RATING_OK}) over (), 0)
+                )
+                / (coalesce({_REVIEWS_OK}, 0) + 10)
+            ) / 5.0
+        end,
+        0
+    )
+    + 0.25 * ln(1 + coalesce({_REVIEWS_OK}, 0))
+        / ln(1 + greatest(1, max({_REVIEWS_OK}) over ()))
     + 0.20 * ln(1 + coalesce(a.social_followers, 0))
         / ln(1 + greatest(1, max(a.social_followers) over ()))
     desc,

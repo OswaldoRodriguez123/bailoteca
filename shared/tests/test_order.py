@@ -26,6 +26,15 @@ def test_destacadas_combines_the_three_signals():
     assert "coalesce(avg(" in sql and "greatest(1," in sql
 
 
+def test_destacadas_tolerates_malformed_google_json():
+    # Un solo registro con rating/reviews no numérico no debe provocar un 500:
+    # los casts van tras una guarda regex y el componente de rating cae a 0.
+    sql, _ = _academy_order()
+    assert "case when a.google->>'rating' ~ '^-?[0-9]+(\\.[0-9]+)?$'" in sql
+    assert "case when a.google->>'reviews' ~ '^[0-9]+(\\.[0-9]+)?$'" in sql
+    assert "end,\n        0\n    )" in sql
+
+
 def test_simple_orders():
     assert _academy_order("nombre") == (" order by a.name asc", [])
     sql, _ = _academy_order("nuevas")
