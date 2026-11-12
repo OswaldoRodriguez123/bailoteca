@@ -89,6 +89,7 @@ def _academy_filters(
     comuna: str | None = None,
     style: str | None = None,
     q: str | None = None,
+    region: str | None = None,
 ) -> tuple[str, list[str]]:
     clauses: list[str] = []
     params: list[str] = []
@@ -115,6 +116,13 @@ def _academy_filters(
             "coalesce(a.description, '') ilike %s escape '\\')"
         )
         params.extend([pattern, pattern])
+
+    if region and region != "all":
+        clauses.append(
+            "exists (select 1 from academy_locations al "
+            "where al.academy_id = a.id and (al.region = %s or al.region is null))"
+        )
+        params.append(region)
 
     if not clauses:
         return "", []
@@ -147,10 +155,13 @@ def list_academies(
     comuna: str | None = None,
     style: str | None = None,
     q: str | None = None,
+    region: str | None = None,
     limit: int = 20,
     offset: int = 0,
 ) -> tuple[list[dict], int]:
-    where, params = _academy_filters(comuna=comuna, style=style, q=q)
+    where, params = _academy_filters(
+        comuna=comuna, style=style, q=q, region=region
+    )
     total_row = conn.execute(
         f"select count(*) as total from academies a{where}",
         tuple(params),
@@ -173,12 +184,19 @@ def list_styles(conn: psycopg.Connection) -> list[dict]:
     ).fetchall()
 
 
-def list_comunas(conn: psycopg.Connection) -> list[str]:
-    rows = conn.execute(
+def list_comunas(
+    conn: psycopg.Connection, region: str | None = None
+) -> list[str]:
+    sql = (
         "select distinct comuna from academy_locations "
         "where comuna is not null and btrim(comuna) <> '' "
-        "order by comuna asc"
-    ).fetchall()
+    )
+    params: list[str] = []
+    if region and region != "all":
+        sql += "and region = %s "
+        params.append(region)
+    sql += "order by comuna asc"
+    rows = conn.execute(sql, tuple(params)).fetchall()
     return [row["comuna"] for row in rows]
 
 

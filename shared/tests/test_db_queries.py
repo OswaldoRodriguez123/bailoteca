@@ -43,3 +43,30 @@ def test_combined_filters_are_anded_in_order():
     assert where.startswith(" where ")
     assert where.index("al.comuna") < where.index("s.slug") < where.index("ilike")
     assert params == ["Santiago", "mambo", "%baile%", "%baile%"]
+
+
+def test_region_filter_is_null_tolerant():
+    where, params = _academy_filters(region="metropolitana")
+    assert "al.region = %s or al.region is null" in where
+    assert params == ["metropolitana"]
+
+
+def test_region_all_is_ignored():
+    where, params = _academy_filters(region="all")
+    assert where == ""
+    assert params == []
+
+
+def test_region_filter_appended_after_other_filters():
+    where, params = _academy_filters(
+        comuna="Providencia", style="mambo", q="baile", region="valparaiso"
+    )
+    assert where.index("al.comuna") < where.index("s.slug") < where.index("ilike")
+    assert where.index("ilike") < where.index("al.region")
+    assert params == [
+        "Providencia",
+        "mambo",
+        "%baile%",
+        "%baile%",
+        "valparaiso",
+    ]
