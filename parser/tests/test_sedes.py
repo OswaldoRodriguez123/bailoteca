@@ -61,9 +61,11 @@ class _FakeConn:
         self._rows = list(rows)
         self.inserts: list[tuple] = []
         self.commits = 0
+        self.queries: list[str] = []
 
     def execute(self, sql, params=None):
         normalized = sql.strip().lower()
+        self.queries.append(sql)
         if normalized.startswith("select"):
             return SimpleNamespace(fetchall=lambda: list(self._rows))
         if normalized.startswith("insert into academy_locations"):
@@ -278,6 +280,25 @@ def test_run_apply_sede_sin_fuente_se_omite_no_con_sede(capsys):
     assert "insertadas=0" in out
     # La tabla la marca como no insertada.
     assert "SIN FUENTE" in out
+
+
+def test_run_query_selecciona_no_cerradas():
+    # Producción: todas las filas tienen status='unknown' (nunca mantenido);
+    # publication is verified_at and the API lists regardless of status.
+    # El selector solo debe excluir 'closed'.
+    conn = _FakeConn([ARTFIT])
+
+    def brave_factory(query):
+        return FakeBrave([])
+
+    llm = FakeLLM([None])
+
+    assert run(conn, llm=llm, brave_factory=brave_factory, apply=False) == 0
+
+    sql = " ".join(conn.queries).lower()
+    assert "<> 'closed'" in sql
+    assert "status='active'" not in sql
+    assert "order by a.slug" in sql
 
 
 def test_run_dry_run_no_inserta(capsys):

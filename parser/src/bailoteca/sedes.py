@@ -30,7 +30,7 @@ _RM_LIST = ", ".join(RM_COMUNAS)
 ACADEMIES_QUERY = """
 select a.id::text, a.slug, a.name, a.description, a.source_urls, a.google
 from academies a
-where a.status='active' and not exists (select 1 from academy_locations al where al.academy_id=a.id)
+where a.status <> 'closed' and not exists (select 1 from academy_locations al where al.academy_id=a.id)
 order by a.slug
 """
 
@@ -248,7 +248,7 @@ def _print_table(results: list[tuple[dict, dict | None, str]]) -> None:
 
 
 def run(conn, llm=None, brave_factory=None, apply: bool = False) -> int:
-    """Asigna sedes a las academias activas sin ninguna academy_locations.
+    """Asigna sedes a las academias no cerradas sin ninguna academy_locations.
 
     Sin ``--apply``: imprime tabla y conteo, no escribe. Con ``--apply``:
     insert into academy_locations (...) region derivada del catálogo; idempotente
