@@ -221,11 +221,27 @@ def test_pass_b_salta_candidatos_que_fallan_el_gate():
 
 
 def test_pass_b_snippets_vacios_devuelve_none():
-    brave = FakeBrave([_candidate("resultado 1", "https://uno.cl/")])
+    # Sin nombre NI descripción no hay evidencia: el candidato se omite y
+    # el LLM no se llama.
+    brave = FakeBrave([Candidate(name="", url="https://uno.cl/", handle=None, source="brave", raw={})])
     llm = FakeLLM([])
 
     assert pass_b(ARTFIT, brave, llm) is None
     assert llm.prompts == []
+
+
+def test_pass_b_candidato_con_titulo_sin_descripcion_llega_al_llm():
+    # Major 1: un título sin descripción igual se consulta al LLM.
+    candidate = _candidate("Academia Solo Nombre", "https://solo.cl/")
+    brave = FakeBrave([candidate])
+    llm = FakeLLM([{"comuna": "Providencia", "address": "Av. Providencia 1234"}])
+
+    sede = pass_b(ARTFIT, brave, llm)
+
+    assert sede is not None
+    assert sede["source_url"] == "https://solo.cl/"
+    assert len(llm.prompts) == 1
+    assert "Academia Solo Nombre" in llm.prompts[0]
 
 
 def test_pass_b_sin_resultados_devuelve_none():
@@ -236,6 +252,32 @@ def test_pass_b_sin_resultados_devuelve_none():
 
 
 # --- run (dry-run / apply) ---
+
+
+def test_run_apply_sede_sin_fuente_se_omite_no_con_sede(capsys):
+    # Major 2: sede detectada sin source_url no cuenta como con_sede y no se inserta.
+    academy = dict(
+        ARTFIT,
+        id="33333333-3333-3333-3333-333333333333",
+        slug="sin-fuente",
+        source_urls=[],
+    )
+    conn = _FakeConn([academy])
+
+    def brave_factory(query):
+        return FakeBrave([])
+
+    llm = FakeLLM([{"comuna": "Providencia", "address": "Av. Providencia 1234"}])
+
+    assert run(conn, llm=llm, brave_factory=brave_factory, apply=True) == 0
+
+    assert conn.inserts == []
+    out = capsys.readouterr().out
+    assert "con_sede=0" in out
+    assert "omitidas_sin_fuente=1" in out
+    assert "insertadas=0" in out
+    # La tabla la marca como no insertada.
+    assert "SIN FUENTE" in out
 
 
 def test_run_dry_run_no_inserta(capsys):

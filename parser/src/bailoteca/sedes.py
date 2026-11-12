@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 from typing import Protocol
 
 from bailoteca.llm import DEFAULT_MODELS, RETRYABLE_STATUS
@@ -182,9 +181,15 @@ def _pass_b(academy: dict, brave, llm) -> tuple[dict | None, bool]:
     ambiguous = False
     for candidate in candidates:
         description = (candidate.raw or {}).get("description") or ""
-        if not description.strip():
+        if not isinstance(description, str):
+            description = str(description)
+        name = (candidate.name or "").strip()
+        if description.strip():
+            snippet = f"{name}: {description}" if name else description
+        elif name:
+            snippet = name
+        else:
             continue
-        snippet = f"{candidate.name}: {description}"
         data = llm.extract(build_pass_b_prompt(academy, snippet))
         if data is None:
             continue
@@ -235,7 +240,8 @@ def _print_table(results: list[tuple[dict, dict | None, str]]) -> None:
         slug = academy.get("slug") or "-"
         if sede is not None:
             address = sede["address"][:46]
-            print(f"{slug:<32}  {sede['comuna']:<20}  {address:<46}  {sede['source_url']}")
+            source = sede["source_url"] or "SIN FUENTE (no se inserta)"
+            print(f"{slug:<32}  {sede['comuna']:<20}  {address:<46}  {source}")
         else:
             label = "AMBIGUA" if status == "ambigua" else "SIN SEDE"
             print(f"{slug:<32}  {label}")
@@ -263,18 +269,12 @@ def run(conn, llm=None, brave_factory=None, apply: bool = False) -> int:
         results.append((academy, sede, status))
 
     inserted = 0
-    skipped_no_source = 0
     if apply:
         for academy, sede, _ in results:
             if sede is None:
                 continue
             if not sede.get("source_url"):
                 # La compuerta exige fuente; no insertamos sedes sin evidencia.
-                skipped_no_source += 1
-                print(
-                    f"aviso: {academy.get('slug')} sin source_url; no se inserta",
-                    file=sys.stderr,
-                )
                 continue
             conn.execute(
                 INSERT_LOCATION_SQL,
@@ -293,17 +293,19 @@ def run(conn, llm=None, brave_factory=None, apply: bool = False) -> int:
         conn.commit()
 
     _print_table(results)
-    con_sede = sum(1 for _, sede, _ in results if sede is not None)
+    con_sede = sum(1 for _, sede, _ in results if sede is not None and sede.get("source_url"))
+    omitidas = sum(1 for _, sede, _ in results if sede is not None and not sede.get("source_url"))
     ambiguas = sum(1 for _, sede, status in results if sede is None and status == "ambigua")
-    sin_sede = len(results) - con_sede - ambiguas
+    sin_sede = len(results) - con_sede - omitidas - ambiguas
     print(
         f"total={len(results)} con_sede={con_sede} "
-        f"ambiguas={ambiguas} sin_sede={sin_sede}"
+        f"ambiguas={ambiguas} sin_sede={sin_sede} "
+        f"omitidas_sin_fuente={omitidas}"
     )
     if apply:
         print(f"insertadas={inserted}")
-        if skipped_no_source:
-            print(f"omitidas_sin_fuente={skipped_no_source}")
+        if omitidas:
+            print(f"aviso: {omitidas} sede(s) sin source_url no se insertaron")
     return 0
 
 
