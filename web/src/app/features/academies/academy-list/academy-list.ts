@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { ParamMap, Params, ActivatedRoute, Router } from '@angular/router';
 import {
   EMPTY,
@@ -22,7 +22,15 @@ import { AcademiesApiService } from '../../../core/services/academies-api';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { ErrorState } from '../../../shared/components/error-state/error-state';
 import { LoadingGrid } from '../../../shared/components/loading-grid/loading-grid';
-import { lastPage, ListQuery, normalizeQuery, queryToParams, sameQuery } from '../academy-query';
+import {
+  DEFAULT_REGION,
+  lastPage,
+  ListQuery,
+  normalizeQuery,
+  queryToParams,
+  REGION_OPTIONS,
+  sameQuery,
+} from '../academy-query';
 import { AcademyCard } from '../components/academy-card/academy-card';
 import { FilterBar } from '../components/filter-bar/filter-bar';
 import { Pagination } from '../components/pagination/pagination';
@@ -42,7 +50,13 @@ export class AcademyListPage {
   private readonly search$ = new Subject<string>();
   private readonly reload$ = new Subject<void>();
 
-  readonly query = signal<ListQuery>({ comuna: null, style: null, q: null, page: 1 });
+  readonly query = signal<ListQuery>({
+    region: DEFAULT_REGION,
+    comuna: null,
+    style: null,
+    q: null,
+    page: 1,
+  });
   readonly queryParams = computed<Params>(() => queryToParams(this.query()));
   readonly page = signal<AcademyPage | null>(null);
   readonly loading = signal(true);
@@ -50,6 +64,12 @@ export class AcademyListPage {
   readonly styles = signal<StyleOption[]>([]);
   readonly comunas = signal<string[]>([]);
   readonly filtersError = signal(false);
+  readonly regions = REGION_OPTIONS;
+  readonly emptyMessage = computed(() =>
+    this.query().region !== DEFAULT_REGION
+      ? 'Aún no hay academias en esta región.'
+      : 'No encontramos academias con esos filtros.',
+  );
 
   constructor() {
     this.api
@@ -63,16 +83,28 @@ export class AcademyListPage {
       )
       .subscribe(styles => this.styles.set(styles));
 
-    this.api
-      .listComunas()
+    toObservable(this.query)
       .pipe(
-        catchError(() => {
-          this.filtersError.set(true);
-          return of([]);
-        }),
+        map(query => query.region),
+        distinctUntilChanged(),
+        switchMap(region =>
+          this.api.listComunas(region).pipe(
+            catchError(() => {
+              this.filtersError.set(true);
+              return of([] as string[]);
+            }),
+          ),
+        ),
         takeUntilDestroyed(),
       )
-      .subscribe(comunas => this.comunas.set(comunas));
+      .subscribe(comunas => {
+        this.comunas.set(comunas);
+
+        const query = this.query();
+        if (query.comuna && !comunas.includes(query.comuna)) {
+          this.navigate({ region: query.region, comuna: null, page: 1 });
+        }
+      });
 
     const query$ = this.route.queryParamMap.pipe(
       map(params => normalizeQuery(params)),
@@ -80,15 +112,21 @@ export class AcademyListPage {
       tap(query => {
         this.query.set(query);
         this.seo.set({
-          title: 'Academias de baile en Santiago',
+          title: 'Academias de baile en Chile',
           description:
-            'Directorio de academias de baile en Santiago: salsa, bachata, tango y otros ritmos latinos. Encuentra clases por comuna y estilo.',
+            'Directorio de academias de baile en Chile: salsa, bachata, tango y otros ritmos latinos. Encuentra clases por región, comuna y estilo.',
           path: '/',
           image: '/og-image.png',
-          imageAlt: 'Bailoteca — academias de baile en Santiago',
+          imageAlt: 'Bailoteca — academias de baile en Chile',
           imageWidth: 1200,
           imageHeight: 630,
-          noindex: Boolean(query.comuna || query.style || query.q || query.page > 1),
+          noindex: Boolean(
+            query.comuna ||
+            query.style ||
+            query.q ||
+            query.page > 1 ||
+            query.region !== DEFAULT_REGION,
+          ),
           jsonLd: [
             {
               '@context': 'https://schema.org',
@@ -116,7 +154,7 @@ export class AcademyListPage {
               email: 'oswaldo_rodriguez_1@hotmail.com',
               sameAs: ['https://github.com/OswaldoRodriguez123/bailoteca'],
               description:
-                'Directorio de academias de baile en Santiago de Chile, con sedes, estilos y datos de contacto.',
+                'Directorio de academias de baile en Chile, con sedes, estilos y datos de contacto.',
             },
           ],
         });
@@ -139,6 +177,7 @@ export class AcademyListPage {
 
           return this.api
             .listAcademies({
+              region: query.region,
               comuna: query.comuna,
               style: query.style,
               q: query.q,
@@ -188,6 +227,10 @@ export class AcademyListPage {
       });
   }
 
+  onRegion(region: string): void {
+    this.navigate({ region, comuna: null, page: 1 });
+  }
+
   onComuna(comuna: string | null): void {
     this.navigate({ comuna, page: 1 });
   }
@@ -218,6 +261,7 @@ export class AcademyListPage {
 
   private needsRewrite(raw: ParamMap, query: ListQuery): boolean {
     return (
+      (raw.get('region') ?? null) !== (query.region === DEFAULT_REGION ? null : query.region) ||
       (raw.get('comuna') ?? null) !== query.comuna ||
       (raw.get('style') ?? null) !== query.style ||
       (raw.get('q') ?? null) !== query.q ||

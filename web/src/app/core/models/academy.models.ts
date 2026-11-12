@@ -70,6 +70,7 @@ export interface StyleOption {
 }
 
 export interface AcademyQuery {
+  region?: string | null;
   comuna?: string | null;
   style?: string | null;
   q?: string | null;

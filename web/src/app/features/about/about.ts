@@ -23,7 +23,7 @@ const LINKEDIN = 'https://www.linkedin.com/in/oswaldorodriguez20';
           Acerca de Bailoteca
         </h1>
         <p class="max-w-2xl text-lg leading-relaxed text-ink-soft">
-          Un directorio independiente de academias de baile en Santiago de Chile, organizado por
+          Un directorio independiente de academias de baile en todo Chile, organizado por región,
           comuna y estilo.
         </p>
       </header>
@@ -32,8 +32,8 @@ const LINKEDIN = 'https://www.linkedin.com/in/oswaldorodriguez20';
         <section class="space-y-3">
           <h2 class="font-display text-2xl font-bold tracking-tight text-ink">Qué es Bailoteca</h2>
           <p class="leading-relaxed text-ink-soft">
-            Bailoteca reúne academias de salsa, bachata, tango, mambo y otros ritmos latinos de
-            Santiago. Cada ficha muestra sedes, comunas, estilos, horarios, teléfono, sitio web y
+            Bailoteca reúne academias de salsa, bachata, tango, mambo y otros ritmos latinos de todo
+            Chile. Cada ficha muestra sedes, comunas, estilos, horarios, teléfono, sitio web y
             perfiles sociales cuando el dato está disponible, para que puedas comparar y elegir una
             clase cerca de ti.
           </p>
@@ -51,15 +51,13 @@ const LINKEDIN = 'https://www.linkedin.com/in/oswaldorodriguez20';
               href="/sitemap.xml"
               class="font-medium text-accent-ink underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink"
             >
-              sitemap
-            </a>.
+              sitemap </a
+            >.
           </p>
         </section>
 
         <section class="space-y-3">
-          <h2 class="font-display text-2xl font-bold tracking-tight text-ink">
-            Quién lo mantiene
-          </h2>
+          <h2 class="font-display text-2xl font-bold tracking-tight text-ink">Quién lo mantiene</h2>
           <p class="leading-relaxed text-ink-soft">
             Bailoteca es un proyecto de
             <strong class="font-semibold text-ink" translate="no">Oswaldo Rodríguez</strong>,
@@ -110,7 +108,7 @@ export class AboutPage {
     this.seo.set({
       title: 'Acerca de Bailoteca',
       description:
-        'Qué es Bailoteca, cómo se recopilan los datos de las academias de baile de Santiago y cómo pedir una corrección.',
+        'Qué es Bailoteca, cómo se recopilan los datos de las academias de baile de Chile y cómo pedir una corrección.',
       path: '/acerca',
       jsonLd: [
         {

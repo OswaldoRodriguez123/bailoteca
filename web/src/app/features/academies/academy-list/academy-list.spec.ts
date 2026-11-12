@@ -18,11 +18,9 @@ describe('AcademyListPage', () => {
   let listComunas: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    listAcademies = vi.fn((_query: AcademyQuery) =>
-      of(makePage([makeAcademy()], { total: 1 })),
-    );
+    listAcademies = vi.fn((_query: AcademyQuery) => of(makePage([makeAcademy()], { total: 1 })));
     listStyles = vi.fn(() => of([{ slug: 'salsa', name: 'Salsa', sort: 1 }]));
-    listComunas = vi.fn(() => of(['Providencia', 'Ñuñoa']));
+    listComunas = vi.fn((_region: string) => of(['Providencia', 'Ñuñoa']));
 
     TestBed.configureTestingModule({
       providers: [
@@ -55,9 +53,28 @@ describe('AcademyListPage', () => {
     await open('/');
 
     expect(listAcademies).toHaveBeenCalledWith(
-      expect.objectContaining({ page: 1, pageSize: 20 }),
+      expect.objectContaining({ page: 1, pageSize: 20, region: 'metropolitana' }),
     );
     expect(element().textContent).toContain('Dansón Academy');
+  });
+
+  it('carga las comunas con la región por defecto y recarga al cambiarla', async () => {
+    await open('/');
+
+    expect(listComunas).toHaveBeenCalledWith('metropolitana');
+
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/?region=biobio');
+    await harness.fixture.whenStable();
+
+    expect(listComunas).toHaveBeenCalledWith('biobio');
+    expect(listAcademies).toHaveBeenLastCalledWith(expect.objectContaining({ region: 'biobio' }));
+  });
+
+  it('renderiza el titular de alcance nacional', async () => {
+    await open('/');
+
+    expect(element().querySelector('h1')?.textContent).toContain('Chile baila.');
   });
 
   it('lee los filtros y la página de la URL', async () => {
@@ -70,6 +87,42 @@ describe('AcademyListPage', () => {
         q: 'sa',
         page: 2,
         pageSize: 20,
+      }),
+    );
+  });
+
+  it('cambia la región, resetea la comuna y la página', async () => {
+    await open('/?comuna=Providencia&page=2');
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate');
+
+    const select = element().querySelector('#filter-region') as HTMLSelectElement;
+    select.value = 'biobio';
+    select.dispatchEvent(new Event('change'));
+
+    expect(navigate).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({
+        queryParams: expect.objectContaining({ region: 'biobio', page: 1 }),
+      }),
+    );
+    const lastCall = navigate.mock.calls.at(-1);
+    expect(lastCall?.[1]?.queryParams).not.toHaveProperty('comuna');
+  });
+
+  it('resetea la comuna cuando queda fuera de la región seleccionada', async () => {
+    listComunas.mockImplementation((region: string) =>
+      of(region === 'biobio' ? ['Concepción'] : ['Providencia']),
+    );
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate');
+
+    await open('/?region=biobio&comuna=Providencia');
+
+    expect(navigate).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({
+        queryParams: { region: 'biobio', page: 1 },
       }),
     );
   });
@@ -209,10 +262,24 @@ describe('AcademyListPage', () => {
     expect(navigate).toHaveBeenCalledWith(['/']);
   });
 
+  it('muestra un mensaje específico cuando una región no tiene academias', async () => {
+    listAcademies.mockImplementation(() => of(makePage([], { total: 0 })));
+    await open('/?region=biobio');
+
+    expect(element().textContent).toContain('Aún no hay academias en esta región.');
+  });
+
+  it('conserva el mensaje por defecto para la Región Metropolitana', async () => {
+    listAcademies.mockImplementation(() => of(makePage([], { total: 0 })));
+    await open('/?q=zz');
+
+    expect(element().textContent).toContain('No encontramos academias con esos filtros.');
+  });
+
   it('escribe el título, canonical y noindex según los filtros', async () => {
     await open('/');
 
-    expect(document.title).toBe('Academias de baile en Santiago · Bailoteca');
+    expect(document.title).toBe('Academias de baile en Chile · Bailoteca');
     expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
       'https://bailoteca.vercel.app/',
     );
@@ -232,6 +299,14 @@ describe('AcademyListPage', () => {
     listAcademies.mockImplementation(() => of(makePage([], { page: 2, total: 40 })));
 
     await open('/?page=2');
+
+    expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe(
+      'noindex, follow',
+    );
+  });
+
+  it('marca noindex cuando la región no es la Metropolitana', async () => {
+    await open('/?region=biobio');
 
     expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe(
       'noindex, follow',
@@ -280,7 +355,7 @@ describe('AcademyListPage', () => {
       email: 'oswaldo_rodriguez_1@hotmail.com',
       sameAs: ['https://github.com/OswaldoRodriguez123/bailoteca'],
       description:
-        'Directorio de academias de baile en Santiago de Chile, con sedes, estilos y datos de contacto.',
+        'Directorio de academias de baile en Chile, con sedes, estilos y datos de contacto.',
     });
   });
 

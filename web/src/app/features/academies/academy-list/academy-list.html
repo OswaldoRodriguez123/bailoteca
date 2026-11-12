@@ -3,20 +3,23 @@
     <h1
       class="text-balance font-display text-5xl font-extrabold leading-[0.95] tracking-tight text-ink sm:text-7xl"
     >
-      Santiago baila.
+      Chile baila.
     </h1>
     <p class="mt-4 text-lg leading-relaxed text-ink-soft">
-      Academias de baile en Santiago. Encuentra la tuya por comuna y estilo.
+      Academias de baile en todo Chile. Encuentra la tuya por región, comuna y estilo.
     </p>
   </div>
 
   <app-filter-bar
+    [regions]="regions"
+    [region]="query().region"
     [comunas]="comunas()"
     [styles]="styles()"
     [comuna]="query().comuna"
     [style]="query().style"
     [q]="query().q ?? ''"
     [disabled]="filtersError()"
+    (regionChange)="onRegion($event)"
     (comunaChange)="onComuna($event)"
     (styleChange)="onStyle($event)"
     (qChange)="onQ($event)"
@@ -37,7 +40,7 @@
       @if (current.items.length === 0) {
         <app-empty-state
           title="Sin resultados"
-          message="No encontramos academias con esos filtros."
+          [message]="emptyMessage()"
           actionLabel="Limpiar filtros"
           (action)="clearFilters()"
         />

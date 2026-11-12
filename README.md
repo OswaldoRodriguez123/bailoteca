@@ -1,6 +1,6 @@
 # Bailoteca
 
-Dance school directory for Santiago de Chile. A monorepo with a data pipeline, a
+Dance school directory for Chile. A monorepo with a data pipeline, a
 read-only API and a web app, all on one shared Postgres schema.
 
 [![API](https://github.com/OswaldoRodriguez123/bailoteca/actions/workflows/api.yml/badge.svg)](https://github.com/OswaldoRodriguez123/bailoteca/actions/workflows/api.yml)

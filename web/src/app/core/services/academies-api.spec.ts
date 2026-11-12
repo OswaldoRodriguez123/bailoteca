@@ -39,11 +39,39 @@ describe('AcademiesApiService', () => {
     expect(req.request.method).toBe('GET');
     expect(req.request.params.get('comuna')).toBe('Providencia');
     expect(req.request.params.get('q')).toBeNull();
+    expect(req.request.params.get('region')).toBeNull();
     expect(req.request.params.get('page')).toBe('2');
     expect(req.request.params.get('page_size')).toBe('20');
 
     req.flush({ items: [], page: 2, page_size: 20, total: 0 });
     expect(total).toBe(0);
+  });
+
+  it('envía la región en /academies cuando está presente', () => {
+    service.listAcademies({ region: 'biobio', page: 1 }).subscribe();
+
+    const req = http.expectOne(request => request.url === 'http://api.test/academies');
+
+    expect(req.request.params.get('region')).toBe('biobio');
+    req.flush({ items: [], page: 1, page_size: 20, total: 0 });
+  });
+
+  it('envía la región por defecto en /comunas', () => {
+    service.listComunas().subscribe();
+
+    const req = http.expectOne(request => request.url === 'http://api.test/comunas');
+
+    expect(req.request.params.get('region')).toBe('metropolitana');
+    req.flush({ items: ['Providencia'] });
+  });
+
+  it('envía la región indicada en /comunas', () => {
+    service.listComunas('all').subscribe();
+
+    const req = http.expectOne(request => request.url === 'http://api.test/comunas');
+
+    expect(req.request.params.get('region')).toBe('all');
+    req.flush({ items: [] });
   });
 
   it('usa page 1 y page_size 20 por defecto', () => {
@@ -63,7 +91,9 @@ describe('AcademiesApiService', () => {
       received = result;
     });
 
-    const req = http.expectOne(request => request.url === 'http://api.test/academies/danson-academy');
+    const req = http.expectOne(
+      request => request.url === 'http://api.test/academies/danson-academy',
+    );
     expect(req.request.method).toBe('GET');
     req.flush(academy);
 
@@ -81,10 +111,12 @@ describe('AcademiesApiService', () => {
       .expectOne(request => request.url === 'http://api.test/styles')
       .flush({ items: [{ slug: 'salsa', name: 'Salsa', sort: 1 }] });
 
-    service.listComunas().subscribe(items => {
+    service.listComunas('valparaiso').subscribe(items => {
       comunas = items;
     });
-    http.expectOne(request => request.url === 'http://api.test/comunas').flush({ items: ['Providencia'] });
+    const comunasReq = http.expectOne(request => request.url === 'http://api.test/comunas');
+    expect(comunasReq.request.params.get('region')).toBe('valparaiso');
+    comunasReq.flush({ items: ['Providencia'] });
 
     expect(styles).toEqual(['salsa']);
     expect(comunas).toEqual(['Providencia']);

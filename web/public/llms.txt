@@ -1,21 +1,21 @@
 # Bailoteca
 
-> Directorio de academias de baile en Santiago de Chile, organizado por comuna y estilo.
+> Directorio de academias de baile en Chile, organizado por región, comuna y estilo.
 
 Bailoteca reúne fichas de academias de salsa, bachata, tango, mambo y otros ritmos
-latinos en Santiago. Cada ficha incluye sedes, comunas, estilos, horarios, teléfono,
+latinos en todo Chile. Cada ficha incluye sedes, comunas, estilos, horarios, teléfono,
 sitio web y perfiles sociales cuando el dato está disponible.
 
 ## Directorio
 
-- [Academias de baile en Santiago](https://bailoteca.vercel.app/): listado con filtros por comuna y estilo.
+- [Academias de baile en Chile](https://bailoteca.vercel.app/): listado con filtros por región, comuna y estilo.
 - [Sitemap](https://bailoteca.vercel.app/sitemap.xml): todas las fichas publicadas y su última actualización.
 - [API pública](https://bailoteca-api.vercel.app/academies): datos abiertos de academias en JSON.
 
 ## Cómo está organizado
 
 Las fichas usan la URL `/academias/<slug>`, por ejemplo
-`/academias/as-you-wish`. Los filtros del listado (`?comuna=`, `?style=`, `?q=` y
+`/academias/as-you-wish`. Los filtros del listado (`?region=`, `?comuna=`, `?style=`, `?q=` y
 `?page=`) no se indexan; la versión canónica de cada academia es su ficha.
 
 ## Uso de los datos

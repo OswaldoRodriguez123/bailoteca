@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { FilterBar } from './filter-bar';
+import { REGION_OPTIONS } from '../../academy-query';
 
 describe('FilterBar', () => {
   let fixture: ComponentFixture<FilterBar>;
@@ -9,6 +10,8 @@ describe('FilterBar', () => {
     await TestBed.configureTestingModule({ imports: [FilterBar] }).compileComponents();
     fixture = TestBed.createComponent(FilterBar);
     fixture.componentRef.setInput('comunas', ['Providencia', 'Ñuñoa']);
+    fixture.componentRef.setInput('regions', REGION_OPTIONS);
+    fixture.componentRef.setInput('region', 'metropolitana');
     fixture.componentRef.setInput('styles', [
       { slug: 'salsa', name: 'Salsa', sort: 1 },
       { slug: 'bachata', name: 'Bachata', sort: 2 },
@@ -19,8 +22,29 @@ describe('FilterBar', () => {
   it('renderiza los labels de los filtros', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent;
     expect(text).toContain('Buscar');
+    expect(text).toContain('Región');
     expect(text).toContain('Comuna');
     expect(text).toContain('Estilo');
+  });
+
+  it('renderiza 17 opciones en el select de región, antes del de comuna', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const region = element.querySelector('#filter-region') as HTMLSelectElement;
+    const comuna = element.querySelector('#filter-comuna') as HTMLSelectElement;
+
+    expect(region.options.length).toBe(17);
+    expect(region.compareDocumentPosition(comuna) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('emite regionChange al cambiar la región', () => {
+    const changes = vi.fn();
+    fixture.componentInstance.regionChange.subscribe(changes);
+    const select = fixture.nativeElement.querySelector('#filter-region') as HTMLSelectElement;
+
+    select.value = 'biobio';
+    select.dispatchEvent(new Event('change'));
+
+    expect(changes).toHaveBeenCalledWith('biobio');
   });
 
   it('emite el texto crudo de búsqueda', () => {
@@ -78,9 +102,9 @@ describe('FilterBar', () => {
     fixture.componentRef.setInput('disabled', true);
     await fixture.whenStable();
 
-    const controls = fixture.nativeElement.querySelectorAll(
-      'input, select, button',
-    ) as NodeListOf<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>;
+    const controls = fixture.nativeElement.querySelectorAll('input, select, button') as NodeListOf<
+      HTMLInputElement | HTMLSelectElement | HTMLButtonElement
+    >;
 
     expect(controls.length).toBeGreaterThan(0);
     controls.forEach(control => expect(control.disabled).toBe(true));

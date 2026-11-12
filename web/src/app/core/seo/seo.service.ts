@@ -20,7 +20,7 @@ export interface SeoMetadata {
 }
 
 const SITE_NAME = 'Bailoteca';
-const DEFAULT_TITLE = 'Bailoteca — Academias de baile en Santiago';
+const DEFAULT_TITLE = 'Bailoteca — Academias de baile en Chile';
 const MANAGED_ATTRIBUTE = 'data-seo';
 const MANAGED_SELECTOR = `[${MANAGED_ATTRIBUTE}]`;
 

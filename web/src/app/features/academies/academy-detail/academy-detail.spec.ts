@@ -117,9 +117,7 @@ describe('AcademyDetailPage', () => {
   });
 
   it('muestra las iniciales cuando la portada falla al cargar', async () => {
-    getAcademy.mockReturnValue(
-      of(makeAcademy({ cover_url: 'https://img.example/roto.jpg' })),
-    );
+    getAcademy.mockReturnValue(of(makeAcademy({ cover_url: 'https://img.example/roto.jpg' })));
 
     const harness = await open('/academias/danson-academy');
     const img = element(harness).querySelector('img');
@@ -210,7 +208,10 @@ describe('AcademyDetailPage', () => {
         makeAcademy({
           source_urls: ['https://fuente.example/academia'],
           locations: [
-            makeLocation({ source_url: 'https://fuente.example/sede', address: 'Av. Providencia 123' }),
+            makeLocation({
+              source_url: 'https://fuente.example/sede',
+              address: 'Av. Providencia 123',
+            }),
           ],
           styles: [
             makeStyle({ slug: 'salsa', name: 'Salsa', confidence: 0.93, evidence: 'texto crudo' }),
@@ -319,9 +320,7 @@ describe('AcademyDetailPage', () => {
   });
 
   it('declara @context en cada nodo del JSON-LD', async () => {
-    getAcademy.mockReturnValue(
-      of(makeAcademy({ name: 'Dansón Academy', slug: 'danson-academy' })),
-    );
+    getAcademy.mockReturnValue(of(makeAcademy({ name: 'Dansón Academy', slug: 'danson-academy' })));
 
     await open('/academias/danson-academy');
 
@@ -418,9 +417,7 @@ describe('AcademyDetailPage', () => {
       link.getAttribute('href'),
     );
 
-    expect(listAcademies).toHaveBeenCalledWith(
-      expect.objectContaining({ comuna: 'Providencia' }),
-    );
+    expect(listAcademies).toHaveBeenCalledWith(expect.objectContaining({ comuna: 'Providencia' }));
     expect(hrefs).toContain('/academias/otra-academia');
     expect(hrefs).not.toContain('/academias/danson-academy');
     expect(element(harness).textContent).toContain('Otra Academia');
@@ -519,9 +516,9 @@ describe('AcademyDetailPage', () => {
 
     await open('/academias/danson-academy');
 
-    expect(document.title).toBe('Dansón Academy — Santiago · Bailoteca');
+    expect(document.title).toBe('Dansón Academy — Chile · Bailoteca');
     expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'Academia de baile en Santiago.',
+      'Academia de baile en Chile.',
     );
 
     const jsonLd = JSON.parse(

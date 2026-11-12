@@ -7,7 +7,7 @@ import { StyleOption } from '../../../../core/models/academy.models';
   selector: 'app-filter-bar',
   template: `
     <section aria-label="Filtros del directorio" class="border-t border-line pt-4">
-      <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_14rem_12rem] md:items-end">
+      <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_12rem_11rem_10rem] md:items-end">
         <label class="block">
           <span class="mb-1 block text-xs font-medium text-muted">Buscar</span>
           <input
@@ -21,6 +21,24 @@ import { StyleOption } from '../../../../core/models/academy.models';
             placeholder="Nombre o descripción…"
             class="w-full border-0 border-b border-line bg-transparent px-0 py-2 text-base text-ink placeholder:text-muted/70 focus-visible:border-accent-ink focus-visible:outline-none focus-visible:ring-0 disabled:text-muted"
           />
+        </label>
+
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-muted">Región</span>
+          <select
+            id="filter-region"
+            name="region"
+            [value]="region()"
+            [disabled]="disabled()"
+            (change)="onRegion($event)"
+            class="w-full border-0 border-b border-line bg-paper px-0 py-2 text-base text-ink focus-visible:border-accent-ink focus-visible:outline-none focus-visible:ring-0 disabled:text-muted"
+          >
+            @for (option of regions(); track option.slug) {
+              <option [value]="option.slug" [selected]="option.slug === region()">
+                {{ option.name }}
+              </option>
+            }
+          </select>
         </label>
 
         <label class="block">
@@ -74,15 +92,22 @@ import { StyleOption } from '../../../../core/models/academy.models';
 export class FilterBar {
   readonly comunas = input<string[]>([]);
   readonly styles = input<StyleOption[]>([]);
+  readonly regions = input<{ slug: string; name: string }[]>([]);
+  readonly region = input<string>('metropolitana');
   readonly comuna = input<string | null>(null);
   readonly style = input<string | null>(null);
   readonly q = input<string>('');
   readonly disabled = input(false);
 
+  readonly regionChange = output<string>();
   readonly comunaChange = output<string | null>();
   readonly styleChange = output<string | null>();
   readonly qChange = output<string>();
   readonly clearFilters = output<void>();
+
+  protected onRegion(event: Event): void {
+    this.regionChange.emit((event.target as HTMLSelectElement).value);
+  }
 
   protected onQ(event: Event): void {
     this.qChange.emit((event.target as HTMLInputElement).value);

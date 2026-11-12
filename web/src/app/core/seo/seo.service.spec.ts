@@ -33,9 +33,7 @@ describe('SeoService', () => {
     expect(doc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
       'https://bailoteca.test/',
     );
-    expect(doc.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe(
-      'index, follow',
-    );
+    expect(doc.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('index, follow');
   });
 
   it('marca noindex cuando se pide', () => {
@@ -52,9 +50,7 @@ describe('SeoService', () => {
 
     expect(doc.querySelectorAll('meta[name="description"]')).toHaveLength(1);
     expect(doc.querySelectorAll('link[rel="canonical"]')).toHaveLength(1);
-    expect(doc.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
-      'Segunda',
-    );
+    expect(doc.querySelector('meta[name="description"]')?.getAttribute('content')).toBe('Segunda');
     expect(doc.title).toBe('Dos · Bailoteca');
   });
 
@@ -63,7 +59,7 @@ describe('SeoService', () => {
     service.clear();
 
     expect(doc.querySelectorAll('[data-seo]')).toHaveLength(0);
-    expect(doc.title).toBe('Bailoteca — Academias de baile en Santiago');
+    expect(doc.title).toBe('Bailoteca — Academias de baile en Chile');
   });
 
   it('escribe Open Graph y Twitter Cards', () => {
@@ -170,7 +166,9 @@ describe('SeoService', () => {
     service.set({ title: 'C', description: 'D', path: '/c', jsonLd: { '@type': 'DanceSchool' } });
 
     expect(doc.querySelectorAll('script[type="application/ld+json"]')).toHaveLength(1);
-    expect(JSON.parse(doc.querySelector('script[type="application/ld+json"]')!.textContent!)).toEqual({
+    expect(
+      JSON.parse(doc.querySelector('script[type="application/ld+json"]')!.textContent!),
+    ).toEqual({
       '@type': 'DanceSchool',
     });
   });

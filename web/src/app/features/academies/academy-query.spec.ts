@@ -5,6 +5,7 @@ import { lastPage, ListQuery, normalizeQuery, queryToParams, sameQuery } from '.
 describe('academy query helpers', () => {
   it('normaliza una URL vacía', () => {
     expect(normalizeQuery(convertToParamMap({}))).toEqual({
+      region: 'metropolitana',
       comuna: null,
       style: null,
       q: null,
@@ -30,21 +31,65 @@ describe('academy query helpers', () => {
       normalizeQuery(
         convertToParamMap({ comuna: ' Providencia ', style: 'salsa', q: ' bachata ', page: '2' }),
       ),
-    ).toEqual({ comuna: 'Providencia', style: 'salsa', q: 'bachata', page: 2 });
-  });
-
-  it('serializa solo los valores presentes y siempre la página', () => {
-    expect(queryToParams({ comuna: null, style: 'salsa', q: 'bachata', page: 2 })).toEqual({
+    ).toEqual({
+      region: 'metropolitana',
+      comuna: 'Providencia',
       style: 'salsa',
       q: 'bachata',
       page: 2,
     });
   });
 
+  it('conserva una región válida', () => {
+    expect(normalizeQuery(convertToParamMap({ region: 'valparaiso' })).region).toBe('valparaiso');
+    expect(normalizeQuery(convertToParamMap({ region: 'all' })).region).toBe('all');
+  });
+
+  it('normaliza una región inválida a la Metropolitana', () => {
+    expect(normalizeQuery(convertToParamMap({ region: 'atlantis' })).region).toBe('metropolitana');
+  });
+
+  it('serializa solo los valores presentes y siempre la página', () => {
+    expect(
+      queryToParams({
+        region: 'metropolitana',
+        comuna: null,
+        style: 'salsa',
+        q: 'bachata',
+        page: 2,
+      }),
+    ).toEqual({
+      style: 'salsa',
+      q: 'bachata',
+      page: 2,
+    });
+  });
+
+  it('omite la región por defecto y emite las demás, incluido "all"', () => {
+    const base: ListQuery = {
+      region: 'metropolitana',
+      comuna: null,
+      style: null,
+      q: null,
+      page: 1,
+    };
+
+    expect(queryToParams(base)).toEqual({ page: 1 });
+    expect(queryToParams({ ...base, region: 'all' })).toEqual({ region: 'all', page: 1 });
+    expect(queryToParams({ ...base, region: 'biobio' })).toEqual({ region: 'biobio', page: 1 });
+  });
+
   it('compara queries por valor', () => {
-    const query: ListQuery = { comuna: 'Providencia', style: null, q: 'salsa', page: 1 };
+    const query: ListQuery = {
+      region: 'metropolitana',
+      comuna: 'Providencia',
+      style: null,
+      q: 'salsa',
+      page: 1,
+    };
     expect(sameQuery(query, { ...query })).toBe(true);
     expect(sameQuery(query, { ...query, page: 2 })).toBe(false);
+    expect(sameQuery(query, { ...query, region: 'all' })).toBe(false);
   });
 
   it('calcula la última página', () => {

@@ -1,7 +1,7 @@
 {
-  "name": "Bailoteca — Academias de baile en Santiago",
+  "name": "Bailoteca — Academias de baile en Chile",
   "short_name": "Bailoteca",
-  "description": "Directorio de academias de baile en Santiago por comuna y estilo.",
+  "description": "Directorio de academias de baile en Chile por región, comuna y estilo.",
   "lang": "es",
   "start_url": "/",
   "scope": "/",

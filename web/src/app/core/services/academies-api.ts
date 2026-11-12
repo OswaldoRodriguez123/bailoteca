@@ -29,6 +29,9 @@ export class AcademiesApiService {
       .set('page', String(query.page ?? 1))
       .set('page_size', String(query.pageSize ?? PAGE_SIZE));
 
+    if (query.region) {
+      params = params.set('region', query.region);
+    }
     if (query.comuna) {
       params = params.set('comuna', query.comuna);
     }
@@ -52,9 +55,11 @@ export class AcademiesApiService {
       .pipe(map(response => response.items));
   }
 
-  listComunas(): Observable<string[]> {
+  listComunas(region: string = 'metropolitana'): Observable<string[]> {
+    const params = new HttpParams().set('region', region);
+
     return this.http
-      .get<ComunaListResponse>(`${this.baseUrl}/comunas`)
+      .get<ComunaListResponse>(`${this.baseUrl}/comunas`, { params })
       .pipe(map(response => response.items));
   }
 }

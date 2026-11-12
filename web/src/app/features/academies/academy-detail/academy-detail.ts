@@ -165,9 +165,7 @@ export class AcademyDetailPage {
   protected linkLabel = linkLabel;
   protected mapUrl = mapUrl;
 
-  protected googleHoursEntries(
-    hours: Record<string, string> | null,
-  ): [string, string][] {
+  protected googleHoursEntries(hours: Record<string, string> | null): [string, string][] {
     if (!hours) {
       return [];
     }
@@ -175,12 +173,9 @@ export class AcademyDetailPage {
   }
 
   private updateMetadata(academy: Academy): void {
-    const comuna = academy.locations[0]?.comuna?.trim() || 'Santiago';
+    const comuna = academy.locations[0]?.comuna?.trim() || 'Chile';
     const path = `/academias/${academy.slug}`;
-    const description = metaDescription(
-      academy.description,
-      `Academia de baile en ${comuna}.`,
-    );
+    const description = metaDescription(academy.description, `Academia de baile en ${comuna}.`);
     const jsonLd: SeoJsonLd = {
       '@context': 'https://schema.org',
       '@type': 'DanceSchool',
