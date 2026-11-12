@@ -349,6 +349,36 @@ describe('AcademyListPage', () => {
     expect(TestBed.inject(Router).url).not.toContain('sort=');
   });
 
+  it('no pide geolocalización al elegir un orden que no es cercanas', async () => {
+    const getCurrentPosition = vi.fn();
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition },
+    });
+    await open('/');
+    component().onSort('nuevas');
+    await harness.fixture.whenStable();
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  it('oculta el aviso al elegir otro orden tras denegar la ubicación', async () => {
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition: (_ok: PositionCallback, fail?: PositionErrorCallback) =>
+        fail?.({ code: 1, message: 'denied' } as unknown as GeolocationPositionError) },
+    });
+    await open('/');
+    const select = element().querySelector('#filter-orden') as HTMLSelectElement;
+    select.value = 'cercanas';
+    select.dispatchEvent(new Event('change'));
+    await harness.fixture.whenStable();
+    expect(element().textContent).toContain('Activa tu ubicación para ordenar por cercanía.');
+
+    component().onSort('nombre');
+    await harness.fixture.whenStable();
+    expect(element().textContent).not.toContain('Activa tu ubicación para ordenar por cercanía.');
+  });
+
   it('marca noindex en páginas posteriores a la primera', async () => {
     listAcademies.mockImplementation(() => of(makePage([], { page: 2, total: 40 })));
 

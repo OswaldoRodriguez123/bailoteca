@@ -31,6 +31,7 @@ import {
   queryToParams,
   REGION_OPTIONS,
   sameQuery,
+  SORT_KEYS,
   SORT_OPTIONS,
   SortKey,
 } from '../academy-query';
@@ -262,6 +263,9 @@ export class AcademyListPage {
   }
 
   onSort(sort: string): void {
+    if (!SORT_KEYS.includes(sort)) {
+      return;
+    }
     if (sort !== 'cercanas') {
       this.geoError.set(false);
       this.navigate({ sort: sort as SortKey, lat: null, lng: null, page: 1 });
