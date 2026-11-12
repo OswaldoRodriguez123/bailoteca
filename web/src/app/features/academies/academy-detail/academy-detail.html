@@ -34,12 +34,12 @@
                 Cerrada
               </span>
             } @else if (item.verified_at) {
-              <span class="shrink-0 border border-ink px-2 py-0.5 text-xs font-medium text-ink">
-                Verificado
-              </span>
+              <p class="shrink-0 pt-0.5 text-xs text-muted">
+                Ficha revisada el {{ item.verified_at | date: 'mediumDate' }}
+              </p>
             } @else {
               <span class="shrink-0 border border-dashed border-muted px-2 py-0.5 text-xs font-medium text-muted">
-                Sin verificar
+                Aún sin revisar
               </span>
             }
           </div>
