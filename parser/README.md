@@ -73,8 +73,15 @@ bailoteca run --dry-run
 # Same, writing proposals to Postgres
 bailoteca run
 
-# List pending proposals in Markdown
+# List pending proposals in Markdown (each includes a `- país:` triage line)
 bailoteca review
+
+# Same, with no network calls (local signals only)
+bailoteca review --skip-osm
+
+# Audit published academies for foreign signals (read-only, never writes)
+bailoteca audit-country
+bailoteca audit-country --skip-osm
 
 # Approve a proposal (sets verified_at)
 bailoteca approve <proposal-id>
@@ -101,6 +108,20 @@ bailoteca export --csv
 
 Each run writes `reports/<date>/` with `candidates.json`, `proposals.json`,
 `review.md` and `summary.md`.
+
+## Triage de país (`- país:` en `review`, `bailoteca audit-country`)
+
+El directorio es solo para Chile, pero los datos vienen de fuera y OSM cubre
+mal. El triage es una señal más en revisión — **nunca bloquea publicar** y
+**nunca escribe en la base**: la decisión final es siempre humana.
+
+Qué hace:
+
+- `review` agrega una línea `- país: {🇨🇱|⚠️|⚪} {Chile probable|no parece Chile|sin huella} — señales: …` a cada propuesta pendiente.
+- `audit-country` lista todas las publicadas con el mismo formato y cierra con `total=<N> chile=<n> extranjera=<n> sin_huella=<n>`.
+- `--skip-osm` desactiva la señal Overpass (local only, cero red). Sin el flag, una consulta por academia a Overpass (nombre exacto, timeout ≤ 15 s, 1 reintento, ambos endpoints) vía señal consultiva: si la red falla queda "OSM sin respuesta" y el veredicto cae al lado local.
+
+Señales (peso): `.cl` en URL +1 · teléfono `+56` +1 · teléfono internacional ≠ +56 −2 · token país extranjero en dirección (`google.address`, `locations[].address`) −2 · comuna en el catálogo INE +1. Umbrales: ≥ 2 → Chile probable; ≤ −1 sin señal `.cl`/`+56` contradictoria → no parece Chile; en contradicción → sin huella. La descripción **no** se escanea (p. ej. «danza española» no es ubicación).
 
 ## Tests
 
