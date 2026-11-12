@@ -123,6 +123,7 @@ describe('AcademyListPage', () => {
       [],
       expect.objectContaining({
         queryParams: { region: 'biobio', page: 1 },
+        replaceUrl: true,
       }),
     );
   });

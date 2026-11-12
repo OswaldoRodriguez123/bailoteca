@@ -102,7 +102,7 @@ export class AcademyListPage {
 
         const query = this.query();
         if (query.comuna && !comunas.includes(query.comuna)) {
-          this.navigate({ region: query.region, comuna: null, page: 1 });
+          this.navigate({ region: query.region, comuna: null, page: 1 }, { replaceUrl: true });
         }
       });
 
@@ -251,11 +251,12 @@ export class AcademyListPage {
     this.reload$.next();
   }
 
-  private navigate(partial: Partial<ListQuery>): void {
+  private navigate(partial: Partial<ListQuery>, options: { replaceUrl?: boolean } = {}): void {
     const next = { ...this.query(), ...partial };
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: queryToParams(next),
+      replaceUrl: options.replaceUrl ?? false,
     });
   }
 

@@ -33,6 +33,7 @@ describe('FilterBar', () => {
     const comuna = element.querySelector('#filter-comuna') as HTMLSelectElement;
 
     expect(region.options.length).toBe(17);
+    expect(region.value).toBe('metropolitana');
     expect(region.compareDocumentPosition(comuna) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
@@ -45,6 +46,17 @@ describe('FilterBar', () => {
     select.dispatchEvent(new Event('change'));
 
     expect(changes).toHaveBeenCalledWith('biobio');
+  });
+
+  it('emite regionChange con "all" al elegir Todas las regiones', () => {
+    const changes = vi.fn();
+    fixture.componentInstance.regionChange.subscribe(changes);
+    const select = fixture.nativeElement.querySelector('#filter-region') as HTMLSelectElement;
+
+    select.value = 'all';
+    select.dispatchEvent(new Event('change'));
+
+    expect(changes).toHaveBeenCalledWith('all');
   });
 
   it('emite el texto crudo de búsqueda', () => {
