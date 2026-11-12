@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from typing import Protocol
 
-DEFAULT_MODELS = ["gemini-2.5-flash", "gemini-flash-latest"]
+DEFAULT_MODELS = ["gemini-3.1-flash-lite", "gemini-2.5-flash"]
 RETRYABLE_STATUS = {500, 502, 503, 504}
 
 
