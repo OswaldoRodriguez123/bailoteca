@@ -687,3 +687,28 @@ def test_run_prepass_evita_gemini_aunque_devolveria_otra_comuna():
 
     assert llm.prompts == []
     assert conn.inserts[0][3] == "La Florida"
+
+
+def test_run_google_chileno_asigna_sede_sin_llm():
+    # Sin comunas en la descripción: el matcher determinista sobre google.address
+    # asigna Santiago con la dirección completa, sin llamar al LLM.
+    google_address = "Av. Ricardo Cumming 78, 8350598 Santiago, Región Metropolitana"
+    academy = dict(
+        ARTFIT,
+        source_urls=[],
+        links=[{"kind": "web", "url": "https://artfit.cl"}],
+        description="Academia de baile latino",  # sin comunas
+        google={"address": google_address},
+    )
+    conn = _FakeConn([academy])
+    llm = FakeLLM([])  # el LLM no debe ser llamado
+
+    assert run(conn, llm=llm, brave_factory=lambda q: FakeBrave([]), apply=True) == 0
+
+    assert llm.prompts == []
+    assert len(conn.inserts) == 1
+    params = conn.inserts[0]
+    assert params[2] == google_address  # address completa
+    assert params[3] == "Santiago"
+    assert params[6] == "metropolitana"
+    assert params[7] == "https://artfit.cl"

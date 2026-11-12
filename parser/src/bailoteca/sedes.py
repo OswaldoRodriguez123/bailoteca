@@ -7,10 +7,12 @@ academia (prioridad web > facebook > instagram > tiktok > youtube > other;
 excluye email/phone/whatsapp y URLs mailto:/tel:/https://wa.me/). Sin nada
 usable, la sede queda SIN FUENTE y con --apply no se inserta.
 
-Antes de Gemini corre un pre-paso determinista (``comuna_from_text``) sobre la
-descripción; salta si ``google.address`` existe y no parezca chilena (ni el
-pre-paso ni Gemini asignan sede en ese caso). El pre-paso marca ``via='texto'``
-(solo trazabilidad, no se persiste); ``source_url`` sale del fallback de links. Pasada B: busca en Brave
+Antes de Gemini corren dos matchers deterministas: (1) ``comuna_from_text``
+sobre la descripción, (2) el mismo matcher sobre ``google.address`` si parece
+chilena (dirección completa como ``address``, ``via='google'``). Si
+``google.address`` existe y NO parece chilena, ni el pre-paso ni Gemini
+asignan sede. Las vías de pre-paso marcan ``via`` (solo trazabilidad, no se
+persiste); ``source_url`` sale del fallback de links. Pasada B: busca en Brave
 (``f'"{name}" Santiago comuna'``, una query, num=3) y extrae por candidato.
 Compuerta (``extract_rm_comuna``): match normalizado EXACTO contra las comunas
 RM del catálogo oficial; cualquier otra cosa → None (sin sede). Con ``--apply``
@@ -187,6 +189,26 @@ def _word_pad(text: str) -> str:
     return f" {' '.join(words)} "
 
 
+def _sede_from_google(academy: dict) -> dict | None:
+    """Sede desde google.address (solo si parece chilena), sin LLM.
+
+    address = la dirección de Google completa; via='google' es solo trazabilidad.
+    """
+
+    google_address = _google_address(academy)
+    if not google_address or not looks_chilean(google_address):
+        return None
+    comuna = comuna_from_text(google_address)
+    if comuna is None:
+        return None
+    return {
+        "address": google_address,
+        "comuna": comuna,
+        "source_url": _fallback_link(academy.get("links")),
+        "via": "google",
+    }
+
+
 def _has_foreign_google_address(academy: dict) -> bool:
     """True si hay google.address y NO parece chilena (sala-marina: España)."""
 
@@ -358,12 +380,16 @@ def _assign(academy: dict, llm, brave_factory) -> tuple[dict | None, str]:
     """Devuelve (sede|None, estado) con estado en {'sede','ambigua','sin-sede'}.
 
     Orden: (0) google extranjero → sin sede (ni pre-paso ni LLM); (1) pre-paso
-    determinista sobre la descripción; (2) Gemini Pasada A; (3) Pasada B.
+    determinista sobre la descripción; (2) match determinista sobre
+    google.address si parece chilena; (3) Gemini Pasada A; (4) Pasada B.
     """
 
     if _has_foreign_google_address(academy):
         return None, "sin-sede"
     sede = _sede_from_text(academy)
+    if sede is not None:
+        return sede, "sede"
+    sede = _sede_from_google(academy)
     if sede is not None:
         return sede, "sede"
     if llm is None:
@@ -387,8 +413,8 @@ def _print_table(results: list[tuple[dict, dict | None, str]]) -> None:
         if sede is not None:
             address = (sede["address"] or "-")[:46]
             source = sede["source_url"] or "SIN FUENTE (no se inserta)"
-            if sede.get("via") == "texto":
-                source = f"{source} [texto]"
+            if sede.get("via"):
+                source = f"{source} [{sede['via']}]"
             print(f"{slug:<32}  {sede['comuna']:<20}  {address:<46}  {source}")
         else:
             label = "AMBIGUA" if status == "ambigua" else "SIN SEDE"
