@@ -201,10 +201,16 @@ def cmd_enrich_places(args: argparse.Namespace) -> int:
         academies = list_published(conn)
         target_slug = getattr(args, "slug", None)
         force = getattr(args, "force", False)
+        missing_rating = getattr(args, "missing_rating", False)
         for academy in academies:
             if target_slug and academy.get("slug") != target_slug:
                 continue
-            if academy.get("google") and not force:
+            google = academy.get("google") or {}
+            if missing_rating:
+                # Modo ratings faltantes: solo academias con place_id y rating null.
+                if not google.get("place_id") or google.get("rating") is not None:
+                    continue
+            elif google and not force:
                 # Ya tiene datos de Google Maps: no gastar cuota SerpApi.
                 continue
             locations = academy.get("locations") or []
@@ -222,8 +228,18 @@ def cmd_enrich_places(args: argparse.Namespace) -> int:
                 failed += 1
                 continue
             data = to_dict(info)
+            if missing_rating:
+                # Fusionar con el google existente: conservar place_id,
+                # gps_coordinates y demás datos ya guardados. Los campos que
+                # la respuesta no trae (None) no pisan lo existente.
+                new_google = {
+                    key: value
+                    for key, value in (data.get("google") or {}).items()
+                    if value is not None
+                }
+                data["google"] = {**google, **new_google}
             cover_url = None
-            if info.thumbnail and not getattr(args, "dry_run", False):
+            if not missing_rating and info.thumbnail and not getattr(args, "dry_run", False):
                 image = download_image(info.thumbnail, client=http, timeout=20.0)
                 if image is None:
                     print(
@@ -558,6 +574,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--force",
         action="store_true",
         help="Re-enriquecer aunque ya tenga datos de Google Maps",
+    )
+    enrich_places.add_argument(
+        "--missing-rating",
+        action="store_true",
+        help="Completar solo academias con place_id pero sin rating (no toca portadas)",
     )
     enrich_places.set_defaults(handler=cmd_enrich_places)
 

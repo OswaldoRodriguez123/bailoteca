@@ -14,6 +14,10 @@ on:
         description: "Solo alojar las portadas actuales en Supabase Storage (backfill)"
         type: boolean
         default: false
+      missing_rating:
+        description: "Completar ratings faltantes de Google Maps (no toca portadas)"
+        type: boolean
+        default: false
 
 jobs:
   run:
@@ -33,7 +37,7 @@ jobs:
       - run: pip install -e shared -e "parser[dev]"
       - run: python -m pytest parser/tests shared/tests -q
       - name: Correr pipeline
-        if: ${{ inputs.host_covers != true }}
+        if: ${{ inputs.host_covers != true && inputs.missing_rating != true }}
         working-directory: parser
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -54,7 +58,7 @@ jobs:
             python -m bailoteca run
           fi
       - name: Enriquecer con Google Maps
-        if: ${{ inputs.dry_run != true && inputs.host_covers != true }}
+        if: ${{ inputs.dry_run != true && inputs.host_covers != true && inputs.missing_rating != true }}
         working-directory: parser
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -62,13 +66,20 @@ jobs:
           BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
         run: python -m bailoteca enrich-places
       - name: Refrescar portadas (og:image)
-        if: ${{ inputs.dry_run != true && inputs.host_covers != true }}
+        if: ${{ inputs.dry_run != true && inputs.host_covers != true && inputs.missing_rating != true }}
         working-directory: parser
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python -m bailoteca refresh-images
+      - name: Completar ratings faltantes
+        if: ${{ inputs.missing_rating == true }}
+        working-directory: parser
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+        run: python -m bailoteca enrich-places --missing-rating
       - name: Host de portadas (backfill)
         if: ${{ inputs.host_covers == true }}
         working-directory: parser
