@@ -523,6 +523,48 @@ def cmd_geocode(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_discover_address(args: argparse.Namespace) -> int:
+    import httpx
+
+    from bailoteca import discover_address
+
+    config = _load_config()
+    if not config.brave_api_key:
+        print("BRAVE_API_KEY requerido (plan free); nada que hacer")
+        return 1
+    conn = _open_conn(config)
+    http = httpx.Client(timeout=15)
+    try:
+        proposals = discover_address.run(
+            conn,
+            http,
+            config.brave_api_key,
+            apply=args.apply,
+            delay=args.delay,
+        )
+        if args.apply:
+            conn.commit()
+    finally:
+        http.close()
+        conn.close()
+    counts: dict[str, int] = {}
+    for item in proposals:
+        outcome = (
+            "propia" if item.own and item.source
+            else ("terceros" if item.source else "sin hallazgo")
+        )
+        counts[outcome] = counts.get(outcome, 0) + 1
+        shown = item.address or "-"
+        evidence = f" | evidencia: {item.evidence}" if item.evidence else ""
+        print(f"{item.academy_slug}: {shown} ({outcome}{evidence})")
+    print(
+        f"total={len(proposals)} propias={counts.get('propia', 0)} "
+        f"terceros={counts.get('terceros', 0)} sin_hallazgo={counts.get('sin hallazgo', 0)} "
+        f"aplicar={args.apply}"
+    )
+    return 0
+
+
 def cmd_host_covers(args: argparse.Namespace) -> int:
     from bailoteca.covers import backfill_covers
 
@@ -760,6 +802,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Escribe las coordenadas en la base de datos (por defecto solo muestra el plan)",
     )
     geocode.set_defaults(handler=cmd_geocode)
+
+    discover = subparsers.add_parser(
+        "discover-address",
+        help="Descubrir direcciones de sedes sólo con comuna (Brave + web propia; dry-run por defecto)",
+    )
+    discover.add_argument(
+        "--apply",
+        action="store_true",
+        help="Escribe las direcciones encontradas en la base (por defecto solo muestra el plan)",
+    )
+    discover.add_argument(
+        "--delay",
+        type=float,
+        default=1.1,
+        help="Segundos de espera entre sedes (por defecto 1.1)",
+    )
+    discover.set_defaults(handler=cmd_discover_address)
 
     host_covers = subparsers.add_parser(
         "host-covers",
