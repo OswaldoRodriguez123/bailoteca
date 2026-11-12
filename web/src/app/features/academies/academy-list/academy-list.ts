@@ -65,11 +65,17 @@ export class AcademyListPage {
   readonly comunas = signal<string[]>([]);
   readonly filtersError = signal(false);
   readonly regions = REGION_OPTIONS;
-  readonly emptyMessage = computed(() =>
-    this.query().region !== DEFAULT_REGION
-      ? 'Aún no hay academias en esta región.'
-      : 'No encontramos academias con esos filtros.',
-  );
+  readonly emptyMessage = computed(() => {
+    const region = this.query().region;
+
+    if (region === 'all') {
+      return 'Aún no hay academias publicadas en Chile.';
+    }
+    if (region !== DEFAULT_REGION) {
+      return 'Aún no hay academias en esta región.';
+    }
+    return 'No encontramos academias con esos filtros.';
+  });
 
   constructor() {
     this.api

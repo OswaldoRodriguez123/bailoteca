@@ -271,6 +271,20 @@ describe('AcademyDetailPage', () => {
     expect(back.getAttribute('href')).toBe('/?comuna=Providencia&page=2');
   });
 
+  it('vuelve al listado conservando la región no por defecto', async () => {
+    const harness = await open('/academias/danson-academy?region=valparaiso&style=salsa');
+
+    const back = linkTo(harness, 'Volver al listado');
+    expect(back.getAttribute('href')).toBe('/?region=valparaiso&style=salsa');
+  });
+
+  it('conserva region=metropolitana tal cual, por la convención cruda del backQuery', async () => {
+    const harness = await open('/academias/danson-academy?region=metropolitana');
+
+    const back = linkTo(harness, 'Volver al listado');
+    expect(back.getAttribute('href')).toBe('/?region=metropolitana');
+  });
+
   it('renderiza una academia vacía sin lanzar', async () => {
     getAcademy.mockReturnValue(
       of(

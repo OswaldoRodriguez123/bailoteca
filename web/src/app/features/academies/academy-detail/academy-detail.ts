@@ -26,7 +26,7 @@ import {
 import { AcademyCard } from '../components/academy-card/academy-card';
 import { StyleBadges } from '../components/style-badges/style-badges';
 
-const LIST_QUERY_KEYS = ['comuna', 'style', 'q', 'page'] as const;
+const LIST_QUERY_KEYS = ['region', 'comuna', 'style', 'q', 'page'] as const;
 
 interface LoadResult {
   academy: Academy | null;

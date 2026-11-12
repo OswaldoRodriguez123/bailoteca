@@ -270,6 +270,13 @@ describe('AcademyListPage', () => {
     expect(element().textContent).toContain('Aún no hay academias en esta región.');
   });
 
+  it('muestra un mensaje específico cuando la región es "todas"', async () => {
+    listAcademies.mockImplementation(() => of(makePage([], { total: 0 })));
+    await open('/?region=all');
+
+    expect(element().textContent).toContain('Aún no hay academias publicadas en Chile.');
+  });
+
   it('conserva el mensaje por defecto para la Región Metropolitana', async () => {
     listAcademies.mockImplementation(() => of(makePage([], { total: 0 })));
     await open('/?q=zz');

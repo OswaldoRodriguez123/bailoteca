@@ -14,3 +14,6 @@ web/.vscode/
 web/.agents/
 web/.claude/
 web/skills-lock.json
+
+# Planes y artefactos SDD (no se commitean)
+.superpowers/
