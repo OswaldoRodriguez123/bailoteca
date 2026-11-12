@@ -130,37 +130,34 @@ def run(conn, search_factory, apply: bool = False) -> list[dict]:
     for row in raw_rows:
         academy: dict = {}
         try:
-            academy = _row_to_dict(row)
-            source = search_factory(f'"{academy.get("name")}" seguidores instagram')
-            candidates = (source.discover() or []) if source is not None else []
-            for candidate in candidates:
-                followers = parse_followers(_description(candidate))
-                if followers is None:
-                    continue
-                url = getattr(candidate, "url", None)
-                network = _network_from_url(url)
-                if apply:
-                    # Escribir ANTES de registrar el hallazgo: si el update
-                    # falla, no debe quedar una entrada fantasma de éxito.
-                    conn.execute(
-                        UPDATE_ACADEMY_SQL,
-                        (followers, network, academy["id"]),
+            # Un savepoint por academia: si falla, solo se deshacen sus
+            # escrituras y la transacción exterior sigue abierta para las demás.
+            with conn.transaction():
+                academy = _row_to_dict(row)
+                source = search_factory(f'"{academy.get("name")}" seguidores instagram')
+                candidates = (source.discover() or []) if source is not None else []
+                for candidate in candidates:
+                    followers = parse_followers(_description(candidate))
+                    if followers is None:
+                        continue
+                    url = getattr(candidate, "url", None)
+                    network = _network_from_url(url)
+                    if apply:
+                        # Escribir ANTES de registrar el hallazgo: si el update
+                        # falla, no debe quedar una entrada fantasma de éxito.
+                        conn.execute(
+                            UPDATE_ACADEMY_SQL,
+                            (followers, network, academy["id"]),
+                        )
+                    found.append(
+                        {
+                            "slug": academy.get("slug"),
+                            "followers": followers,
+                            "network": network,
+                            "url": url,
+                        }
                     )
-                found.append(
-                    {
-                        "slug": academy.get("slug"),
-                        "followers": followers,
-                        "network": network,
-                        "url": url,
-                    }
-                )
-                break
+                    break
         except Exception as exc:
-            rollback = getattr(conn, "rollback", None)
-            if callable(rollback):
-                try:
-                    rollback()
-                except Exception:
-                    pass
             found.append({"slug": academy.get("slug"), "error": str(exc)})
     return found

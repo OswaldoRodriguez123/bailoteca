@@ -1,3 +1,4 @@
+import contextlib
 from types import SimpleNamespace
 
 import pytest
@@ -39,6 +40,33 @@ class _FakeConn:
     def execute(self, sql, params=()):
         self.calls.append((sql, tuple(params)))
         if "update academies" in sql:
+            self.updates.append((sql, tuple(params)))
+            return SimpleNamespace(rowcount=1)
+        return SimpleNamespace(fetchall=lambda: self.academies)
+
+    @contextlib.contextmanager
+    def transaction(self):
+        # Savepoint: en la excepción se descartan SOLO las escrituras del bloque.
+        marker = len(self.updates)
+        try:
+            yield
+        except Exception:
+            del self.updates[marker:]
+            raise
+
+
+class _TxnFakeConn(_FakeConn):
+    """UPDATE falla para los ids indicados; el savepoint descarta solo el bloque."""
+
+    def __init__(self, academies, fail_ids):
+        super().__init__(academies)
+        self.fail_ids = set(fail_ids)
+
+    def execute(self, sql, params=()):
+        self.calls.append((sql, tuple(params)))
+        if "update academies" in sql:
+            if str(params[2]) in self.fail_ids:
+                raise RuntimeError("update failed")
             self.updates.append((sql, tuple(params)))
             return SimpleNamespace(rowcount=1)
         return SimpleNamespace(fetchall=lambda: self.academies)
@@ -107,29 +135,6 @@ def test_run_isolates_per_academy_errors():
 
 
 def test_run_update_failure_does_not_double_count_or_abort_following():
-    class _TxnFakeConn(_FakeConn):
-        def __init__(self, academies, fail_ids):
-            super().__init__(academies)
-            self.fail_ids = set(fail_ids)
-            self.poisoned = False
-            self.rollbacks = 0
-
-        def execute(self, sql, params=()):
-            self.calls.append((sql, tuple(params)))
-            if "update academies" in sql:
-                if self.poisoned:
-                    raise RuntimeError("current transaction is aborted")
-                if str(params[2]) in self.fail_ids:
-                    self.poisoned = True
-                    raise RuntimeError("update failed")
-                self.updates.append((sql, tuple(params)))
-                return SimpleNamespace(rowcount=1)
-            return SimpleNamespace(fetchall=lambda: self.academies)
-
-        def rollback(self):
-            self.poisoned = False
-            self.rollbacks += 1
-
     conn = _TxnFakeConn(
         [
             {"id": "1", "slug": "a", "name": "Alba"},
@@ -153,7 +158,34 @@ def test_run_update_failure_does_not_double_count_or_abort_following():
     assert errors == [{"slug": "a", "error": "update failed"}]
     assert [r["slug"] for r in written] == ["b"]
     assert len(conn.updates) == 1
-    assert conn.rollbacks == 1
+    assert [params[2] for _, params in conn.updates] == ["2"]
+
+
+def test_run_update_failure_savepoint_preserves_other_academies():
+    conn = _TxnFakeConn(
+        [
+            {"id": "1", "slug": "a", "name": "Aca"},
+            {"id": "2", "slug": "b", "name": "Bob"},
+            {"id": "3", "slug": "c", "name": "Cid"},
+        ],
+        fail_ids={"2"},
+    )
+
+    def factory(query):
+        name = next(n for n in ("Aca", "Bob", "Cid") if n in query)
+        return _FakeSource([
+            Candidate(name=name, url=f"https://instagram.com/{name.lower()}",
+                      handle=None, source="brave",
+                      raw={"description": "3,210 followers"}),
+        ])
+
+    results = run(conn, factory, apply=True)
+
+    errors = [r for r in results if "error" in r]
+    written = [r for r in results if "error" not in r]
+    assert errors == [{"slug": "b", "error": "update failed"}]
+    assert [r["slug"] for r in written] == ["a", "c"]
+    assert [params[2] for _, params in conn.updates] == ["1", "3"]
 
 
 def test_run_dry_run_does_not_write():
