@@ -309,6 +309,16 @@ def cmd_refresh_images(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_backfill_regiones(args: argparse.Namespace) -> int:
+    from bailoteca.backfill_regiones import run
+
+    conn = _open_conn(_load_config())
+    try:
+        return run(conn, apply=args.apply)
+    finally:
+        conn.close()
+
+
 def cmd_host_covers(args: argparse.Namespace) -> int:
     from bailoteca.covers import backfill_covers
 
@@ -482,6 +492,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Imprime los cambios sin escribir en la base de datos",
     )
     refresh_images.set_defaults(handler=cmd_refresh_images)
+
+    backfill_regiones = subparsers.add_parser(
+        "backfill-regiones",
+        help="Completar academy_locations.region desde la comuna",
+    )
+    backfill_regiones.add_argument(
+        "--apply",
+        action="store_true",
+        help="Escribe las regiones en la base de datos (por defecto solo muestra el plan)",
+    )
+    backfill_regiones.set_defaults(handler=cmd_backfill_regiones)
 
     host_covers = subparsers.add_parser(
         "host-covers",
