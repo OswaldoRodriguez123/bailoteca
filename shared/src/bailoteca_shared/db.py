@@ -6,6 +6,58 @@ import psycopg
 from psycopg.rows import dict_row
 
 
+SORTS = ("destacadas", "nombre", "nuevas", "cercanas")
+
+_DESTACADAS_ORDER = """
+order by
+    case
+        when a.google->>'rating' is null then 0
+        else 0.55 * (
+            (
+                coalesce((a.google->>'reviews')::int, 0) * (a.google->>'rating')::float
+                + 10 * coalesce(avg((a.google->>'rating')::float) over (), 0)
+            )
+            / (coalesce((a.google->>'reviews')::int, 0) + 10)
+        ) / 5.0
+    end
+    + 0.25 * ln(1 + coalesce((a.google->>'reviews')::int, 0))
+        / ln(1 + greatest(1, max((a.google->>'reviews')::int) over ()))
+    + 0.20 * ln(1 + coalesce(a.social_followers, 0))
+        / ln(1 + greatest(1, max(a.social_followers) over ()))
+    desc,
+    a.name asc
+"""
+
+_HAVERSINE_ORDER = """
+order by
+    (
+        select min(6371 * 2 * asin(sqrt(
+            power(sin(radians(al.lat - %s) / 2), 2)
+            + cos(radians(%s)) * cos(radians(al.lat))
+              * power(sin(radians(al.lng - %s) / 2), 2)
+        )))
+        from academy_locations al
+        where al.academy_id = a.id
+          and al.lat is not null and al.lng is not null
+    ) asc nulls last,
+    a.name asc
+"""
+
+
+def _academy_order(sort="destacadas", lat=None, lng=None):
+    if sort not in SORTS:
+        raise ValueError(f"orden desconocido: {sort}")
+    if sort == "nombre":
+        return " order by a.name asc", []
+    if sort == "nuevas":
+        return " order by a.verified_at desc nulls last, a.name asc", []
+    if sort == "cercanas":
+        if lat is None or lng is None:
+            raise ValueError("cercanas requiere lat y lng")
+        return " " + _HAVERSINE_ORDER.strip(), [lat, lat, lng]
+    return " " + _DESTACADAS_ORDER.strip(), []
+
+
 _ACADEMY_SELECT = """
     select
         a.id::text as id,
@@ -136,9 +188,14 @@ def _academy_rows(
     params: tuple = (),
     limit: int | None = None,
     offset: int = 0,
+    *,
+    sort: str = "destacadas",
+    lat: float | None = None,
+    lng: float | None = None,
 ) -> list[dict]:
-    sql = f"{_ACADEMY_SELECT}{where} order by a.name asc"
-    query_params = list(params)
+    order, order_params = _academy_order(sort, lat, lng)
+    sql = f"{_ACADEMY_SELECT}{where}{order}"
+    query_params = list(params) + order_params
     if limit is not None:
         sql += " limit %s offset %s"
         query_params.extend([limit, offset])
@@ -158,6 +215,9 @@ def list_academies(
     region: str | None = None,
     limit: int = 20,
     offset: int = 0,
+    sort: str = "destacadas",
+    lat: float | None = None,
+    lng: float | None = None,
 ) -> tuple[list[dict], int]:
     where, params = _academy_filters(
         comuna=comuna, style=style, q=q, region=region
@@ -167,7 +227,10 @@ def list_academies(
         tuple(params),
     ).fetchone()
     total = total_row["total"] if total_row else 0
-    rows = _academy_rows(conn, where, tuple(params), limit=limit, offset=offset)
+    rows = _academy_rows(
+        conn, where, tuple(params), limit=limit, offset=offset,
+        sort=sort, lat=lat, lng=lng,
+    )
     return rows, total
 
 
