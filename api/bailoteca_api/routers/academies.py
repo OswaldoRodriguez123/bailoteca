@@ -62,6 +62,8 @@ def _clean_coords(
 ) -> tuple[float | None, float | None]:
     if sort != "cercanas":
         return None, None
+    # Range is enforced by Query(ge=-90..90 / ge=-180..180) in the caller;
+    # this only enforces presence for cercanas.
     if lat is None or lng is None:
         raise HTTPException(
             status_code=422,

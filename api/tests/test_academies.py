@@ -297,6 +297,18 @@ def test_cercanas_requires_valid_coordinates(client):
     _override_conn(client)
     assert client.get("/academies?sort=cercanas").status_code == 422
     assert client.get("/academies?sort=cercanas&lat=999&lng=-70.6").status_code == 422
+    assert client.get("/academies?sort=cercanas&lat=-33.45&lng=999").status_code == 422
+    assert client.get("/academies?sort=cercanas&lat=-33.45&lng=-181").status_code == 422
+    assert client.get("/academies?sort=cercanas&lat=-33.45").status_code == 422
+    assert client.get("/academies?sort=cercanas&lng=-70.65").status_code == 422
+
+
+def test_out_of_range_coordinates_422_even_for_other_sorts(client):
+    # Range enforcement happens in Query(ge/le), before the handler's
+    # "ignore coords on other sorts" logic.
+    _override_conn(client)
+    assert client.get("/academies?sort=nuevas&lat=999").status_code == 422
+    assert client.get("/academies?sort=nombre&lng=-181").status_code == 422
 
 
 def test_cercanas_forwards_coordinates(client, monkeypatch):
