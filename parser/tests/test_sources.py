@@ -317,3 +317,118 @@ def test_parse_brave_json_keeps_clean_description_in_raw():
         "Mambo Madness en Providencia. Clases de Salsa para todos. "
         '"Explora nuestra escuela!"'
     )
+
+
+def test_parse_tinyfish_json_maps_results_and_cleans_snippet():
+    from bailoteca.sources.tinyfish import parse_tinyfish_json
+
+    data = {
+        "query": "academia salsa Providencia",
+        "results": [
+            {
+                "position": 1,
+                "title": "BailaSalsa | Academia",
+                "url": "https://bailasalsa.cl/",
+                "snippet": "Clases de salsa\n  en Providencia.  ",
+            },
+            {"position": 2, "title": "Academia X en Instagram", "url": "https://www.instagram.com/bailasalsa/", "snippet": "IG"},
+            {"position": 3, "title": "Post IG", "url": "https://www.instagram.com/p/ABC123/", "snippet": "post"},
+            {"position": 4, "title": "Buscador", "url": "https://duckduckgo.com/?q=salsa", "snippet": "engine"},
+            {"position": 5, "title": "", "url": "https://sin-titulo.cl/", "snippet": ""},
+            {"position": 6, "title": "Sin URL", "url": "", "snippet": ""},
+        ],
+    }
+    cands = parse_tinyfish_json(data)
+    assert [c.name for c in cands] == ["BailaSalsa | Academia", "Academia X en Instagram"]
+    assert cands[0].url == "https://bailasalsa.cl/"
+    assert cands[0].source == "tinyfish"
+    assert cands[0].raw["description"] == "Clases de salsa en Providencia."
+    assert cands[1].handle == "bailasalsa"
+
+
+def test_parse_tinyfish_json_tolerates_missing_results():
+    from bailoteca.sources.tinyfish import parse_tinyfish_json
+
+    assert parse_tinyfish_json({}) == []
+    assert parse_tinyfish_json({"results": "no es lista"}) == []
+
+
+def test_tinyfish_source_requires_key_and_survives_http_errors():
+    from bailoteca.sources.tinyfish import TinyFishSource
+
+    class _Http:
+        def __init__(self):
+            self.calls = []
+
+        def get(self, url, params=None, headers=None, timeout=None):
+            self.calls.append((url, params, headers, timeout))
+            raise TimeoutError("red colgada")
+
+    http = _Http()
+    assert TinyFishSource(["academia salsa santiago"], api_key=None, http=http).discover() == []
+    assert http.calls == []
+
+    src = TinyFishSource(["academia salsa santiago"], api_key="k", http=http, delay=0)
+    assert src.discover() == []
+    assert http.calls and http.calls[0][2]["X-API-Key"] == "k"
+    assert http.calls[0][3] == 10.0
+
+
+def test_tinyfish_source_sends_query_location_and_language():
+    from bailoteca.sources.tinyfish import TINYFISH_URL, TinyFishSource
+
+    calls = []
+
+    class _Response:
+        status_code = 200
+
+        def json(self):
+            return {
+                "results": [
+                    {"title": "Academia Tiny", "url": "https://tiny.cl/", "snippet": "hola"}
+                ]
+            }
+
+    class _Http:
+        def get(self, url, params=None, headers=None, timeout=None):
+            calls.append((url, params))
+            return _Response()
+
+    cands = TinyFishSource(["academia salsa"], api_key="k", http=_Http(), delay=0).discover()
+    assert [c.name for c in cands] == ["Academia Tiny"]
+    assert calls[0][0] == TINYFISH_URL
+    assert calls[0][1]["query"] == "academia salsa"
+    assert calls[0][1]["location"] == "CL"
+    assert calls[0][1]["language"] == "es"
+
+
+def test_tinyfish_source_uses_delay_between_queries(monkeypatch):
+    from bailoteca.sources.tinyfish import TinyFishSource
+
+    sleeps = []
+    monkeypatch.setattr("bailoteca.sources.tinyfish.time.sleep", sleeps.append)
+
+    class _Response:
+        status_code = 200
+
+        def json(self):
+            return {"results": []}
+
+    class _Http:
+        def get(self, url, params=None, headers=None, timeout=None):
+            return _Response()
+
+    TinyFishSource(["uno", "dos"], api_key="k", http=_Http(), delay=1.0).discover()
+    assert sleeps and all(0.9 <= s <= 1.0 for s in sleeps)
+
+
+def test_build_sources_wires_tinyfish_with_its_key():
+    from bailoteca.config import Config
+    from bailoteca.run import build_sources
+
+    config = Config.from_env(
+        {"BAILOTECA_SOURCES": "tinyfish", "TINYFISH_API_KEY": "tf-key"}
+    )
+    sources = build_sources(config)
+    assert [s.name for s in sources] == ["tinyfish"]
+    assert sources[0].api_key == "tf-key"

@@ -102,6 +102,18 @@ def build_sources(config: Config) -> list[Source]:
                     http=httpx.Client(timeout=10),
                 )
             )
+        elif name == "tinyfish":
+            import httpx
+
+            from bailoteca.sources.tinyfish import TinyFishSource
+
+            sources.append(
+                TinyFishSource(
+                    build_queries(COMUNAS),
+                    api_key=config.tinyfish_api_key,
+                    http=httpx.Client(timeout=10),
+                )
+            )
         elif name == "osm":
             sources.append(OverpassSource())
     return sources

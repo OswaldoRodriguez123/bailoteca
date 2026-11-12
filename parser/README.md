@@ -142,7 +142,8 @@ The workflow only runs on the monthly cron or manually with
 Configure in GitHub `Settings → Secrets and variables → Actions`:
 `DATABASE_URL`, `GEMINI_API_KEY` and `SERPAPI_KEY` (the latter is
 **recommended** for web discovery). Optionally `BRAVE_API_KEY`,
-`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` for noise triage.
+`TINYFISH_API_KEY`, `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` for
+noise triage.
 
 ### Aviso por correo
 
@@ -187,6 +188,10 @@ Sources (`BAILOTECA_SOURCES`):
 - `seed,brave`: curated CSV + web search through the Brave Search API (free
   plan, requires `BRAVE_API_KEY`; it does not use scraped endpoints: token API,
   no anti-bot blocking).
+- `seed,tinyfish`: curated CSV + web search through the TinyFish Search API
+  (free, requires `TINYFISH_API_KEY`). Different index from Brave/SerpApi, so it
+  surfaces academies the other sources miss; free tier allows 30 req/min, and the
+  source waits `delay` seconds between queries.
 - `seed,search`: CSV + DuckDuckGo HTML. **DDG usually blocks** with an
   `anomaly.js` page (status 202) on datacenter IPs; use it only as a manual
   fallback.

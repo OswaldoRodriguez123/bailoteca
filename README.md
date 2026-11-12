@@ -128,7 +128,7 @@ No `.env` is committed. Each component has its own `.env.example`:
 
 | Component | Variables |
 | --- | --- |
-| Parser | `DATABASE_URL` (write), `GEMINI_API_KEY`, `SERPAPI_KEY`, `BRAVE_API_KEY`, `CLOUDFLARE_*` |
+| Parser | `DATABASE_URL` (write), `GEMINI_API_KEY`, `SERPAPI_KEY`, `BRAVE_API_KEY`, `TINYFISH_API_KEY`, `CLOUDFLARE_*` |
 | API | `DATABASE_URL_READONLY`, `CORS_ORIGINS`, `RATE_LIMIT`, `DB_POOL_MAX_SIZE` |
 | Web | `API_BASE_URL` |
 
