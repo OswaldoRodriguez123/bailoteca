@@ -42,6 +42,7 @@ def test_list_academies_returns_page(client, monkeypatch):
         "comuna": "Providencia",
         "style": "salsa-cubana",
         "q": "danson",
+        "region": None,
         "limit": 10,
         "offset": 10,
     }
@@ -66,6 +67,7 @@ def test_empty_filters_are_ignored(client, monkeypatch):
         "comuna": None,
         "style": None,
         "q": None,
+        "region": None,
         "limit": 20,
         "offset": 0,
     }
@@ -158,10 +160,15 @@ def test_styles(client, monkeypatch):
     }
 
 
-def test_comunas(client, monkeypatch):
+def test_comunas_defaults_to_metropolitana(client, monkeypatch):
+    calls = {}
+
+    def fake(conn, **kwargs):
+        calls.update(kwargs)
+        return ["Providencia"]
+
     monkeypatch.setattr(
-        "bailoteca_api.routers.academies.query_comunas",
-        lambda conn: ["Providencia"],
+        "bailoteca_api.routers.academies.query_comunas", fake
     )
     _override_conn(client)
 
@@ -169,3 +176,104 @@ def test_comunas(client, monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {"items": ["Providencia"]}
+    assert calls == {"region": "metropolitana"}
+
+
+def test_comunas_region_all(client, monkeypatch):
+    calls = {}
+
+    def fake(conn, **kwargs):
+        calls.update(kwargs)
+        return ["Providencia"]
+
+    monkeypatch.setattr(
+        "bailoteca_api.routers.academies.query_comunas", fake
+    )
+    _override_conn(client)
+
+    response = client.get("/comunas?region=all")
+
+    assert response.status_code == 200
+    assert calls == {"region": "all"}
+
+
+def test_comunas_unknown_region_422(client, monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        "bailoteca_api.routers.academies.query_comunas",
+        lambda conn, **kwargs: calls.append(kwargs) or [],
+    )
+    _override_conn(client)
+
+    response = client.get("/comunas?region=marte")
+
+    assert response.status_code == 422
+    assert calls == []
+
+
+def test_list_regions_returns_16(client):
+    response = client.get("/regions")
+
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert len(items) == 16
+    assert items[0]["slug"] == "arica"
+    assert {"slug": "metropolitana", "name": "Región Metropolitana"} in items
+
+
+def test_academies_passes_region(client, monkeypatch):
+    calls = {}
+
+    def fake(conn, **kwargs):
+        calls.update(kwargs)
+        return [ACADEMY], 1
+
+    monkeypatch.setattr(
+        "bailoteca_api.routers.academies.query_academies", fake
+    )
+    _override_conn(client)
+
+    response = client.get("/academies?region=valparaiso")
+
+    assert response.status_code == 200
+    assert calls == {
+        "comuna": None,
+        "style": None,
+        "q": None,
+        "region": "valparaiso",
+        "limit": 20,
+        "offset": 0,
+    }
+
+
+def test_academies_without_region_passes_none(client, monkeypatch):
+    calls = {}
+
+    def fake(conn, **kwargs):
+        calls.update(kwargs)
+        return [], 0
+
+    monkeypatch.setattr(
+        "bailoteca_api.routers.academies.query_academies", fake
+    )
+    _override_conn(client)
+
+    response = client.get("/academies")
+
+    assert response.status_code == 200
+    assert calls["region"] is None
+
+
+def test_academies_unknown_region_422(client, monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        "bailoteca_api.routers.academies.query_academies",
+        lambda conn, **kwargs: calls.append(kwargs) or ([], 0),
+    )
+    _override_conn(client)
+
+    response = client.get("/academies?region=marte")
+
+    assert response.status_code == 422
+    assert calls == []
+

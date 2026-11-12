@@ -5,18 +5,26 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from bailoteca_api.db import get_conn
-from bailoteca_api.schemas import AcademyPage, ComunaList, StyleList
+from bailoteca_api.schemas import (
+    AcademyPage,
+    ComunaList,
+    RegionList,
+    RegionOption,
+    StyleList,
+)
 from bailoteca_shared.db import (
     get_academy_by_slug,
     list_academies as query_academies,
     list_comunas as query_comunas,
     list_styles as query_styles,
 )
+from bailoteca_shared.regions import REGIONS, REGION_SLUGS
 from bailoteca_shared.schema import Academy
 
 router = APIRouter(tags=["academies"])
 
 _STYLE_RE = re.compile(r"^[a-z0-9-]+$")
+_REGION_TOKENS = REGION_SLUGS | {"all"}
 
 
 def _clean(value: str | None) -> str | None:
@@ -26,11 +34,22 @@ def _clean(value: str | None) -> str | None:
     return value or None
 
 
+def _clean_region(value: str | None) -> str | None:
+    v = _clean(value)
+    if v is not None and v not in _REGION_TOKENS:
+        raise HTTPException(
+            status_code=422,
+            detail="El parámetro region no es válido",
+        )
+    return v
+
+
 @router.get("/academies", response_model=AcademyPage)
 def list_academies(
     comuna: str | None = Query(None, max_length=100),
     style: str | None = Query(None, max_length=100),
     q: str | None = Query(None, max_length=100),
+    region: str | None = Query(None, max_length=50),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     conn=Depends(get_conn),
@@ -38,6 +57,7 @@ def list_academies(
     comuna = _clean(comuna)
     style = _clean(style)
     q = _clean(q)
+    region = _clean_region(region)
 
     if q is not None and len(q) < 2:
         raise HTTPException(
@@ -55,6 +75,7 @@ def list_academies(
         comuna=comuna,
         style=style,
         q=q,
+        region=region,
         limit=page_size,
         offset=(page - 1) * page_size,
     )
@@ -82,6 +103,17 @@ def list_styles(conn=Depends(get_conn)) -> StyleList:
     return StyleList(items=query_styles(conn))
 
 
+@router.get("/regions", response_model=RegionList)
+def list_regions() -> RegionList:
+    return RegionList(
+        items=[RegionOption(slug=s, name=n) for s, n in REGIONS]
+    )
+
+
 @router.get("/comunas", response_model=ComunaList)
-def list_comunas(conn=Depends(get_conn)) -> ComunaList:
-    return ComunaList(items=query_comunas(conn))
+def list_comunas(
+    region: str = Query("metropolitana", max_length=50),
+    conn=Depends(get_conn),
+) -> ComunaList:
+    region = _clean_region(region)
+    return ComunaList(items=query_comunas(conn, region=region))

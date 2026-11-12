@@ -24,3 +24,12 @@ class StyleList(BaseModel):
 
 class ComunaList(BaseModel):
     items: list[str]
+
+
+class RegionOption(BaseModel):
+    slug: str
+    name: str
+
+
+class RegionList(BaseModel):
+    items: list[RegionOption]
