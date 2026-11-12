@@ -645,7 +645,7 @@ def test_run_prepass_direccion_es_la_oracion_con_la_comuna(capsys):
         ARTFIT,
         source_urls=[],
         links=[{"kind": "web", "url": "https://artfit.cl"}],
-        description="Primero otro dato. Clases en Providencia desde 2010. Ultima frase.",
+        description="Primero otro dato. Clases en Providencia 1560. Ultima frase.",
     )
     conn = _FakeConn([academy])
     llm = FakeLLM([])
@@ -653,7 +653,7 @@ def test_run_prepass_direccion_es_la_oracion_con_la_comuna(capsys):
     assert run(conn, llm=llm, brave_factory=lambda q: FakeBrave([]), apply=False) == 0
 
     out = capsys.readouterr().out
-    assert "Clases en Providencia desde 2010" in out
+    assert "Clases en Providencia 1560" in out
 
 
 def test_sede_from_text_direccion_truncada_a_160_y_via_texto():
@@ -780,3 +780,30 @@ def test_address_radal_con_numero_completo_se_conserva():
 def test_address_san_antonio_con_numero_completo_se_conserva():
     # "San Antonio" no es comuna RM: se prueba _address_from_text directo.
     assert _address_from_text("San Antonio 580, Piso 11", "Santiago") == "San Antonio 580, Piso 11"
+
+
+def test_address_fundada_en_anio_sin_calle_queda_none():
+    academy = dict(ARTFIT, description="Fundada en 2015 en Ñuñoa")
+
+    sede = _sede_from_text(academy)
+
+    assert sede is not None
+    assert sede["comuna"] == "Ñuñoa"
+    assert sede["address"] is None
+
+
+def test_address_anio_con_keyword_calle_se_conserva():
+    # "Av. Providencia 2015, Ñuñoa" contiene DOS comunas RM (Providencia y
+    # Ñuñoa), así que el pre-paso la rechazaría por ambigüedad comuna (otra
+    # regla). Lo que cambia en este fix es solo el token de año: se prueba
+    # _address_from_text directo sobre la oración literal.
+    assert _address_from_text("Av. Providencia 2015, Ñuñoa", "Ñuñoa") == "Av. Providencia 2015, Ñuñoa"
+
+
+def test_address_radal_189_sigue_conservada():
+    academy = dict(ARTFIT, description="Radal 189, Estación Central")
+
+    sede = _sede_from_text(academy)
+
+    assert sede is not None
+    assert sede["address"] == "Radal 189, Estación Central"

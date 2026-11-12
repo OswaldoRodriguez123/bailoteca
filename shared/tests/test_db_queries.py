@@ -1,4 +1,6 @@
-from bailoteca_shared.db import _academy_filters
+from types import SimpleNamespace
+
+from bailoteca_shared.db import _academy_filters, list_comunas
 
 
 def test_no_filters_returns_empty_where():
@@ -70,3 +72,46 @@ def test_region_filter_appended_after_other_filters():
         "%baile%",
         "valparaiso",
     ]
+
+
+class _FakeConn:
+    def __init__(self, rows):
+        self.rows = rows
+        self.calls = []
+
+    def execute(self, sql, params):
+        self.calls.append((sql, tuple(params)))
+        return SimpleNamespace(fetchall=lambda: self.rows)
+
+
+def test_list_comunas_with_region_is_null_tolerant():
+    conn = _FakeConn([{"comuna": "Ñuñoa"}])
+
+    comunas = list_comunas(conn, region="metropolitana")
+
+    sql, params = conn.calls[0]
+    assert "region = %s or region is null" in sql
+    assert params == ("metropolitana",)
+    assert comunas == ["Ñuñoa"]
+
+
+def test_list_comunas_all_omits_region_clause():
+    conn = _FakeConn([{"comuna": "Santiago"}])
+
+    comunas = list_comunas(conn, region="all")
+
+    sql, params = conn.calls[0]
+    assert "region" not in sql
+    assert params == ()
+    assert comunas == ["Santiago"]
+
+
+def test_list_comunas_without_region_omits_region_clause():
+    conn = _FakeConn([{"comuna": "Santiago"}])
+
+    comunas = list_comunas(conn)
+
+    sql, params = conn.calls[0]
+    assert "region" not in sql
+    assert params == ()
+    assert comunas == ["Santiago"]

@@ -217,6 +217,9 @@ def _has_foreign_google_address(academy: dict) -> bool:
 
 
 _STREET_NUMBER_RE = re.compile(r"(?:^|\s)\d{1,5}(?=\s|,|\.|$)")
+_STREET_KEYWORD_RE = re.compile(
+    r"\b(?:avenida|avda|av|calle|pasaje|pje|camino)\b", re.IGNORECASE
+)
 _ADDRESS_PREFIXES = ("sede:", "academia en", "academia de baile en")
 _PERIOD_PLACEHOLDER = "\x00"
 _ADDRESS_ABBREVIATIONS = ("avda", "av", "dr", "dra", "sr", "sra", "srta", "stgo", "núm", "num")
@@ -240,6 +243,23 @@ def _split_sentences(text: str) -> list[str]:
     return [piece.replace(_PERIOD_PLACEHOLDER, ".") for piece in re.split(r"[.!?\n]", protected)]
 
 
+def _has_street_number(text: str) -> bool:
+    """True si hay un número standalone que parece nº de calle.
+
+    Un 4 dígitos dentro de 1900–2099 se rechaza como año salvo que haya una
+    palabra de calle (av, avda, calle, pasaje, pje, camino, avenida) en la
+    oración ANTES del número. El resto de standalone numbers pasa.
+    """
+
+    for match in _STREET_NUMBER_RE.finditer(text):
+        number = int(match.group(0).strip())
+        if 1900 <= number <= 2099:
+            if not _STREET_KEYWORD_RE.search(text[: match.start()]):
+                continue
+        return True
+    return False
+
+
 def _address_from_text(sentence: str | None, comuna: str) -> str | None:
     """Limpia la oración candidata a dirección.
 
@@ -248,7 +268,9 @@ def _address_from_text(sentence: str | None, comuna: str) -> str | None:
     la oración limpia (≤160 chars) SOLO si contiene un número de calle como
     token completo (1–5 dígitos delimitados por espacio/coma/punto/fin); si
     no, None (sin inventar). Un dígito dentro de una palabra (p. ej. "On2")
-    no cuenta. La comuna no se toca.
+    no cuenta, y un 4 dígitos tipo año (1900–2099) solo cuenta si hay una
+    palabra de calle (av, avda, calle, pasaje, pje, camino, avenida) antes.
+    La comuna no se toca.
     """
 
     if not sentence:
@@ -260,7 +282,7 @@ def _address_from_text(sentence: str | None, comuna: str) -> str | None:
             cleaned = cleaned[len(prefix):].strip()
             break
     cleaned = cleaned.rstrip(". ").strip()
-    if not cleaned or not _STREET_NUMBER_RE.search(cleaned):
+    if not cleaned or not _has_street_number(cleaned):
         return None
     return cleaned[:160]
 

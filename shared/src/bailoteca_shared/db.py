@@ -193,7 +193,7 @@ def list_comunas(
     )
     params: list[str] = []
     if region and region != "all":
-        sql += "and region = %s "
+        sql += "and (region = %s or region is null) "
         params.append(region)
     sql += "order by comuna asc"
     rows = conn.execute(sql, tuple(params)).fetchall()
