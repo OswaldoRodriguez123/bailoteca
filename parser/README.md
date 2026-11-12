@@ -182,6 +182,11 @@ candidate passes (**fail-open**), so real academies are not lost. The counters
 `filtrados_reglas`, `filtrados_clef` and `clef_errors` appear in the log and in
 `summary.md`.
 
+Search providers also coexist in the `backfill-sedes` Pass B: `BAILOTECA_SEARCH_PROVIDERS`
+(default `brave,tinyfish,serpapi`) lists the providers queried per academy, in
+order, with results deduplicated by URL. Providers without a key are skipped, and
+a provider that fails does not stop the next one.
+
 Sources (`BAILOTECA_SOURCES`):
 
 - `seed,serpapi` (recommended): curated CSV + Google Search through SerpApi.

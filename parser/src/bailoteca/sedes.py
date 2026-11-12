@@ -508,7 +508,7 @@ def run(conn, llm=None, brave_factory=None, apply: bool = False) -> int:
     if llm is None:
         print("aviso: sin LLM configurado; solo corre el pre-paso determinista")
     if brave_factory is None:
-        print("aviso: sin Brave configurado; se omite la Pasada B")
+        print("aviso: sin providers de búsqueda configurados; se omite la Pasada B")
 
     results: list[tuple[dict, dict | None, str]] = []
     for academy in academies:

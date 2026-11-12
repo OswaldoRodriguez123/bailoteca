@@ -21,11 +21,14 @@ class Config:
     cache_dir: Path
     reports_dir: Path
     sources: list[str]
+    search_providers: list[str]
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "Config":
         raw_sources = env.get("BAILOTECA_SOURCES", "seed,search")
         sources = [s.strip() for s in raw_sources.split(",") if s.strip()]
+        raw_providers = env.get("BAILOTECA_SEARCH_PROVIDERS", "brave,tinyfish,serpapi")
+        search_providers = [p.strip() for p in raw_providers.split(",") if p.strip()]
         return cls(
             database_url=env.get("DATABASE_URL") or None,
             gemini_api_key=env.get("GEMINI_API_KEY") or None,
@@ -43,6 +46,7 @@ class Config:
             cache_dir=Path(env.get("BAILOTECA_CACHE_DIR", "data/cache")),
             reports_dir=Path(env.get("BAILOTECA_REPORTS_DIR", "reports")),
             sources=sources,
+            search_providers=search_providers,
         )
 
 

@@ -77,43 +77,12 @@ def build_sources(config: Config) -> list[Source]:
                     httpx.Client(timeout=10),
                 )
             )
-        elif name == "serpapi":
-            import httpx
+        elif name in ("serpapi", "brave", "tinyfish"):
+            from bailoteca.sources.combined import build_search_source
 
-            from bailoteca.sources.serpapi import SerpApiSource
-
-            sources.append(
-                SerpApiSource(
-                    build_queries(COMUNAS),
-                    api_key=config.serpapi_key,
-                    http=httpx.Client(timeout=10),
-                    cache_dir=config.cache_dir,
-                )
-            )
-        elif name == "brave":
-            import httpx
-
-            from bailoteca.sources.brave import BraveSource
-
-            sources.append(
-                BraveSource(
-                    build_queries(COMUNAS),
-                    api_key=config.brave_api_key,
-                    http=httpx.Client(timeout=10),
-                )
-            )
-        elif name == "tinyfish":
-            import httpx
-
-            from bailoteca.sources.tinyfish import TinyFishSource
-
-            sources.append(
-                TinyFishSource(
-                    build_queries(COMUNAS),
-                    api_key=config.tinyfish_api_key,
-                    http=httpx.Client(timeout=10),
-                )
-            )
+            source = build_search_source(name, build_queries(COMUNAS), config)
+            if source is not None:
+                sources.append(source)
         elif name == "osm":
             sources.append(OverpassSource())
     return sources

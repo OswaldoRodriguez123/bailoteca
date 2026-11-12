@@ -331,30 +331,31 @@ def cmd_backfill_sedes(args: argparse.Namespace) -> int:
         )
         return 2
 
-    brave_factory = None
-    if config.brave_api_key:
+    search_factory = None
+    providers = [name for name in config.search_providers if name in ("brave", "tinyfish", "serpapi")]
+    if providers and (config.brave_api_key or config.tinyfish_api_key or config.serpapi_key):
         import httpx
 
-        from bailoteca.sources.brave import BraveSource
+        from bailoteca.sources.combined import build_search_sources
 
-        def brave_factory(query):
-            return BraveSource(
+        def search_factory(query):
+            return build_search_sources(
+                providers,
                 [query],
-                api_key=config.brave_api_key,
+                config,
                 http=httpx.Client(timeout=10),
-                delay=1.0,
                 num=3,
             )
     else:
         print(
-            "aviso: falta BRAVE_API_KEY; se omite la Pasada B",
+            "aviso: sin providers de búsqueda configurados; se omite la Pasada B",
             file=sys.stderr,
         )
 
     conn = _open_conn(config)
     try:
         llm = GeminiSedeLLM(config.gemini_api_key, HttpxPost())
-        return run(conn, llm=llm, brave_factory=brave_factory, apply=args.apply)
+        return run(conn, llm=llm, brave_factory=search_factory, apply=args.apply)
     finally:
         conn.close()
 
