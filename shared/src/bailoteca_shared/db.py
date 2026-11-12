@@ -44,7 +44,11 @@ order by
 """
 
 
-def _academy_order(sort="destacadas", lat=None, lng=None):
+def _academy_order(
+    sort: str = "destacadas",
+    lat: float | None = None,
+    lng: float | None = None,
+) -> tuple[str, list[float]]:
     if sort not in SORTS:
         raise ValueError(f"orden desconocido: {sort}")
     if sort == "nombre":
