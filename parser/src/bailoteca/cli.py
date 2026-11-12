@@ -360,6 +360,47 @@ def cmd_backfill_sedes(args: argparse.Namespace) -> int:
         conn.close()
 
 
+def cmd_backfill_followers(args: argparse.Namespace) -> int:
+    import httpx
+
+    from bailoteca.social import run
+    from bailoteca.sources.combined import build_search_sources
+
+    config = _load_config()
+    providers = [
+        name
+        for name in config.search_providers
+        if name in ("brave", "tinyfish", "serpapi")
+    ]
+    if not providers or not (
+        config.brave_api_key or config.tinyfish_api_key or config.serpapi_key
+    ):
+        print(
+            "aviso: sin providers de búsqueda configurados "
+            "(BAILOTECA_SEARCH_PROVIDERS + keys)",
+            file=sys.stderr,
+        )
+        return 2
+
+    conn = _open_conn(config)
+    http = httpx.Client(timeout=10)
+
+    def search_factory(query):
+        return build_search_sources(providers, [query], config, http=http, num=3)
+
+    try:
+        found = run(conn, search_factory, apply=args.apply)
+        if args.apply:
+            conn.commit()
+    finally:
+        conn.close()
+        http.close()
+    for item in found:
+        print(f"{item['slug']}: {item['followers']} seguidores ({item['network']}) {item['url']}")
+    print(f"con_seguidores={len(found)} aplicar={args.apply}")
+    return 0
+
+
 def cmd_host_covers(args: argparse.Namespace) -> int:
     from bailoteca.covers import backfill_covers
 
@@ -555,6 +596,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Escribe las sedes en la base de datos (por defecto solo muestra el plan)",
     )
     backfill_sedes.set_defaults(handler=cmd_backfill_sedes)
+
+    backfill_followers = subparsers.add_parser(
+        "backfill-followers",
+        help="Completar social_followers/social_network de academias publicadas",
+    )
+    backfill_followers.add_argument(
+        "--apply",
+        action="store_true",
+        help="Escribe los seguidores en la base de datos (por defecto solo muestra el plan)",
+    )
+    backfill_followers.set_defaults(handler=cmd_backfill_followers)
 
     host_covers = subparsers.add_parser(
         "host-covers",
