@@ -103,6 +103,43 @@ def cmd_review(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_audit_country(args: argparse.Namespace) -> int:
+    from bailoteca import country
+    from bailoteca.country import CountryVerdict
+    from bailoteca.db import list_published
+    from bailoteca.review import _VERDICT_RENDER
+
+    conn = _open_conn(_load_config())
+    try:
+        academies = list_published(conn)
+    finally:
+        conn.rollback()
+        conn.close()
+
+    counts = {"chile": 0, "extranjera": 0, "sin_huella": 0}
+    skip_osm = getattr(args, "skip_osm", False)
+    for academy in academies:
+        slug = academy.get("slug") or academy.get("name") or "sin-slug"
+        try:
+            snapshot = _snapshot_from_payload(academy)
+            verdict = country.assess(snapshot, skip_osm=skip_osm)
+        except Exception as exc:
+            verdict = CountryVerdict(
+                "sin_huella",
+                (f"error al evaluar país: {exc.__class__.__name__}",),
+            )
+        counts[verdict.verdict] = counts.get(verdict.verdict, 0) + 1
+        emoji, label = _VERDICT_RENDER[verdict.verdict]
+        signals = ", ".join(verdict.reasons) if verdict.reasons else "sin señales claras"
+        print(f"- {slug}: {emoji} {label} — señales: {signals}")
+
+    print(
+        f"total={len(academies)} chile={counts['chile']} "
+        f"extranjera={counts['extranjera']} sin_huella={counts['sin_huella']}"
+    )
+    return 0
+
+
 def cmd_approve(args: argparse.Namespace) -> int:
     from bailoteca.publish import approve
 
@@ -602,6 +639,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Omitir la señal OSM/Overpass (solo señales locales, cero red)",
     )
     review.set_defaults(handler=cmd_review)
+    audit = subparsers.add_parser(
+        "audit-country",
+        help="Auditar publicadas sin escribir nada (triage de país, solo lectura)",
+    )
+    audit.add_argument(
+        "--skip-osm",
+        action="store_true",
+        help="Omitir la señal OSM/Overpass (solo señales locales, cero red)",
+    )
+    audit.set_defaults(handler=cmd_audit_country)
 
     approve = subparsers.add_parser("approve", help="Aprobar y publicar una propuesta")
     approve.add_argument("proposal_id")

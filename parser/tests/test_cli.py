@@ -82,3 +82,108 @@ def test_snapshot_from_payload_empty_payload():
     assert snap.phones == ()
     assert snap.address_texts == ()
     assert snap.comuna is None
+
+
+def test_audit_country_lists_verdicts_and_summary(monkeypatch, capsys):
+    import argparse
+
+    from bailoteca import cli
+
+    class FakeConn:
+        def rollback(self):
+            pass
+        def close(self):
+            pass
+
+    academies = [
+        {
+            "id": "1",
+            "slug": "ok-cl",
+            "name": "Ok",
+            "source_urls": ["https://ok.cl/"],
+            "google": None,
+            "links": [],
+            "locations": [{"comuna": "Providencia", "address": "Av X 1"}],
+        },
+        {
+            "id": "2",
+            "slug": "es-spain",
+            "name": "Jum",
+            "source_urls": [],
+            "google": {
+                "address": "Calle Algar 20, 46688 Polinyà de Xúquer, Valencia, España",
+                "phone": None,
+            },
+            "links": [],
+            "locations": [{"comuna": "San Miguel", "address": "Carrer Algar 20"}],
+        },
+        {
+            "id": "3",
+            "slug": "mute",
+            "name": "Mute",
+            "source_urls": [],
+            "google": None,
+            "links": [],
+            "locations": [],
+        },
+    ]
+
+    monkeypatch.setattr(cli, "_load_config", lambda: object())
+    monkeypatch.setattr(cli, "_open_conn", lambda config: FakeConn())
+
+    import bailoteca.db as db
+
+    monkeypatch.setattr(db, "list_published", lambda conn: academies)
+
+    rc = cli.cmd_audit_country(argparse.Namespace(skip_osm=True))
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "- ok-cl: 🇨🇱 Chile probable" in out
+    assert "- es-spain: ⚠️ no parece Chile" in out
+    assert "españa" in out
+    assert "- mute: ⚪ sin huella" in out
+    assert "total=3 chile=1 extranjera=1 sin_huella=1" in out
+
+
+def test_audit_country_never_aborts_on_assess_error(monkeypatch, capsys):
+    import argparse
+
+    from bailoteca import cli
+
+    class FakeConn:
+        def rollback(self):
+            pass
+        def close(self):
+            pass
+
+    academies = [
+        {
+            "id": "1",
+            "slug": "boom",
+            "name": "Boom",
+            "source_urls": [],
+            "google": None,
+            "links": [],
+            "locations": [],
+        }
+    ]
+
+    monkeypatch.setattr(cli, "_load_config", lambda: object())
+    monkeypatch.setattr(cli, "_open_conn", lambda config: FakeConn())
+
+    import bailoteca.db as db
+
+    monkeypatch.setattr(db, "list_published", lambda conn: academies)
+
+    def explode(snap, *, skip_osm=False, client=None):
+        raise RuntimeError("network exploded")
+
+    import bailoteca.country as country
+
+    monkeypatch.setattr(country, "assess", explode)
+
+    rc = cli.cmd_audit_country(argparse.Namespace(skip_osm=True))
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "- boom: ⚪ sin huella" in out
+    assert "total=1 chile=0 extranjera=0 sin_huella=1" in out
