@@ -235,3 +235,14 @@ def test_assess_osm_skip_no_network():
             raise AssertionError("no network expected")
 
     assert assess(snap(name="Bailemos"), skip_osm=True, client=_Boom()).verdict == "sin_huella"
+
+
+def test_mailto_cl_is_not_a_cl_signal():
+    points, _ = local_points(snap(urls=("mailto:contacto@academiax.cl",)))
+    assert points == 0
+
+
+def test_tel_url_does_not_count_as_cl_signal():
+    # tel: en urls no suma .cl (los builders ponen los tel: en phones, que es de donde se lee +56).
+    points, _ = local_points(snap(urls=("tel:+56229876543",)))
+    assert points == 0

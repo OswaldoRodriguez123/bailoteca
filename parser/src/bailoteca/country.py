@@ -65,7 +65,14 @@ def local_points(snap: AcademySnapshot) -> tuple[int, tuple[str, ...]]:
     points = 0
     reasons: list[str] = []
 
-    chile_url = any(_CL_URL_RE.search((u or "").lower()) for u in snap.urls)
+    chile_url = False
+    for u in snap.urls:
+        u = (u or "").lower()
+        if u.startswith(("mailto:", "tel:")):
+            continue
+        if _CL_URL_RE.search(u):
+            chile_url = True
+            break
     if chile_url:
         points += 1
         reasons.append("sitio .cl")
@@ -136,8 +143,11 @@ def fetch_overpass(
         return []
     escaped = re.escape(sanitized)
     query = f'[out:json][timeout:10]; nwr["name"~"^{escaped}$",i]; out center tags;'
-    http = client or httpx.Client(headers=REQUEST_HEADERS, timeout=timeout)
     owns_client = client is None
+    try:
+        http = client or httpx.Client(headers=REQUEST_HEADERS, timeout=timeout)
+    except Exception:
+        return None
     try:
         for endpoint in OVERPASS_ENDPOINTS:
             try:
@@ -146,6 +156,9 @@ def fetch_overpass(
                 data = response.json()
                 if isinstance(data, dict) and isinstance(data.get("elements"), list):
                     return list(data["elements"])[:MAX_HITS]
+                # Respuesta 200 pero sin `elements`: tratamos OSM como "sin
+                # respuesta" — una forma que no entendemos jamás debe leerse
+                # como "no hay homónimos en OSM".
                 return None
             except Exception:
                 time.sleep(1.0)
