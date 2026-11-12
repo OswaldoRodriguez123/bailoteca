@@ -41,6 +41,15 @@ export class AcademiesApiService {
     if (query.q) {
       params = params.set('q', query.q);
     }
+    if (query.sort) {
+      params = params.set('sort', query.sort);
+    }
+    if (query.lat !== null && query.lat !== undefined) {
+      params = params.set('lat', String(query.lat));
+    }
+    if (query.lng !== null && query.lng !== undefined) {
+      params = params.set('lng', String(query.lng));
+    }
 
     return this.http.get<AcademyPage>(`${this.baseUrl}/academies`, { params });
   }

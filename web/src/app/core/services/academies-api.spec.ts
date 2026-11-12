@@ -56,6 +56,15 @@ describe('AcademiesApiService', () => {
     req.flush({ items: [], page: 1, page_size: 20, total: 0 });
   });
 
+  it('envía sort y coordenadas cuando están presentes', () => {
+    service.listAcademies({ sort: 'cercanas', lat: -33.45, lng: -70.66, page: 1 }).subscribe();
+    const req = http.expectOne(r => r.url === 'http://api.test/academies');
+    expect(req.request.params.get('sort')).toBe('cercanas');
+    expect(req.request.params.get('lat')).toBe('-33.45');
+    expect(req.request.params.get('lng')).toBe('-70.66');
+    req.flush({ items: [], page: 1, page_size: 20, total: 0 });
+  });
+
   it('envía la región por defecto en /comunas', () => {
     service.listComunas().subscribe();
 

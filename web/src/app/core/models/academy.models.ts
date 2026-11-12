@@ -74,6 +74,9 @@ export interface AcademyQuery {
   comuna?: string | null;
   style?: string | null;
   q?: string | null;
+  sort?: string | null;
+  lat?: number | null;
+  lng?: number | null;
   page?: number | null;
   pageSize?: number | null;
 }

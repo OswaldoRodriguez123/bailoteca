@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 
 import { StyleOption } from '../../../../core/models/academy.models';
+import { DEFAULT_SORT, SORT_OPTIONS } from '../../academy-query';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-filter-bar',
   template: `
     <section aria-label="Filtros del directorio" class="border-t border-line pt-4">
-      <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_12rem_11rem_10rem] md:items-end">
+      <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_12rem_11rem_10rem_9rem] md:items-end">
         <label class="block">
           <span class="mb-1 block text-xs font-medium text-muted">Buscar</span>
           <input
@@ -74,6 +75,24 @@ import { StyleOption } from '../../../../core/models/academy.models';
             }
           </select>
         </label>
+
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-muted">Ordenar por</span>
+          <select
+            id="filter-orden"
+            name="sort"
+            [value]="sort()"
+            [disabled]="disabled()"
+            (change)="onSort($event)"
+            class="w-full border-0 border-b border-line bg-paper px-0 py-2 text-base text-ink focus-visible:border-accent-ink focus-visible:outline-none focus-visible:ring-0 disabled:text-muted"
+          >
+            @for (option of sortOptions(); track option.value) {
+              <option [value]="option.value" [selected]="option.value === sort()">
+                {{ option.label }}
+              </option>
+            }
+          </select>
+        </label>
       </div>
 
       <div class="mt-3 flex justify-end">
@@ -97,12 +116,15 @@ export class FilterBar {
   readonly comuna = input<string | null>(null);
   readonly style = input<string | null>(null);
   readonly q = input<string>('');
+  readonly sort = input<string>(DEFAULT_SORT);
+  readonly sortOptions = input(SORT_OPTIONS);
   readonly disabled = input(false);
 
   readonly regionChange = output<string>();
   readonly comunaChange = output<string | null>();
   readonly styleChange = output<string | null>();
   readonly qChange = output<string>();
+  readonly sortChange = output<string>();
   readonly clearFilters = output<void>();
 
   protected onRegion(event: Event): void {
@@ -121,5 +143,9 @@ export class FilterBar {
   protected onStyle(event: Event): void {
     const value = (event.target as HTMLSelectElement).value;
     this.styleChange.emit(value || null);
+  }
+
+  protected onSort(event: Event): void {
+    this.sortChange.emit((event.target as HTMLSelectElement).value);
   }
 }

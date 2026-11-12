@@ -20,6 +20,13 @@ describe('App', () => {
     expect(compiled.querySelector('router-outlet')).not.toBeNull();
   });
 
+  it('atribuye la geocodificación a OpenStreetMap', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    expect((fixture.nativeElement as HTMLElement).querySelector('footer')?.textContent)
+      .toContain('OpenStreetMap contributors');
+  });
+
   it('enlaza la página Acerca de desde el pie', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();

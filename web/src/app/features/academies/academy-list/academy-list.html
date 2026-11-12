@@ -17,14 +17,23 @@
     [styles]="styles()"
     [comuna]="query().comuna"
     [style]="query().style"
+    [sort]="query().sort"
+    [sortOptions]="sortOptions"
     [q]="query().q ?? ''"
     [disabled]="filtersError()"
     (regionChange)="onRegion($event)"
     (comunaChange)="onComuna($event)"
     (styleChange)="onStyle($event)"
+    (sortChange)="onSort($event)"
     (qChange)="onQ($event)"
     (clearFilters)="clearFilters()"
   />
+
+  @if (geoError()) {
+    <p role="status" class="text-sm text-muted">
+      Activa tu ubicación para ordenar por cercanía.
+    </p>
+  }
 
   @if (loading()) {
     <app-loading-grid />

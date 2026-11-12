@@ -24,12 +24,15 @@ import { ErrorState } from '../../../shared/components/error-state/error-state';
 import { LoadingGrid } from '../../../shared/components/loading-grid/loading-grid';
 import {
   DEFAULT_REGION,
+  DEFAULT_SORT,
   lastPage,
   ListQuery,
   normalizeQuery,
   queryToParams,
   REGION_OPTIONS,
   sameQuery,
+  SORT_OPTIONS,
+  SortKey,
 } from '../academy-query';
 import { AcademyCard } from '../components/academy-card/academy-card';
 import { FilterBar } from '../components/filter-bar/filter-bar';
@@ -55,6 +58,9 @@ export class AcademyListPage {
     comuna: null,
     style: null,
     q: null,
+    sort: DEFAULT_SORT,
+    lat: null,
+    lng: null,
     page: 1,
   });
   readonly queryParams = computed<Params>(() => queryToParams(this.query()));
@@ -64,7 +70,9 @@ export class AcademyListPage {
   readonly styles = signal<StyleOption[]>([]);
   readonly comunas = signal<string[]>([]);
   readonly filtersError = signal(false);
+  readonly geoError = signal(false);
   readonly regions = REGION_OPTIONS;
+  readonly sortOptions = SORT_OPTIONS;
   readonly emptyMessage = computed(() => {
     const region = this.query().region;
 
@@ -131,7 +139,8 @@ export class AcademyListPage {
             query.style ||
             query.q ||
             query.page > 1 ||
-            query.region !== DEFAULT_REGION,
+            query.region !== DEFAULT_REGION ||
+            query.sort !== DEFAULT_SORT,
           ),
           jsonLd: [
             {
@@ -187,6 +196,9 @@ export class AcademyListPage {
               comuna: query.comuna,
               style: query.style,
               q: query.q,
+              sort: query.sort,
+              lat: query.lat,
+              lng: query.lng,
               page: query.page,
               pageSize: PAGE_SIZE,
             })
@@ -249,7 +261,27 @@ export class AcademyListPage {
     this.search$.next(value);
   }
 
+  onSort(sort: string): void {
+    if (sort !== 'cercanas') {
+      this.geoError.set(false);
+      this.navigate({ sort: sort as SortKey, lat: null, lng: null, page: 1 });
+      return;
+    }
+    const geo = typeof navigator !== 'undefined' ? navigator.geolocation : undefined;
+    if (!geo) return this.geoDenied();
+    geo.getCurrentPosition(
+      position => {
+        this.geoError.set(false);
+        this.navigate({ sort: 'cercanas', lat: position.coords.latitude,
+                        lng: position.coords.longitude, page: 1 });
+      },
+      () => this.geoDenied(),
+      { maximumAge: 600_000, timeout: 10_000 },
+    );
+  }
+
   clearFilters(): void {
+    this.geoError.set(false);
     void this.router.navigate(['/']);
   }
 
@@ -266,12 +298,20 @@ export class AcademyListPage {
     });
   }
 
+  private geoDenied(): void {
+    this.geoError.set(true);
+    this.navigate({ sort: DEFAULT_SORT, lat: null, lng: null, page: 1 }, { replaceUrl: true });
+  }
+
   private needsRewrite(raw: ParamMap, query: ListQuery): boolean {
     return (
       (raw.get('region') ?? null) !== (query.region === DEFAULT_REGION ? null : query.region) ||
       (raw.get('comuna') ?? null) !== query.comuna ||
       (raw.get('style') ?? null) !== query.style ||
       (raw.get('q') ?? null) !== query.q ||
+      (raw.get('sort') ?? null) !== (query.sort === DEFAULT_SORT ? null : query.sort) ||
+      (raw.get('lat') === null ? null : Number(raw.get('lat'))) !== query.lat ||
+      (raw.get('lng') === null ? null : Number(raw.get('lng'))) !== query.lng ||
       (raw.get('page') !== null && raw.get('page') !== String(query.page))
     );
   }

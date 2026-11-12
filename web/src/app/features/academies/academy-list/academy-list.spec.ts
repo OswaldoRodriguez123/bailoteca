@@ -33,7 +33,10 @@ describe('AcademyListPage', () => {
     });
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    delete (navigator as any).geolocation;
+  });
 
   async function open(url: string): Promise<void> {
     harness = await RouterTestingHarness.create();
@@ -301,6 +304,49 @@ describe('AcademyListPage', () => {
     expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe(
       'noindex, follow',
     );
+  });
+
+  it('ordena por nuevas y marca noindex', async () => {
+    await open('/');
+    const select = element().querySelector('#filter-orden') as HTMLSelectElement;
+    select.value = 'nuevas';
+    select.dispatchEvent(new Event('change'));
+    await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toContain('sort=nuevas');
+    expect(document.querySelector('meta[name="robots"]')?.getAttribute('content'))
+      .toBe('noindex, follow');
+  });
+
+  it('pide geolocalización para cercanas', async () => {
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition: (ok: PositionCallback) =>
+        ok({ coords: { latitude: -33.45, longitude: -70.66 } } as unknown as GeolocationPosition) },
+    });
+    await open('/');
+    const select = element().querySelector('#filter-orden') as HTMLSelectElement;
+    select.value = 'cercanas';
+    select.dispatchEvent(new Event('change'));
+    await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toContain('lat=-33.450000');
+    expect(listAcademies).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sort: 'cercanas', lat: -33.45, lng: -70.66 }),
+    );
+  });
+
+  it('vuelve a destacadas y avisa si se deniega la ubicación', async () => {
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition: (_ok: PositionCallback, fail?: PositionErrorCallback) =>
+        fail?.({ code: 1, message: 'denied' } as unknown as GeolocationPositionError) },
+    });
+    await open('/');
+    const select = element().querySelector('#filter-orden') as HTMLSelectElement;
+    select.value = 'cercanas';
+    select.dispatchEvent(new Event('change'));
+    await harness.fixture.whenStable();
+    expect(element().textContent).toContain('Activa tu ubicación para ordenar por cercanía.');
+    expect(TestBed.inject(Router).url).not.toContain('sort=');
   });
 
   it('marca noindex en páginas posteriores a la primera', async () => {

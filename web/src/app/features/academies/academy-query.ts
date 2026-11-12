@@ -26,6 +26,16 @@ export const REGION_SLUGS: string[] = REGION_OPTIONS.map(option => option.slug);
 
 export const DEFAULT_REGION = 'metropolitana';
 
+export type SortKey = 'destacadas' | 'cercanas' | 'nuevas' | 'nombre';
+export const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'destacadas', label: 'Destacadas' },
+  { value: 'cercanas', label: 'Cercanas' },
+  { value: 'nuevas', label: 'Nuevas' },
+  { value: 'nombre', label: 'A-Z' },
+];
+export const SORT_KEYS: string[] = SORT_OPTIONS.map(option => option.value);
+export const DEFAULT_SORT: SortKey = 'destacadas';
+
 export function regionName(slug: string): string {
   return REGION_OPTIONS.find(option => option.slug === slug)?.name ?? slug;
 }
@@ -35,6 +45,9 @@ export interface ListQuery {
   comuna: string | null;
   style: string | null;
   q: string | null;
+  sort: SortKey;
+  lat: number | null;
+  lng: number | null;
   page: number;
 }
 
@@ -49,6 +62,16 @@ function clean(value: string | null): string | null {
   return trimmed || null;
 }
 
+function parseCoord(value: string | null, maxAbs: number): number | null {
+  const raw = clean(value);
+  if (raw === null) {
+    return null;
+  }
+
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && Math.abs(parsed) <= maxAbs ? parsed : null;
+}
+
 export function normalizeQuery(params: ParamMap): ListQuery {
   const regionValue = clean(params.get('region'));
   const region =
@@ -60,8 +83,22 @@ export function normalizeQuery(params: ParamMap): ListQuery {
   const q = qValue !== null && qValue.length >= 2 ? qValue : null;
   const pageValue = Number.parseInt(params.get('page') ?? '', 10);
   const page = Number.isInteger(pageValue) && pageValue >= 1 ? pageValue : 1;
+  const sortValue = clean(params.get('sort'));
+  let sort: SortKey =
+    sortValue !== null && SORT_KEYS.includes(sortValue) ? (sortValue as SortKey) : DEFAULT_SORT;
+  let lat = parseCoord(params.get('lat'), 90);
+  let lng = parseCoord(params.get('lng'), 180);
 
-  return { region, comuna, style, q, page };
+  if (sort === 'cercanas' && (lat === null || lng === null)) {
+    sort = DEFAULT_SORT;
+  }
+
+  if (sort !== 'cercanas') {
+    lat = null;
+    lng = null;
+  }
+
+  return { region, comuna, style, q, sort, lat, lng, page };
 }
 
 export function queryToParams(query: ListQuery): Params {
@@ -79,6 +116,17 @@ export function queryToParams(query: ListQuery): Params {
   if (query.q) {
     params['q'] = query.q;
   }
+  if (query.sort && query.sort !== DEFAULT_SORT) {
+    params['sort'] = query.sort;
+  }
+  if (query.sort === 'cercanas') {
+    if (query.lat !== null && query.lat !== undefined) {
+      params['lat'] = query.lat.toFixed(6);
+    }
+    if (query.lng !== null && query.lng !== undefined) {
+      params['lng'] = query.lng.toFixed(6);
+    }
+  }
   params['page'] = query.page;
 
   return params;
@@ -90,6 +138,9 @@ export function sameQuery(a: ListQuery, b: ListQuery): boolean {
     a.comuna === b.comuna &&
     a.style === b.style &&
     a.q === b.q &&
+    a.sort === b.sort &&
+    a.lat === b.lat &&
+    a.lng === b.lng &&
     a.page === b.page
   );
 }

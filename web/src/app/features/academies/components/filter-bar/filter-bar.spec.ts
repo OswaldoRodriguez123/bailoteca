@@ -70,6 +70,20 @@ describe('FilterBar', () => {
     expect(changes).toHaveBeenCalledWith('salsa');
   });
 
+  it('renderiza Ordenar por y emite sortChange', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const select = element.querySelector('#filter-orden') as HTMLSelectElement;
+    expect(element.textContent).toContain('Ordenar por');
+    expect(Array.from(select.options).map(o => o.textContent?.trim())).toEqual([
+      'Destacadas', 'Cercanas', 'Nuevas', 'A-Z',
+    ]);
+    const changes = vi.fn();
+    fixture.componentInstance.sortChange.subscribe(changes);
+    select.value = 'nuevas';
+    select.dispatchEvent(new Event('change'));
+    expect(changes).toHaveBeenCalledWith('nuevas');
+  });
+
   it('emite la comuna y null para "Todas las comunas"', () => {
     const changes = vi.fn();
     fixture.componentInstance.comunaChange.subscribe(changes);

@@ -9,6 +9,9 @@ describe('academy query helpers', () => {
       comuna: null,
       style: null,
       q: null,
+      sort: 'destacadas',
+      lat: null,
+      lng: null,
       page: 1,
     });
   });
@@ -36,6 +39,9 @@ describe('academy query helpers', () => {
       comuna: 'Providencia',
       style: 'salsa',
       q: 'bachata',
+      sort: 'destacadas',
+      lat: null,
+      lng: null,
       page: 2,
     });
   });
@@ -56,6 +62,9 @@ describe('academy query helpers', () => {
         comuna: null,
         style: 'salsa',
         q: 'bachata',
+        sort: 'destacadas',
+        lat: null,
+        lng: null,
         page: 2,
       }),
     ).toEqual({
@@ -71,6 +80,9 @@ describe('academy query helpers', () => {
       comuna: null,
       style: null,
       q: null,
+      sort: 'destacadas',
+      lat: null,
+      lng: null,
       page: 1,
     };
 
@@ -85,11 +97,49 @@ describe('academy query helpers', () => {
       comuna: 'Providencia',
       style: null,
       q: 'salsa',
+      sort: 'destacadas',
+      lat: null,
+      lng: null,
       page: 1,
     };
     expect(sameQuery(query, { ...query })).toBe(true);
     expect(sameQuery(query, { ...query, page: 2 })).toBe(false);
     expect(sameQuery(query, { ...query, region: 'all' })).toBe(false);
+  });
+
+  it('usa destacadas por defecto y lo omite de la URL', () => {
+    const query = normalizeQuery(convertToParamMap({}));
+    expect(query.sort).toBe('destacadas');
+    expect(queryToParams(query)).toEqual({ page: 1 });
+  });
+
+  it('descarta un orden inválido', () => {
+    expect(normalizeQuery(convertToParamMap({ sort: 'precio' })).sort).toBe('destacadas');
+  });
+
+  it('exige coordenadas válidas para cercanas', () => {
+    expect(normalizeQuery(convertToParamMap({ sort: 'cercanas' })).sort).toBe('destacadas');
+    expect(
+      normalizeQuery(convertToParamMap({ sort: 'cercanas', lat: '999', lng: '-70.6' })).sort,
+    ).toBe('destacadas');
+  });
+
+  it('conserva cercanas y redondea las coordenadas a 6 decimales', () => {
+    const query = normalizeQuery(
+      convertToParamMap({ sort: 'cercanas', lat: '-33.4501234', lng: '-70.6609876' }),
+    );
+    expect(query).toEqual({
+      region: 'metropolitana', comuna: null, style: null, q: null,
+      sort: 'cercanas', lat: -33.4501234, lng: -70.6609876, page: 1,
+    });
+    expect(queryToParams(query)).toEqual({
+      sort: 'cercanas', lat: '-33.450123', lng: '-70.660988', page: 1,
+    });
+  });
+
+  it('ignora lat/lng cuando el orden no es cercanas', () => {
+    const query = normalizeQuery(convertToParamMap({ sort: 'nuevas', lat: '-33.4', lng: '-70.6' }));
+    expect([query.lat, query.lng]).toEqual([null, null]);
   });
 
   it('calcula la última página', () => {
