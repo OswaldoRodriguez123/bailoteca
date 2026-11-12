@@ -421,6 +421,33 @@ def cmd_backfill_followers(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_geocode(args: argparse.Namespace) -> int:
+    import httpx
+
+    from bailoteca.geocode import run
+
+    conn = _open_conn(_load_config())
+    http = httpx.Client(timeout=10)
+    try:
+        plans = run(conn, http, apply=args.apply)
+        if args.apply:
+            conn.commit()
+    finally:
+        http.close()
+        conn.close()
+    for item in plans:
+        coords = f"{item.lat},{item.lng}" if item.lat is not None else "-"
+        outcome = item.source or item.reason or "-"
+        print(f"{item.academy_slug}: {coords} ({outcome})")
+    counts: dict[str, int] = {}
+    for item in plans:
+        key = item.source or item.reason or "desconocido"
+        counts[key] = counts.get(key, 0) + 1
+    summary = " ".join(f"{key}={value}" for key, value in sorted(counts.items()))
+    print(f"total={len(plans)} {summary} aplicar={args.apply}")
+    return 0
+
+
 def cmd_host_covers(args: argparse.Namespace) -> int:
     from bailoteca.covers import backfill_covers
 
@@ -632,6 +659,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Escribe los seguidores en la base de datos (por defecto solo muestra el plan)",
     )
     backfill_followers.set_defaults(handler=cmd_backfill_followers)
+
+    geocode = subparsers.add_parser(
+        "geocode",
+        help="Completar lat/lng de sedes sin coordenadas (Google primero, Nominatim de respaldo)",
+    )
+    geocode.add_argument(
+        "--apply",
+        action="store_true",
+        help="Escribe las coordenadas en la base de datos (por defecto solo muestra el plan)",
+    )
+    geocode.set_defaults(handler=cmd_geocode)
 
     host_covers = subparsers.add_parser(
         "host-covers",
