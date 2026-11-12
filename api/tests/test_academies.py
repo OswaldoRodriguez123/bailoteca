@@ -45,6 +45,9 @@ def test_list_academies_returns_page(client, monkeypatch):
         "region": None,
         "limit": 10,
         "offset": 10,
+        "sort": "destacadas",
+        "lat": None,
+        "lng": None,
     }
 
 
@@ -70,6 +73,9 @@ def test_empty_filters_are_ignored(client, monkeypatch):
         "region": None,
         "limit": 20,
         "offset": 0,
+        "sort": "destacadas",
+        "lat": None,
+        "lng": None,
     }
 
 
@@ -243,6 +249,9 @@ def test_academies_passes_region(client, monkeypatch):
         "region": "valparaiso",
         "limit": 20,
         "offset": 0,
+        "sort": "destacadas",
+        "lat": None,
+        "lng": None,
     }
 
 
@@ -277,3 +286,42 @@ def test_academies_unknown_region_422(client, monkeypatch):
     assert response.status_code == 422
     assert calls == []
 
+
+
+def test_sort_invalid_422(client):
+    _override_conn(client)
+    assert client.get("/academies?sort=precio").status_code == 422
+
+
+def test_cercanas_requires_valid_coordinates(client):
+    _override_conn(client)
+    assert client.get("/academies?sort=cercanas").status_code == 422
+    assert client.get("/academies?sort=cercanas&lat=999&lng=-70.6").status_code == 422
+
+
+def test_cercanas_forwards_coordinates(client, monkeypatch):
+    calls = {}
+    monkeypatch.setattr(
+        "bailoteca_api.routers.academies.query_academies",
+        lambda conn, **kw: (calls.update(kw), ([], 0))[1],
+    )
+    _override_conn(client)
+
+    response = client.get("/academies?sort=cercanas&lat=-33.45&lng=-70.66")
+
+    assert response.status_code == 200
+    assert (calls["sort"], calls["lat"], calls["lng"]) == ("cercanas", -33.45, -70.66)
+
+
+def test_coordinates_are_ignored_for_other_sorts(client, monkeypatch):
+    calls = {}
+    monkeypatch.setattr(
+        "bailoteca_api.routers.academies.query_academies",
+        lambda conn, **kw: (calls.update(kw), ([], 0))[1],
+    )
+    _override_conn(client)
+
+    client.get("/academies?sort=nuevas&lat=-33.45&lng=-70.66")
+
+    assert calls["sort"] == "nuevas"
+    assert calls["lat"] is None and calls["lng"] is None

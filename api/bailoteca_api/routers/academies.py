@@ -13,6 +13,7 @@ from bailoteca_api.schemas import (
     StyleList,
 )
 from bailoteca_shared.db import (
+    SORTS,
     get_academy_by_slug,
     list_academies as query_academies,
     list_comunas as query_comunas,
@@ -44,12 +45,40 @@ def _clean_region(value: str | None) -> str | None:
     return v
 
 
+def _clean_sort(value: str | None) -> str:
+    v = _clean(value)
+    if v is None or v not in SORTS:
+        raise HTTPException(
+            status_code=422,
+            detail="El parámetro sort no es válido",
+        )
+    return v
+
+
+def _clean_coords(
+    sort: str,
+    lat: float | None,
+    lng: float | None,
+) -> tuple[float | None, float | None]:
+    if sort != "cercanas":
+        return None, None
+    if lat is None or lng is None:
+        raise HTTPException(
+            status_code=422,
+            detail="El parámetro sort=cercanas requiere lat y lng",
+        )
+    return lat, lng
+
+
 @router.get("/academies", response_model=AcademyPage)
 def list_academies(
     comuna: str | None = Query(None, max_length=100),
     style: str | None = Query(None, max_length=100),
     q: str | None = Query(None, max_length=100),
     region: str | None = Query(None, max_length=50),
+    sort: str = Query("destacadas", max_length=20),
+    lat: float | None = Query(None, ge=-90, le=90),
+    lng: float | None = Query(None, ge=-180, le=180),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     conn=Depends(get_conn),
@@ -58,6 +87,8 @@ def list_academies(
     style = _clean(style)
     q = _clean(q)
     region = _clean_region(region)
+    sort = _clean_sort(sort)
+    lat, lng = _clean_coords(sort, lat, lng)
 
     if q is not None and len(q) < 2:
         raise HTTPException(
@@ -78,6 +109,9 @@ def list_academies(
         region=region,
         limit=page_size,
         offset=(page - 1) * page_size,
+        sort=sort,
+        lat=lat,
+        lng=lng,
     )
     return AcademyPage(
         items=rows,
