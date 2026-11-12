@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Literal
 
 import psycopg
+from bailoteca_shared.regions import region_slug_for_comuna
 from pydantic import BaseModel, ConfigDict, Field
 
 from bailoteca.db import record_field_rejections
@@ -122,6 +123,20 @@ def _unique_slug(conn: psycopg.Connection, name: str) -> str:
     return slug
 
 
+def location_values(loc: dict, academy_id: str) -> tuple:
+    comuna = loc.get("comuna")
+    return (
+        academy_id,
+        loc.get("label"),
+        loc.get("address"),
+        comuna,
+        loc.get("lat"),
+        loc.get("lng"),
+        region_slug_for_comuna(comuna),
+        loc.get("source_url"),
+    )
+
+
 def _write_relations(
     conn: psycopg.Connection, academy_id: str, payload: dict
 ) -> None:
@@ -132,18 +147,10 @@ def _write_relations(
         conn.execute(
             """
             insert into academy_locations
-              (academy_id, label, address, comuna, lat, lng, source_url)
-            values (%s, %s, %s, %s, %s, %s, %s)
+              (academy_id, label, address, comuna, lat, lng, region, source_url)
+            values (%s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (
-                academy_id,
-                location.get("label"),
-                location.get("address"),
-                location.get("comuna"),
-                location.get("lat"),
-                location.get("lng"),
-                location.get("source_url"),
-            ),
+            location_values(location, academy_id),
         )
 
     conn.execute("delete from academy_links where academy_id = %s", (academy_id,))
