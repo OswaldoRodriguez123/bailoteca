@@ -319,6 +319,46 @@ def cmd_backfill_regiones(args: argparse.Namespace) -> int:
         conn.close()
 
 
+def cmd_backfill_sedes(args: argparse.Namespace) -> int:
+    from bailoteca.llm import HttpxPost
+    from bailoteca.sedes import GeminiSedeLLM, run
+
+    config = _load_config()
+    if not config.gemini_api_key:
+        print(
+            "Falta GEMINI_API_KEY. Configúrala en .env o en el entorno.",
+            file=sys.stderr,
+        )
+        return 2
+
+    brave_factory = None
+    if config.brave_api_key:
+        import httpx
+
+        from bailoteca.sources.brave import BraveSource
+
+        def brave_factory(query):
+            return BraveSource(
+                [query],
+                api_key=config.brave_api_key,
+                http=httpx.Client(timeout=10),
+                delay=1.0,
+                num=3,
+            )
+    else:
+        print(
+            "aviso: falta BRAVE_API_KEY; se omite la Pasada B",
+            file=sys.stderr,
+        )
+
+    conn = _open_conn(config)
+    try:
+        llm = GeminiSedeLLM(config.gemini_api_key, HttpxPost())
+        return run(conn, llm=llm, brave_factory=brave_factory, apply=args.apply)
+    finally:
+        conn.close()
+
+
 def cmd_host_covers(args: argparse.Namespace) -> int:
     from bailoteca.covers import backfill_covers
 
@@ -503,6 +543,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Escribe las regiones en la base de datos (por defecto solo muestra el plan)",
     )
     backfill_regiones.set_defaults(handler=cmd_backfill_regiones)
+
+    backfill_sedes = subparsers.add_parser(
+        "backfill-sedes",
+        help="Completar sedes de academias publicadas sin sede (Pasadas A/B + compuerta RM)",
+    )
+    backfill_sedes.add_argument(
+        "--apply",
+        action="store_true",
+        help="Escribe las sedes en la base de datos (por defecto solo muestra el plan)",
+    )
+    backfill_sedes.set_defaults(handler=cmd_backfill_sedes)
 
     host_covers = subparsers.add_parser(
         "host-covers",
