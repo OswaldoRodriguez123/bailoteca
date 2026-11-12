@@ -77,6 +77,12 @@ def test_find_street_rejects_missing_number_or_prefix():
     assert find_street("el 1705 está avisado") is None
 
 
+def test_find_street_strips_floor_segments_before_matching():
+    assert find_street("Gran Avenida 5608 Piso 2, San Miguel") == "Gran Avenida 5608"
+    assert find_street("Nos encuentras en Gran Avenida 5608 Piso 2") == "Gran Avenida 5608"
+    assert find_street("Av. Providencia 1705 Oficina 402") == "Av. Providencia 1705"
+
+
 # --- classify ---------------------------------------------------------------
 
 def test_classify_own_domain_variants():

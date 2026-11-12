@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from html import unescape
 from urllib.parse import urlsplit
 
+from bailoteca.geocode import _strip_floor_segments
+
 USER_AGENT = "Bailoteca/1.0 (+https://bailoteca.cl)"
 BRAVE_URL = "https://api.search.brave.com/res/v1/web/search"
 
@@ -41,9 +43,8 @@ order by a.slug, al.label
 UPDATE_ADDRESS_SQL = "update academy_locations set address = %s where id = %s"
 
 _STREET_RE = re.compile(
-    r"\b((?:Av\.?|Avenida|Calle|Camino|Pasaje|Psje\.?|Diagonal|Ruta)\s+"
-    r"[A-Za-zÁÉÍÓÚÑáéíóúñ0-9'\.\-]+(?:\s+[A-Za-zÁÉÍÓÚÑáéíóúñ0-9'\.\-]+){0,6}?"
-    r"\s+\d{1,6})\b"
+    r"\b((?:Gran\s+Avenida|Av\.?|Avenida|Calle|Camino|Pasaje|Psje\.?|Diagonal|Ruta)\s+"
+    r"(?:[A-Za-zÁÉÍÓÚÑáéíóúñ0-9'\.\-]+\s+){0,6}\d{1,6})\b"
 )
 _SCRIPT_STYLE_RE = re.compile(r"<script.*?</script>|<style.*?</style>", re.S | re.I)
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -67,7 +68,7 @@ def find_street(text: str | None) -> str | None:
     """Primera vía chilena con número en ``text``; normaliza espacios."""
     if not text:
         return None
-    flat = _WS_RE.sub(" ", text)
+    flat = _WS_RE.sub(" ", _strip_floor_segments(text))
     match = _STREET_RE.search(flat)
     return _WS_RE.sub(" ", match.group(1)).strip() if match else None
 
