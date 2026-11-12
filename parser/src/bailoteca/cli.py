@@ -52,13 +52,51 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _snapshot_from_payload(payload: dict):
+    from bailoteca.country import AcademySnapshot
+
+    google = payload.get("google") or {}
+    locations = payload.get("locations") or []
+    links = payload.get("links") or []
+
+    urls = [link.get("url") for link in links if link.get("url")]
+    urls += [u for u in (payload.get("source_urls") or []) if u]
+
+    phones = [u for u in urls if str(u).lower().startswith("tel:")]
+    if google.get("phone"):
+        phones.append(google["phone"])
+
+    address_texts = [loc.get("address") for loc in locations if loc.get("address")]
+    if google.get("address"):
+        address_texts.append(google["address"])
+
+    comuna = next((loc.get("comuna") for loc in locations if loc.get("comuna")), None)
+
+    return AcademySnapshot(
+        name=payload.get("name") or "",
+        urls=tuple(urls),
+        phones=tuple(phones),
+        address_texts=tuple(address_texts),
+        comuna=comuna,
+    )
+
+
 def cmd_review(args: argparse.Namespace) -> int:
+    from bailoteca.country import assess
     from bailoteca.db import pending_proposals
     from bailoteca.review import render_review
 
     conn = _open_conn(_load_config())
     try:
-        print(render_review(pending_proposals(conn)))
+        props = pending_proposals(conn)
+        verdicts = {
+            prop["id"]: assess(
+                _snapshot_from_payload(prop.get("payload") or {}),
+                skip_osm=getattr(args, "skip_osm", False),
+            )
+            for prop in props
+        }
+        print(render_review(props, verdicts=verdicts))
     finally:
         conn.rollback()
         conn.close()
@@ -558,6 +596,11 @@ def build_parser() -> argparse.ArgumentParser:
     run.set_defaults(handler=cmd_run)
 
     review = subparsers.add_parser("review", help="Mostrar las propuestas pendientes")
+    review.add_argument(
+        "--skip-osm",
+        action="store_true",
+        help="Omitir la señal OSM/Overpass (solo señales locales, cero red)",
+    )
     review.set_defaults(handler=cmd_review)
 
     approve = subparsers.add_parser("approve", help="Aprobar y publicar una propuesta")

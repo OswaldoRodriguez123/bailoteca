@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from bailoteca.classify import AUTO_CONFIDENCE
 
+_VERDICT_RENDER = {
+    "chile": ("🇨🇱", "Chile probable"),
+    "extranjera": ("⚠️", "no parece Chile"),
+    "sin_huella": ("⚪", "sin huella"),
+}
+
 
 def _is_doubtful(proposal: dict) -> bool:
     payload = proposal.get("payload") or {}
@@ -13,7 +19,17 @@ def _is_doubtful(proposal: dict) -> bool:
     return any(style.get("disputed") for style in payload.get("styles") or [])
 
 
-def render_review(proposals: list[dict]) -> str:
+def _country_line(verdict) -> str | None:
+    emoji_label = _VERDICT_RENDER.get(getattr(verdict, "verdict", None))
+    if emoji_label is None:
+        return None
+    emoji, label = emoji_label
+    reasons = getattr(verdict, "reasons", ()) or ()
+    signals = ", ".join(reasons) if reasons else "sin señales claras"
+    return f"- país: {emoji} {label} — señales: {signals}"
+
+
+def render_review(proposals: list[dict], verdicts: dict | None = None) -> str:
     lines = ["# Propuestas pendientes", ""]
     if not proposals:
         lines.append("No hay propuestas pendientes.")
@@ -61,6 +77,10 @@ def render_review(proposals: list[dict]) -> str:
                     lines.append(f"  - {field}: {source} (confianza {confidence})")
                 else:
                     lines.append(f"  - {field}: {info}")
+
+        country_line = _country_line((verdicts or {}).get(proposal.get("id")))
+        if country_line is not None:
+            lines.append(country_line)
 
         lines.append(f"- id: {proposal.get('id')}")
         lines.append("")
