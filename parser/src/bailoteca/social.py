@@ -139,6 +139,13 @@ def run(conn, search_factory, apply: bool = False) -> list[dict]:
                     continue
                 url = getattr(candidate, "url", None)
                 network = _network_from_url(url)
+                if apply:
+                    # Escribir ANTES de registrar el hallazgo: si el update
+                    # falla, no debe quedar una entrada fantasma de éxito.
+                    conn.execute(
+                        UPDATE_ACADEMY_SQL,
+                        (followers, network, academy["id"]),
+                    )
                 found.append(
                     {
                         "slug": academy.get("slug"),
@@ -147,12 +154,13 @@ def run(conn, search_factory, apply: bool = False) -> list[dict]:
                         "url": url,
                     }
                 )
-                if apply:
-                    conn.execute(
-                        UPDATE_ACADEMY_SQL,
-                        (followers, network, academy["id"]),
-                    )
                 break
         except Exception as exc:
+            rollback = getattr(conn, "rollback", None)
+            if callable(rollback):
+                try:
+                    rollback()
+                except Exception:
+                    pass
             found.append({"slug": academy.get("slug"), "error": str(exc)})
     return found

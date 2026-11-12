@@ -106,6 +106,56 @@ def test_run_isolates_per_academy_errors():
     assert len(conn.updates) == 1
 
 
+def test_run_update_failure_does_not_double_count_or_abort_following():
+    class _TxnFakeConn(_FakeConn):
+        def __init__(self, academies, fail_ids):
+            super().__init__(academies)
+            self.fail_ids = set(fail_ids)
+            self.poisoned = False
+            self.rollbacks = 0
+
+        def execute(self, sql, params=()):
+            self.calls.append((sql, tuple(params)))
+            if "update academies" in sql:
+                if self.poisoned:
+                    raise RuntimeError("current transaction is aborted")
+                if str(params[2]) in self.fail_ids:
+                    self.poisoned = True
+                    raise RuntimeError("update failed")
+                self.updates.append((sql, tuple(params)))
+                return SimpleNamespace(rowcount=1)
+            return SimpleNamespace(fetchall=lambda: self.academies)
+
+        def rollback(self):
+            self.poisoned = False
+            self.rollbacks += 1
+
+    conn = _TxnFakeConn(
+        [
+            {"id": "1", "slug": "a", "name": "Alba"},
+            {"id": "2", "slug": "b", "name": "Boka"},
+        ],
+        fail_ids={"1"},
+    )
+
+    def factory(query):
+        name = "Alba" if "Alba" in query else "Boka"
+        return _FakeSource([
+            Candidate(name=name, url=f"https://instagram.com/{name.lower()}",
+                      handle=None, source="brave",
+                      raw={"description": "3,210 followers"}),
+        ])
+
+    results = run(conn, factory, apply=True)
+
+    errors = [r for r in results if "error" in r]
+    written = [r for r in results if "error" not in r]
+    assert errors == [{"slug": "a", "error": "update failed"}]
+    assert [r["slug"] for r in written] == ["b"]
+    assert len(conn.updates) == 1
+    assert conn.rollbacks == 1
+
+
 def test_run_dry_run_does_not_write():
     conn = _FakeConn([{"id": "1", "slug": "a", "name": "Alba"}])
     factory = lambda q: _FakeSource([
