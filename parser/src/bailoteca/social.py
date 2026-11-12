@@ -29,11 +29,42 @@ _FOLLOWERS_RE = re.compile(r"(\d[\d.,]*)\s*([KkMm])?\s*(?:followers|seguidores)"
 _SUFFIX_MULTIPLIER = {"k": 1_000, "m": 1_000_000}
 
 
+def _parse_suffixed_number(number: str) -> float | None:
+    """Parsea la parte numérica cuando hay sufijo K/M.
+
+    Reglas:
+    - un único comma seguido de 1–2 dígitos y sin punto → decimal (``4,9`` → 4.9);
+    - commas agrupados en treses (``1,500`` / ``1,234,567``) → miles;
+    - con punto y comma, manda la última posición (español ``1.234,5`` vs
+      inglés ``1,234.5``);
+    - cualquier otra cosa → None (no se adivina; la academia queda reintentable).
+    """
+
+    try:
+        if "," in number and "." not in number:
+            parts = number.split(",")
+            if not all(part.isdigit() for part in parts):
+                return None
+            if len(parts) == 2 and 1 <= len(parts[1]) <= 2:
+                return float(f"{parts[0]}.{parts[1]}")
+            if 1 <= len(parts[0]) <= 3 and all(len(part) == 3 for part in parts[1:]):
+                return float("".join(parts))
+            return None
+        if "," in number and "." in number:
+            if number.rfind(",") > number.rfind("."):
+                return float(number.replace(".", "").replace(",", "."))
+            return float(number.replace(",", ""))
+        return float(number)
+    except ValueError:
+        return None
+
+
 def parse_followers(text: str | None) -> int | None:
     """Extrae el número de seguidores de un texto libre.
 
-    Con sufijo K/M el punto se trata como decimal (``1.5M`` → 1.500.000);
-    sin sufijo se quitan ``.`` y ``,`` (``5.951`` → 5951). None si no hay match.
+    Con sufijo K/M la coma puede ser decimal o miles (ver
+    ``_parse_suffixed_number``) y el punto se trata como decimal; sin
+    sufijo se quitan ``.`` y ``,`` (``5.951`` → 5951). None si no hay match.
     """
 
     if not text:
@@ -43,10 +74,10 @@ def parse_followers(text: str | None) -> int | None:
         return None
     number, suffix = match.group(1), match.group(2)
     if suffix:
-        try:
-            return int(float(number.replace(",", "")) * _SUFFIX_MULTIPLIER[suffix.lower()])
-        except ValueError:
+        value = _parse_suffixed_number(number)
+        if value is None:
             return None
+        return int(value * _SUFFIX_MULTIPLIER[suffix.lower()])
     digits = re.sub(r"[.,]", "", number)
     try:
         return int(digits)
@@ -94,30 +125,34 @@ def run(conn, search_factory, apply: bool = False) -> list[dict]:
     """
 
     raw_rows = conn.execute(ACADEMIES_QUERY).fetchall()
-    academies = [_row_to_dict(row) for row in raw_rows]
 
     found: list[dict] = []
-    for academy in academies:
-        source = search_factory(f'"{academy.get("name")}" seguidores instagram')
-        candidates = (source.discover() or []) if source is not None else []
-        for candidate in candidates:
-            followers = parse_followers(_description(candidate))
-            if followers is None:
-                continue
-            url = getattr(candidate, "url", None)
-            network = _network_from_url(url)
-            found.append(
-                {
-                    "slug": academy.get("slug"),
-                    "followers": followers,
-                    "network": network,
-                    "url": url,
-                }
-            )
-            if apply:
-                conn.execute(
-                    UPDATE_ACADEMY_SQL,
-                    (followers, network, academy["id"]),
+    for row in raw_rows:
+        academy: dict = {}
+        try:
+            academy = _row_to_dict(row)
+            source = search_factory(f'"{academy.get("name")}" seguidores instagram')
+            candidates = (source.discover() or []) if source is not None else []
+            for candidate in candidates:
+                followers = parse_followers(_description(candidate))
+                if followers is None:
+                    continue
+                url = getattr(candidate, "url", None)
+                network = _network_from_url(url)
+                found.append(
+                    {
+                        "slug": academy.get("slug"),
+                        "followers": followers,
+                        "network": network,
+                        "url": url,
+                    }
                 )
-            break
+                if apply:
+                    conn.execute(
+                        UPDATE_ACADEMY_SQL,
+                        (followers, network, academy["id"]),
+                    )
+                break
+        except Exception as exc:
+            found.append({"slug": academy.get("slug"), "error": str(exc)})
     return found

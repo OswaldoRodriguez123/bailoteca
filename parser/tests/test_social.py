@@ -66,6 +66,46 @@ def test_run_uses_providers_and_skips_missing_numbers():
     assert params[:2] == (1043, "instagram")
 
 
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("1,5M seguidores", 1_500_000),
+        ("4,9K seguidores", 4_900),
+        ("1,500K seguidores", 1_500_000),
+        ("1,234,567 seguidores", 1234567),
+        ("1,2345M seguidores", None),
+    ],
+)
+def test_parse_followers_suffix_separators(text, expected):
+    assert parse_followers(text) == expected
+
+
+def test_run_isolates_per_academy_errors():
+    conn = _FakeConn([
+        {"id": "1", "slug": "a", "name": "Alba"},
+        {"id": "2", "slug": "b", "name": "Boka"},
+    ])
+
+    class _BoomSource:
+        def discover(self):
+            raise RuntimeError("boom")
+
+    def factory(query):
+        if "Alba" in query:
+            return _BoomSource()
+        return _FakeSource([
+            Candidate(name="Boka", url="https://instagram.com/boka", handle=None,
+                      source="brave", raw={"description": "3,210 followers"}),
+        ])
+
+    results = run(conn, factory, apply=True)
+
+    assert results[0] == {"slug": "a", "error": "boom"}
+    assert results[1] == {"slug": "b", "followers": 3210,
+                          "network": "instagram", "url": "https://instagram.com/boka"}
+    assert len(conn.updates) == 1
+
+
 def test_run_dry_run_does_not_write():
     conn = _FakeConn([{"id": "1", "slug": "a", "name": "Alba"}])
     factory = lambda q: _FakeSource([

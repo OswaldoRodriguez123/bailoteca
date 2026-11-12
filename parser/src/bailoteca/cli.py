@@ -396,8 +396,12 @@ def cmd_backfill_followers(args: argparse.Namespace) -> int:
         conn.close()
         http.close()
     for item in found:
-        print(f"{item['slug']}: {item['followers']} seguidores ({item['network']}) {item['url']}")
-    print(f"con_seguidores={len(found)} aplicar={args.apply}")
+        if "error" in item:
+            print(f"! {item.get('slug')}: {item['error']}")
+        else:
+            print(f"{item['slug']}: {item['followers']} seguidores ({item['network']}) {item['url']}")
+    escritos = sum(1 for item in found if "error" not in item)
+    print(f"con_seguidores={escritos} aplicar={args.apply}")
     return 0
 
 
