@@ -216,6 +216,7 @@ def _has_foreign_google_address(academy: dict) -> bool:
     return bool(address) and not looks_chilean(address)
 
 
+_STREET_NUMBER_RE = re.compile(r"(?:^|\s)\d{1,5}(?=\s|,|\.|$)")
 _ADDRESS_PREFIXES = ("sede:", "academia en", "academia de baile en")
 _PERIOD_PLACEHOLDER = "\x00"
 _ADDRESS_ABBREVIATIONS = ("avda", "av", "dr", "dra", "sr", "sra", "srta", "stgo", "núm", "num")
@@ -244,8 +245,10 @@ def _address_from_text(sentence: str | None, comuna: str) -> str | None:
 
     None/vacío → None. Quita prefijos de marketing ("Sede:", "Academia en",
     "Academia de baile en", case-insensitive), espacios y punto final. Devuelve
-    la oración limpia (≤160 chars) SOLO si contiene un número (nº de calle);
-    si no, None (sin inventar). La comuna no se toca.
+    la oración limpia (≤160 chars) SOLO si contiene un número de calle como
+    token completo (1–5 dígitos delimitados por espacio/coma/punto/fin); si
+    no, None (sin inventar). Un dígito dentro de una palabra (p. ej. "On2")
+    no cuenta. La comuna no se toca.
     """
 
     if not sentence:
@@ -257,7 +260,7 @@ def _address_from_text(sentence: str | None, comuna: str) -> str | None:
             cleaned = cleaned[len(prefix):].strip()
             break
     cleaned = cleaned.rstrip(". ").strip()
-    if not cleaned or not re.search(r"\d", cleaned):
+    if not cleaned or not _STREET_NUMBER_RE.search(cleaned):
         return None
     return cleaned[:160]
 

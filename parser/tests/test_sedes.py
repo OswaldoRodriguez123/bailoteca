@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 from bailoteca.models import Candidate
 from bailoteca.sedes import (
+    _address_from_text,
     _sede_from_text,
     build_pass_a_prompt,
     comuna_from_text,
@@ -746,3 +747,36 @@ def test_run_google_chileno_asigna_sede_sin_llm():
     assert params[3] == "Santiago"
     assert params[6] == "metropolitana"
     assert params[7] == "https://artfit.cl"
+def test_address_on2_en_frase_no_es_numero_de_calle():
+    academy = dict(ARTFIT, description="Aprende salsa On2 y bachata en Providencia")
+
+    sede = _sede_from_text(academy)
+
+    assert sede is not None
+    assert sede["comuna"] == "Providencia"
+    assert sede["address"] is None
+
+
+def test_address_salsa_on2_no_es_numero_de_calle():
+    academy = dict(ARTFIT, description="Clases de Salsa On2 en Macul")
+
+    sede = _sede_from_text(academy)
+
+    assert sede is not None
+    assert sede["comuna"] == "Macul"
+    assert sede["address"] is None
+
+
+def test_address_radal_con_numero_completo_se_conserva():
+    academy = dict(ARTFIT, description="Radal 189, Estación Central")
+
+    sede = _sede_from_text(academy)
+
+    assert sede is not None
+    assert sede["comuna"] == "Estación Central"
+    assert sede["address"] == "Radal 189, Estación Central"
+
+
+def test_address_san_antonio_con_numero_completo_se_conserva():
+    # "San Antonio" no es comuna RM: se prueba _address_from_text directo.
+    assert _address_from_text("San Antonio 580, Piso 11", "Santiago") == "San Antonio 580, Piso 11"
