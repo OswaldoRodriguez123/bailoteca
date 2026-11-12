@@ -163,7 +163,7 @@ returned by the API; the catch-all renders in the client.
   params. Search is debounced 300 ms and rewrites the URL with `replaceUrl`, so
   the back button does not store every keystroke.
 - **No `status` filter in the client**: every academy the API returns is shown;
-  closed ones carry the "Cerrada" badge and unverified ones "Sin verificar".
+  closed ones carry the "Cerrada" badge; the detail shows "Ficha revisada el <fecha>" from `verified_at` (or "Aún sin revisar") instead of a verification badge.
 - **Internal data hidden**: `confidence`, `evidence`, `source_url` and
   `source_urls` are not rendered. Only public data is shown.
 - **Invalid input is normalized**: styles with an invalid format, one-character
