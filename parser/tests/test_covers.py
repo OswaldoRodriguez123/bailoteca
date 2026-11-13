@@ -1,14 +1,26 @@
 from types import SimpleNamespace
 
+import pytest
+
 from bailoteca.covers import BUCKET, download_image
 
 
+@pytest.fixture(autouse=True)
+def _public_dns(monkeypatch):
+    # Los tests usan hosts ficticios: simulamos DNS público para safe_url.
+    monkeypatch.setattr(
+        "bailoteca.enrich._resolve_host", lambda host: ["93.184.216.34"]
+    )
+
+
 class _FakeResponse:
-    def __init__(self, status, body="", content=b"", content_type="text/html"):
+    def __init__(self, status, body="", content=b"", content_type="text/html", url=None, headers=None):
         self.status_code = status
         self.text = body
         self.content = content
-        self.headers = {"content-type": content_type}
+        self.headers = headers if headers is not None else {"content-type": content_type}
+        if url is not None:
+            self.url = url
 
 
 class _FakeHttp:
@@ -252,3 +264,53 @@ def test_backfill_dry_run_does_not_upload_or_write(monkeypatch):
     assert summary["hosted"] == ["dry"]
     assert storage.uploads == []
     assert fake_db.updates == []
+
+
+def test_download_image_rejects_private_ip_url():
+    # IP literal privada/loopback: se rechaza sin llamar al cliente.
+    client = _FakeHttp({})
+    assert download_image("http://127.0.0.1:8080/cover.jpg", client=client) is None
+    assert download_image("http://169.254.169.254/latest/meta-data", client=client) is None
+    assert client.calls == []
+
+
+def test_download_image_rejects_redirect_to_private_final_url():
+    client = _FakeHttp({
+        "https://img.example/cover.jpg": _FakeResponse(
+            200,
+            content=_image_body,
+            content_type="image/jpeg",
+            url="http://169.254.169.254/cover.jpg",
+        ),
+    })
+
+    assert download_image("https://img.example/cover.jpg", client=client) is None
+
+
+def test_download_image_rejects_oversized_content_length():
+    from bailoteca.enrich import MAX_BYTES
+
+    client = _FakeHttp({
+        "https://img.example/cover.jpg": _FakeResponse(
+            200,
+            content=b"small",
+            content_type="image/jpeg",
+            headers={"content-type": "image/jpeg", "content-length": str(MAX_BYTES + 1)},
+        ),
+    })
+
+    assert download_image("https://img.example/cover.jpg", client=client) is None
+
+
+def test_download_image_rejects_oversized_body():
+    from bailoteca.enrich import MAX_BYTES
+
+    client = _FakeHttp({
+        "https://img.example/cover.jpg": _FakeResponse(
+            200,
+            content=b"\xff" * (MAX_BYTES + 1),
+            content_type="image/jpeg",
+        ),
+    })
+
+    assert download_image("https://img.example/cover.jpg", client=client) is None

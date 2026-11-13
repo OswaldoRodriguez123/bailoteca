@@ -32,6 +32,10 @@ def _get_pool(settings: Settings) -> ConnectionPool:
                     kwargs={
                         "row_factory": dict_row,
                         "prepare_threshold": None,
+                        # Defensa en profundidad: aunque el rol de solo
+                        # lectura perdiera su único barrier (GRANT), la sesión
+                        # rechaza escrituras a nivel de transacción.
+                        "options": "-c default_transaction_read_only=on",
                     },
                     open=False,
                 )

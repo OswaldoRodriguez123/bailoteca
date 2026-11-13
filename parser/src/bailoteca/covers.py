@@ -7,6 +7,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from bailoteca.db import connect, list_published
+from bailoteca.enrich import MAX_BYTES, safe_url
 
 IMAGES_MAX_AGE_DAYS = 180
 BUCKET = "academy-covers"
@@ -19,21 +20,83 @@ _HEADERS = {
 _COVER_SOURCES = {"instagram", "facebook", "web", "google", "manual"}
 
 
+def _stream_get(url: str, *, timeout: float, headers: dict):
+    """GET real con tope de lectura: se corta al superar MAX_BYTES."""
+    from types import SimpleNamespace
+
+    with httpx.stream(
+        "GET",
+        url,
+        timeout=timeout,
+        follow_redirects=True,
+        headers=headers,
+    ) as response:
+        chunks: list[bytes] = []
+        total = 0
+        for chunk in response.iter_bytes():
+            chunks.append(chunk)
+            total += len(chunk)
+            if total > MAX_BYTES:
+                break
+        body = b"".join(chunks)[: MAX_BYTES + 1]
+        encoding = getattr(response, "encoding", None) or "utf-8"
+        return SimpleNamespace(
+            status_code=response.status_code,
+            headers=dict(response.headers),
+            content=body,
+            text=body.decode(encoding, errors="replace"),
+            url=str(response.url),
+        )
+
+
+def _guarded_get(url, *, client: Any | None, timeout: float, headers: dict):
+    """GET con safe_url antes y después del redirect, y tope MAX_BYTES.
+
+    Devuelve la respuesta o None si el host previo/final no es público o el
+    cuerpo supera el tope.
+    """
+    if not safe_url(url):
+        return None
+    try:
+        if client is not None:
+            response = client.get(
+                url,
+                timeout=timeout,
+                follow_redirects=True,
+                headers=headers,
+            )
+        else:
+            response = _stream_get(url, timeout=timeout, headers=headers)
+    except Exception:
+        return None
+    final = getattr(response, "url", None)
+    if final is not None and not safe_url(str(final)):
+        return None
+    response_headers = getattr(response, "headers", {}) or {}
+    raw_length = (
+        response_headers.get("content-length")
+        or response_headers.get("Content-Length")
+    )
+    try:
+        declared = int(raw_length) if raw_length is not None else None
+    except (TypeError, ValueError):
+        declared = None
+    if declared is not None and declared > MAX_BYTES:
+        return None
+    content = getattr(response, "content", b"") or b""
+    if len(content) > MAX_BYTES:
+        return None
+    return response
+
+
 def download_image(
     url: str,
     *,
     client: Any | None = None,
     timeout: float = 20.0,
 ) -> bytes | None:
-    http = client or httpx
-    try:
-        response = http.get(
-            url,
-            timeout=timeout,
-            follow_redirects=True,
-            headers=_HEADERS,
-        )
-    except Exception:
+    response = _guarded_get(url, client=client, timeout=timeout, headers=_HEADERS)
+    if response is None:
         return None
     if getattr(response, "status_code", None) != 200:
         return None

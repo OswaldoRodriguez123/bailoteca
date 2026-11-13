@@ -81,7 +81,7 @@ def list_academies(
     sort: str = Query("destacadas", max_length=20),
     lat: float | None = Query(None, ge=-90, le=90),
     lng: float | None = Query(None, ge=-180, le=180),
-    page: int = Query(1, ge=1),
+    page: int = Query(1, ge=1, le=10000),
     page_size: int = Query(20, ge=1, le=100),
     conn=Depends(get_conn),
 ) -> AcademyPage:
