@@ -36,9 +36,15 @@ describe('academy display helpers', () => {
     expect(linkHref({ kind: 'web', url: 'https://danson.cl' })).toBe('https://danson.cl');
   });
 
-  it('arma un enlace de mapa con coordenadas', () => {
-    const url = mapUrl({ ...makeLocation(), lat: -33.4, lng: -70.6 });
+  it('arma un enlace de mapa con coordenadas cuando no hay dirección', () => {
+    const url = mapUrl({ ...makeLocation(), address: null, comuna: null, lat: -33.4, lng: -70.6 });
     expect(url).toContain('query=-33.4,-70.6');
+  });
+
+  it('prefiere la dirección escrita sobre las coordenadas', () => {
+    const url = mapUrl({ ...makeLocation(), lat: -33.4, lng: -70.6 });
+    expect(url).toContain('Av.+Providencia+123');
+    expect(url).not.toContain('-33.4');
   });
 
   it('arma un enlace de mapa con dirección cuando faltan coordenadas', () => {

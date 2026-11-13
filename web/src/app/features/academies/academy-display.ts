@@ -64,19 +64,21 @@ export function linkHref(link: AcademyLink): string {
 export function mapUrl(location: AcademyLocation): string | null {
   const base = 'https://www.google.com/maps/search/?api=1';
 
-  if (location.lat !== null && location.lng !== null) {
-    return `${base}&query=${location.lat},${location.lng}`;
-  }
-
   const query = [location.address, location.comuna]
     .filter((value): value is string => Boolean(value))
     .join(', ');
 
-  if (!query) {
-    return null;
+  if (query) {
+    // dirección escrita: Google la resuelve a la ficha/dirección con nombre,
+    // mucho mejor que un pin de coordenadas crudo
+    return `${base}&query=${encodeURIComponent(query).replace(/%20/g, '+')}`;
   }
 
-  return `${base}&query=${encodeURIComponent(query).replace(/%20/g, '+')}`;
+  if (location.lat !== null && location.lng !== null) {
+    return `${base}&query=${location.lat},${location.lng}`;
+  }
+
+  return null;
 }
 
 export function uniqueComunas(academy: Academy): string[] {
