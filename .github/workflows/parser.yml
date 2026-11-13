@@ -71,7 +71,9 @@ jobs:
         working-directory: parser
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: python -m bailoteca geocode --apply | tee /tmp/geocode-report.txt
+        run: |
+          set -o pipefail
+          python -m bailoteca geocode --apply | tee /tmp/geocode-report.txt
       - name: Resumen geocode (google_embed)
         if: ${{ inputs.dry_run != true && inputs.host_covers != true && inputs.missing_rating != true }}
         run: |

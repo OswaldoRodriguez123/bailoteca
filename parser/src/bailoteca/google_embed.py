@@ -32,7 +32,7 @@ class EmbedResult:
     category: str | None  # p. ej. "dance_school", "subpremise"
 
 
-_NUMBER_RE = re.compile(r"\d+")
+_NUMBER_RE = re.compile(r"(?<![A-Za-z0-9])\d+(?![A-Za-z0-9])")
 _PLACE_ID_RE = re.compile(r"^ChIJ[A-Za-z0-9_-]+$")
 _GCID_RE = re.compile(r"^gcid:([a-z_]+)$")
 
@@ -60,7 +60,7 @@ def _walk_strings(node: Any):
         yield node
 
 
-def _find_entity(data: Any) -> list | None:
+def _entity_candidates(data: Any):
     for node in _walk(data):
         if (
             len(node) >= 3
@@ -70,44 +70,66 @@ def _find_entity(data: Any) -> list | None:
             and len(node[2]) == 2
             and all(isinstance(v, (int, float)) for v in node[2])
         ):
+            yield node
+
+
+def _find_entity(data: Any) -> list | None:
+    candidates = list(_entity_candidates(data))
+    if not candidates:
+        return None
+    # Si hay varias entidades candidatas, preferir la que aporta una dirección con dígitos
+    # (calle + número); fallback: la primera en orden de aparición.
+    for node in candidates:
+        resolved = node[1]
+        if isinstance(resolved, str) and any(ch.isdigit() for ch in resolved):
+            return node
+    for node in candidates:
+        if isinstance(node[1], str):
             return node
     return None
 
 
 def parse_embed_html(html: str) -> EmbedResult | None:
-    start = html.find("initEmbed(")
-    if start == -1:
-        return None
-    payload_start = start + len("initEmbed(")
-    end = html.find(");", payload_start)
-    if end == -1:
-        return None
     try:
-        data = json.loads(html[payload_start:end].strip())
-    except ValueError:
+        start = html.find("initEmbed(")
+        if start == -1:
+            return None
+        payload_start = start + len("initEmbed(")
+        end = html.find(");", payload_start)
+        if end == -1:
+            return None
+        try:
+            data = json.loads(html[payload_start:end].strip())
+        except ValueError:
+            # fallback greedy: `);` pudo aparecer dentro de un string JSON
+            m = re.search(re.escape("initEmbed(") + r"(.*)\);", html, re.DOTALL)
+            if m is None:
+                return None
+            data = json.loads(m.group(1).strip())
+        entity = _find_entity(data)
+        if entity is None:
+            return None
+        resolved = entity[1]
+        if not isinstance(resolved, str):
+            return None
+        lat, lng = float(entity[2][0]), float(entity[2][1])
+        place_id = None
+        category = None
+        for s in _walk_strings(data):
+            if place_id is None and _PLACE_ID_RE.match(s):
+                place_id = s
+            if category is None:
+                m = _GCID_RE.match(s)
+                if m:
+                    category = m.group(1)
+            if place_id and category:
+                break
+        return EmbedResult(
+            lat=lat, lng=lng, resolved_address=resolved,
+            place_id=place_id, category=category,
+        )
+    except Exception:
         return None
-    entity = _find_entity(data)
-    if entity is None:
-        return None
-    resolved = entity[1]
-    if not isinstance(resolved, str):
-        return None
-    lat, lng = float(entity[2][0]), float(entity[2][1])
-    place_id = None
-    category = None
-    for s in _walk_strings(data):
-        if place_id is None and _PLACE_ID_RE.match(s):
-            place_id = s
-        if category is None:
-            m = _GCID_RE.match(s)
-            if m:
-                category = m.group(1)
-        if place_id and category:
-            break
-    return EmbedResult(
-        lat=lat, lng=lng, resolved_address=resolved,
-        place_id=place_id, category=category,
-    )
 
 
 def gate(address: str, resolved: EmbedResult) -> str | None:
