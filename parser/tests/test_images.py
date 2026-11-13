@@ -1,15 +1,27 @@
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
+import pytest
+
 from bailoteca.images import _fetch_og_image, refresh_images
 
 
+@pytest.fixture(autouse=True)
+def _public_dns(monkeypatch):
+    # Los tests usan hosts ficticios: simulamos DNS público para safe_url.
+    monkeypatch.setattr(
+        "bailoteca.enrich._resolve_host", lambda host: ["93.184.216.34"]
+    )
+
+
 class _FakeResponse:
-    def __init__(self, status, body, content=b"", content_type="text/html"):
+    def __init__(self, status, body, content=b"", content_type="text/html", url=None, headers=None):
         self.status_code = status
         self.text = body
         self.content = content
-        self.headers = {"content-type": content_type}
+        self.headers = headers if headers is not None else {"content-type": content_type}
+        if url is not None:
+            self.url = url
 
 
 _HTML_WITH_OG = "<html><head><meta property=\"og:image\" content=\"https://img.example/cover.jpg\"></head></html>"
@@ -362,3 +374,46 @@ def test_refresh_images_skips_place_linked_academy():
     assert client.calls == 0
     assert storage.uploads == []
     assert fake_db._updated == []
+
+
+def test_fetch_og_image_rejects_private_page_url():
+    client = _FakeHttp({})
+    assert _fetch_og_image("http://127.0.0.1:8080/admin", client=client) is None
+    assert client.calls == 0
+
+
+def test_fetch_og_image_rejects_redirect_to_private_page():
+    # El redirect NUNCA se sigue si el destino no es público.
+    client = _FakeHttp({
+        "https://ig.example/profile": _FakeResponse(
+            302,
+            "",
+            url=None,
+            headers={"content-type": "text/html", "location": "http://169.254.169.254/latest"},
+        ),
+    })
+    assert _fetch_og_image("https://ig.example/profile", client=client) is None
+    assert client.calls == 1  # solo la URL pública inicial
+
+
+def test_fetch_og_image_rejects_private_og_target():
+    html = '<html><head><meta property="og:image" content="http://127.0.0.1:8080/x.jpg"></head></html>'
+    client = _FakeHttp({
+        "https://ig.example/profile": _FakeResponse(200, html),
+    })
+    assert _fetch_og_image("https://ig.example/profile", client=client) is None
+
+
+def test_fetch_og_image_rejects_oversized_image():
+    from bailoteca.enrich import MAX_BYTES
+
+    client = _FakeHttp({
+        "https://ig.example/profile": _FakeResponse(200, _HTML_WITH_OG),
+        "https://img.example/cover.jpg": _FakeResponse(
+            200,
+            "",
+            b"\xff" * (MAX_BYTES + 1),
+            "image/jpeg",
+        ),
+    })
+    assert _fetch_og_image("https://ig.example/profile", client=client) is None

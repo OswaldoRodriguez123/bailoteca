@@ -7,7 +7,6 @@ portada reciente (< 180 días) o vinculadas a Google Maps no se tocan.
 
 from __future__ import annotations
 
-import httpx
 import re
 
 from datetime import datetime, timedelta, timezone
@@ -18,6 +17,7 @@ from urllib.parse import urlparse
 from bailoteca.covers import (
     BUCKET,
     IMAGES_MAX_AGE_DAYS,
+    _guarded_get,
     _resolve_source,
     download_image,
 )
@@ -40,19 +40,12 @@ def _fetch_og_image(
     timeout: float = 15.0,
     client: HttpClient | None = None,
 ) -> str | None:
-    http = client or httpx
-    try:
-        response = http.get(
-            page_url,
-            timeout=timeout,
-            follow_redirects=True,
-            headers=_HEADERS,
-        )
-    except Exception:
+    page = _guarded_get(page_url, client=client, timeout=timeout, headers=_HEADERS)
+    if page is None:
         return None
-    if getattr(response, "status_code", 0) != 200:
+    if getattr(page, "status_code", 0) != 200:
         return None
-    html = response.text
+    html = page.text
     match = re.search(r'<meta property="og:image" content="([^"]+)"', html)
     if not match:
         match = re.search(r'content="([^"]+)" property="og:image"', html)
@@ -63,14 +56,8 @@ def _fetch_og_image(
     # og:image cuando el scraper anónimo es bloqueado; no es contenido de la academia.
     if (urlparse(og).hostname or "").lower() == "static.cdninstagram.com":
         return None
-    try:
-        img = http.get(
-            og,
-            timeout=timeout,
-            follow_redirects=True,
-            headers=_HEADERS,
-        )
-    except Exception:
+    img = _guarded_get(og, client=client, timeout=timeout, headers=_HEADERS)
+    if img is None:
         return None
     if getattr(img, "status_code", 0) != 200 or len(getattr(img, "content", b"")) < 500:
         return None

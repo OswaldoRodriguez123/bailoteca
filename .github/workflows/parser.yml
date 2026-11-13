@@ -19,22 +19,29 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: read
+
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
       - name: Cache de búsquedas SerpApi
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: parser/data/cache/serpapi
           key: serpapi-cache-${{ github.run_id }}
           restore-keys: |
             serpapi-cache-
-      - run: pip install -e shared -e "parser[dev]"
+      - run: |
+          pip install --require-hashes --no-deps -r requirements-lock.txt
+          pip install --no-deps -e shared -e parser
       - run: python -m pytest parser/tests shared/tests -q
       - name: Correr pipeline
         if: ${{ inputs.host_covers != true && inputs.missing_rating != true }}
@@ -84,7 +91,7 @@ jobs:
           fi
       - name: Subir reporte geocode
         if: ${{ inputs.dry_run != true && inputs.host_covers != true && inputs.missing_rating != true }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: geocode-report
           path: /tmp/geocode-report.txt
@@ -112,7 +119,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python -m bailoteca host-covers
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: reportes
           path: parser/reports/

@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import httpx
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 
 from bailoteca.db import connect, list_published
+from bailoteca.enrich import MAX_BYTES, safe_url
 
 IMAGES_MAX_AGE_DAYS = 180
 BUCKET = "academy-covers"
@@ -19,21 +20,105 @@ _HEADERS = {
 _COVER_SOURCES = {"instagram", "facebook", "web", "google", "manual"}
 
 
+def _stream_get(url: str, *, timeout: float, headers: dict):
+    """GET real con tope de lectura: se corta al superar MAX_BYTES."""
+    from types import SimpleNamespace
+
+    with httpx.stream(
+        "GET",
+        url,
+        timeout=timeout,
+        follow_redirects=False,
+        headers=headers,
+    ) as response:
+        chunks: list[bytes] = []
+        total = 0
+        for chunk in response.iter_bytes():
+            chunks.append(chunk)
+            total += len(chunk)
+            if total > MAX_BYTES:
+                break
+        body = b"".join(chunks)[: MAX_BYTES + 1]
+        encoding = getattr(response, "encoding", None) or "utf-8"
+        return SimpleNamespace(
+            status_code=response.status_code,
+            headers=dict(response.headers),
+            content=body,
+            text=body.decode(encoding, errors="replace"),
+            url=str(response.url),
+        )
+
+
+_REDIRECT_STATUSES = {301, 302, 303, 307, 308}
+_MAX_REDIRECTS = 5
+
+
+def _guarded_get(url, *, client: Any | None, timeout: float, headers: dict):
+    """GET con safe_url por cada hop, sin seguir redirects automáticamente.
+
+    Cada URL (original y cada Location) se valida con safe_url ANTES de
+    pedirla; el cuerpo se corta al superar MAX_BYTES. Devuelve la respuesta
+    o None si algún hop no es público, el cuerpo supera el tope o hay demasiados
+    redirects.
+    """
+    current = url
+    for _ in range(_MAX_REDIRECTS + 1):
+        if not safe_url(current):
+            return None
+        try:
+            if client is not None:
+                response = client.get(
+                    current,
+                    timeout=timeout,
+                    follow_redirects=False,
+                    headers=headers,
+                )
+            else:
+                response = _stream_get(current, timeout=timeout, headers=headers)
+        except Exception:
+            return None
+        status = getattr(response, "status_code", 0)
+        if status in _REDIRECT_STATUSES:
+            response_headers = getattr(response, "headers", {}) or {}
+            location = (
+                response_headers.get("location")
+                or response_headers.get("Location")
+            )
+            if not location:
+                return None
+            current = urljoin(current, location)
+            continue
+        # Defensa en profundidad: si el cliente expone la URL final (fakes o
+        # transporte con redirects), se vuelve a validar.
+        final = getattr(response, "url", None)
+        if final is not None and not safe_url(str(final)):
+            return None
+        response_headers = getattr(response, "headers", {}) or {}
+        raw_length = (
+            response_headers.get("content-length")
+            or response_headers.get("Content-Length")
+        )
+        try:
+            declared = int(raw_length) if raw_length is not None else None
+        except (TypeError, ValueError):
+            declared = None
+        if declared is not None and declared > MAX_BYTES:
+            return None
+        content = getattr(response, "content", b"") or b""
+        if len(content) > MAX_BYTES:
+            return None
+        return response
+    return None
+
+
 def download_image(
     url: str,
     *,
     client: Any | None = None,
     timeout: float = 20.0,
 ) -> bytes | None:
-    http = client or httpx
-    try:
-        response = http.get(
-            url,
-            timeout=timeout,
-            follow_redirects=True,
-            headers=_HEADERS,
-        )
-    except Exception:
+    response = _guarded_get(url, client=client, timeout=timeout, headers=_HEADERS)
+    if response is None:
         return None
     if getattr(response, "status_code", None) != 200:
         return None

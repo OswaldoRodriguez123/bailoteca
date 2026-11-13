@@ -114,9 +114,19 @@ Response:
 
 ## Rate limit
 
-- `RATE_LIMIT` uses the `limits` syntax, `60/minute` per IP by default.
-- The IP comes from the first `X-Forwarded-For` value (Vercel sets it) or from
-  `request.client.host` locally.
+- `RATE_LIMIT` uses the `limits` syntax, `60/minute` per IP by default. The
+  budget is aggregate across all routes (slowapi `application_limits`), not
+  per endpoint.
+- The IP key comes from `x-vercel-forwarded-for` (Vercel sets it and does not
+  forward client-supplied values; it is also kept when Vercel sits behind an
+  upstream proxy), falling back to `x-real-ip`, then to the rightmost
+  `X-Forwarded-For` hop (what the outermost appending proxy observed), then
+  to `request.client.host` locally. The leftmost XFF hop is client-controlled
+  and is never used as the key.
+- Trust assumption: the API is served on Vercel (or behind a proxy that
+  overwrites/appends `X-Forwarded-For`). Exposed directly to the internet
+  with no proxy, `X-Forwarded-For` is fully client-controlled; put a proxy in
+  front or the limiter can be bypassed by rotating the header.
 - Going over returns **429** with
   `{"detail": "Demasiadas solicitudes. Intenta de nuevo más tarde."}` and a
   `Retry-After` header.
