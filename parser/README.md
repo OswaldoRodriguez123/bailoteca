@@ -244,6 +244,42 @@ could not measure its coverage because the network blocked both endpoints; see
 `docs/osm-spike.md`. It can be enabled with `BAILOTECA_SOURCES=seed,search,osm`
 once there is network and the cutoff criterion is validated.
 
+### Geocode de sedes (coordenadas)
+
+`bailoteca geocode [--apply]` completa `lat`/`lng` en `academy_locations` para el
+orden por cercanía. Fuentes, en orden:
+
+1. `google.gps_coordinates` guardado en la academia — solo si tiene una sola sede. Sin HTTP.
+2. Nominatim (OpenStreetMap), solo con dirección de calle; nunca solo comuna.
+3. Google Maps `output=embed` (último recurso; módulo `google_embed.py`): solo si
+   Nominatim no resuelve y la dirección guardada tiene número. Escribe únicamente
+   si pasa el **gate estricto**: el número aparece en la dirección resuelta
+   (enteros, `064`≡`64`), la resolución dice «Chile» y el pin cae en el bounding
+   box continental (lat [-57, -17], lng [-76, -66]). Si algo falla → no se
+   escribe, y el motivo queda en el reporte.
+
+Toda escritura lleva `academy_locations.coords_source`: `google` | `nominatim` |
+`google_embed` | `manual` (puesto a mano). Auditar lo que resolvió Google:
+
+```sql
+select a.slug, al.address, al.lat, al.lng
+from academy_locations al join academies a on a.id = al.academy_id
+where al.coords_source = 'google_embed';
+```
+
+Revertir esos pins:
+
+```sql
+update academy_locations set lat = null, lng = null, coords_source = null
+where coords_source = 'google_embed' and id = '<id>';
+```
+
+`output=embed` es un endpoint **no oficial** (formato no documentado; riesgo ToS en
+uso automatizado). El módulo falla suave: cualquier respuesta no parseable deja la
+fila sin escribir y el job sigue verde. En revisión, `google_embed` son los únicos
+pines escritos por una máquina; los `manual` (todos los pines puestos hasta el
+2026-11-12) se revisan con la misma query cambiando el filtro.
+
 ## Security
 
 - RLS is active on all eight tables.
