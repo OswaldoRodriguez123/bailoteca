@@ -1,13 +1,16 @@
 """Geocodificación de sedes (``academy_locations``) para el orden por cercanía.
 
-Dos fuentes, en orden de preferencia:
+Tres fuentes, en orden de preferencia:
 
 1. ``google.gps_coordinates`` ya guardado en la academia — **solo cuando la
    academia tiene exactamente una sede** (con varias sedes no se puede saber
    cuál corresponde). Sin HTTP.
-2. Nominatim (OpenStreetMap) como respaldo, **solo si la sede tiene una
-   dirección de calle**; nunca se geocodifica solo una comuna (sería un
-   centroide). Una petición a la vez, con ``delay`` segundos entre peticiones.
+2. Nominatim (OpenStreetMap), **solo si la sede tiene una dirección de calle**;
+   nunca se geocodifica solo una comuna (sería un centroide). Una petición a la
+   vez, con ``delay`` segundos entre peticiones.
+3. Google Maps ``output=embed`` (``google_embed.py``), solo si Nominatim no
+   resuelve y la dirección guardada tiene número; pasa por el gate estricto
+   (número + «Chile» + bbox continental) o no se escribe.
 
 Por defecto (dry-run) solo devuelve el plan; con ``apply=True`` escribe
 ``lat``/``lng`` en las filas resueltas.
@@ -18,6 +21,8 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass
+
+from bailoteca import google_embed
 
 USER_AGENT = "Bailoteca/1.0 (+https://bailoteca.cl)"
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
@@ -42,8 +47,10 @@ order by a.name asc, al.label nulls first
 """
 
 UPDATE_LOCATION_SQL = """
-update academy_locations set lat = %s, lng = %s where id = %s
+update academy_locations set lat = %s, lng = %s, coords_source = %s where id = %s
 """
+
+_SOURCE_MAP = {"google": "google", "nominatim": "nominatim", "google_embed": "google_embed"}
 
 _LOCATIONS_KEYS = (
     "location_id",
@@ -122,7 +129,9 @@ def run(
     Orden por fila: (1) una sola sede y ambas coordenadas de Google presentes →
     ``google``, sin HTTP; (2) sin dirección de calle → ``sin dirección``, sin
     HTTP; (3) Nominatim con ``address, comuna, Chile``, durmiendo ``delay``
-    antes de cada petición tras la primera; sin resultado → ``sin resultado``.
+    antes de cada petición tras la primera; (4) si Nominatim no resuelve y la
+    dirección guardada tiene número → Google ``output=embed`` con el gate
+    estricto; rechazo del gate → ``google-embed: <razón>``.
     Con ``apply`` actualiza solo las filas resueltas; si no, solo reporta.
     """
 
@@ -159,10 +168,40 @@ def run(
         coords = nominatim_search(query, client)
         requests += 1
         if coords is None:
+            cleaned = _strip_floor_segments(address)
+            if google_embed.house_number(cleaned) is None:
+                plans.append(
+                    GeocodePlan(
+                        location_id, slug, address, None, None,
+                        None, "sin resultado",
+                    )
+                )
+                continue
+            if requests:
+                sleep(delay)
+            resolved = google_embed.resolve(cleaned, comuna, client)
+            requests += 1
+            if resolved is None:
+                plans.append(
+                    GeocodePlan(
+                        location_id, slug, address, None, None,
+                        None, "google-embed: sin resultado",
+                    )
+                )
+                continue
+            reason = google_embed.gate(cleaned, resolved)
+            if reason is not None:
+                plans.append(
+                    GeocodePlan(
+                        location_id, slug, address, None, None,
+                        None, f"google-embed: {reason}",
+                    )
+                )
+                continue
             plans.append(
                 GeocodePlan(
-                    location_id, slug, address, None, None,
-                    None, "sin resultado",
+                    location_id, slug, address, resolved.lat, resolved.lng,
+                    "google_embed", None,
                 )
             )
         else:
@@ -179,6 +218,6 @@ def run(
                 continue
             conn.execute(
                 UPDATE_LOCATION_SQL,
-                (item.lat, item.lng, item.location_id),
+                (item.lat, item.lng, _SOURCE_MAP[item.source], item.location_id),
             )
     return plans

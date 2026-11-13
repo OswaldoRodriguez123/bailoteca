@@ -73,7 +73,9 @@ def test_comuna_only_is_skipped_without_http():
 
 
 def test_falls_back_to_nominatim_with_delay():
-    rows = [_row(), _row(location_id="l2", academy_slug="b", address="Calle 2")]
+    # segunda sede sin número de calle: el fallback google_embed exige número, así que
+    # queda intacto el camino "Nominatim miss → sin resultado" que este test fija
+    rows = [_row(), _row(location_id="l2", academy_slug="b", address="Calle Sin Número")]
     client = _Client([
         _Response(data=[{"lat": "-33.45", "lon": "-70.66"}]),
         _Response(data=[]),
@@ -125,3 +127,81 @@ def test_address_without_piso_is_unchanged():
 
     _, params, _ = client.calls[0]
     assert params["q"] == "Calle 1, Santiago, Chile"
+
+
+from pathlib import Path
+
+from bailoteca import google_embed
+
+
+def _embed_ok():
+    return Path(__file__).parent / "fixtures" / "embed_place.html"
+
+
+class _TextResponse(_Response):
+    def __init__(self, html):
+        super().__init__(status_code=200, data=None)
+        self._html = html
+
+    def json(self):  # embed responses are not JSON
+        raise ValueError("not json")
+
+    @property
+    def text(self):
+        return self._html
+
+
+def test_nominatim_miss_falls_back_to_google_embed():
+    html = _embed_ok().read_text()
+    client = _Client([_Response(data=[]), _TextResponse(html)])
+    rows = [_row(address="Gran Avenida 5608, San Miguel", comuna="San Miguel")]
+    conn = _Conn(rows)
+
+    result = run(conn, client, apply=True, sleep=lambda s: None)
+
+    assert result[0].source == "google_embed" and round(result[0].lat, 4) == -33.5053
+    sql, params = conn.updates[0]
+    assert "coords_source" in sql
+    assert params[2] == "google_embed"  # orden (lat, lng, coords_source, id)
+
+
+def test_embed_query_includes_comuna():
+    html = _embed_ok().read_text()
+    client = _Client([_Response(data=[]), _TextResponse(html)])
+
+    run(_Conn([_row(address="Gran Avenida 5608, San Miguel", comuna="San Miguel")]),
+        client, sleep=lambda s: None)
+
+    _, params, _ = client.calls[1]
+    assert "San Miguel" in params["q"]
+
+
+def test_embed_gate_rejection_writes_nothing():
+    html = (Path(__file__).parent / "fixtures" / "embed_casa_cultura.html").read_text()
+    client = _Client([_Response(data=[]), _TextResponse(html)])
+    rows = [_row(address="Lucerna 64, La Cisterna", comuna="La Cisterna")]
+    conn = _Conn(rows)
+
+    result = run(conn, client, apply=True, sleep=lambda s: None)
+
+    assert result[0].source is None and "google-embed" in (result[0].reason or "")
+    assert conn.updates == []
+
+
+def test_embed_parse_failure_writes_nothing():
+    client = _Client([_Response(data=[]), _TextResponse("<html>no embed</html>")])
+    conn = _Conn([_row(address="Gran Avenida 5608, San Miguel")])
+
+    result = run(conn, client, apply=True, sleep=lambda s: None)
+
+    assert result[0].source is None and conn.updates == []
+
+
+def test_embed_dry_run_writes_nothing():
+    html = _embed_ok().read_text()
+    client = _Client([_Response(data=[]), _TextResponse(html)])
+    conn = _Conn([_row(address="Gran Avenida 5608, San Miguel")])
+
+    result = run(conn, client, apply=False, sleep=lambda s: None)
+
+    assert result[0].source == "google_embed" and conn.updates == []
