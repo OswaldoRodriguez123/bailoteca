@@ -383,12 +383,17 @@ def test_fetch_og_image_rejects_private_page_url():
 
 
 def test_fetch_og_image_rejects_redirect_to_private_page():
+    # El redirect NUNCA se sigue si el destino no es público.
     client = _FakeHttp({
         "https://ig.example/profile": _FakeResponse(
-            200, _HTML_WITH_OG, url="http://169.254.169.254/latest"
+            302,
+            "",
+            url=None,
+            headers={"content-type": "text/html", "location": "http://169.254.169.254/latest"},
         ),
     })
     assert _fetch_og_image("https://ig.example/profile", client=client) is None
+    assert client.calls == 1  # solo la URL pública inicial
 
 
 def test_fetch_og_image_rejects_private_og_target():

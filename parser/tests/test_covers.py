@@ -275,16 +275,45 @@ def test_download_image_rejects_private_ip_url():
 
 
 def test_download_image_rejects_redirect_to_private_final_url():
+    # El redirect NUNCA se sigue si el destino no es público: el cliente solo
+    # ve la URL pública inicial.
     client = _FakeHttp({
         "https://img.example/cover.jpg": _FakeResponse(
-            200,
-            content=_image_body,
-            content_type="image/jpeg",
-            url="http://169.254.169.254/cover.jpg",
+            301,
+            headers={"content-type": "text/html", "location": "http://169.254.169.254/cover.jpg"},
         ),
     })
 
     assert download_image("https://img.example/cover.jpg", client=client) is None
+    assert [call[0] for call in client.calls] == ["https://img.example/cover.jpg"]
+
+
+def test_download_image_follows_public_redirect_chain():
+    client = _FakeHttp({
+        "https://img.example/a.jpg": _FakeResponse(
+            302,
+            headers={"content-type": "text/html", "location": "https://cdn.example/b.jpg"},
+        ),
+        "https://cdn.example/b.jpg": _FakeResponse(
+            200,
+            content=_image_body,
+            content_type="image/jpeg",
+        ),
+    })
+
+    assert download_image("https://img.example/a.jpg", client=client) == _image_body
+
+
+def test_download_image_gives_up_after_too_many_redirects():
+    client = _FakeHttp({
+        "https://img.example/a.jpg": _FakeResponse(
+            302,
+            headers={"content-type": "text/html", "location": "https://img.example/a.jpg"},
+        ),
+    })
+
+    assert download_image("https://img.example/a.jpg", client=client) is None
+    assert len(client.calls) == 6  # _MAX_REDIRECTS + 1 intentos
 
 
 def test_download_image_rejects_oversized_content_length():
