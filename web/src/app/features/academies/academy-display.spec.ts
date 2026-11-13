@@ -41,6 +41,24 @@ describe('academy display helpers', () => {
     expect(url).toContain('query=-33.4,-70.6');
   });
 
+  it('quita el piso/oficina de la dirección en el enlace del mapa', () => {
+    const url = mapUrl({ ...makeLocation(), address: 'San Antonio 580, Piso 11, Santiago Centro', comuna: 'Santiago', lat: -33.43, lng: -70.65 });
+    expect(url).toContain('San+Antonio+580');
+    expect(url).not.toContain('Piso');
+    expect(url).not.toContain('-33.43');
+  });
+
+  it('quita oficina y piso con variantes de mayúsculas/puntos', () => {
+    const url = mapUrl({ ...makeLocation(), address: "Santo Domingo 1277, OFICINA 203", comuna: 'Santiago' });
+    expect(url).toContain('Santo+Domingo+1277');
+    expect(url).not.toContain('OFICINA');
+  });
+
+  it('si la dirección queda vacía tras quitar el piso, usa coordenadas', () => {
+    const url = mapUrl({ ...makeLocation(), address: 'Piso 11', comuna: null, lat: -33.43, lng: -70.65 });
+    expect(url).toContain('query=-33.43,-70.65');
+  });
+
   it('prefiere la dirección escrita sobre las coordenadas', () => {
     const url = mapUrl({ ...makeLocation(), lat: -33.4, lng: -70.6 });
     expect(url).toContain('Av.+Providencia+123');

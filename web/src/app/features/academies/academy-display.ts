@@ -61,10 +61,24 @@ export function linkHref(link: AcademyLink): string {
   return link.url;
 }
 
+const FLOOR_SEGMENT_RE =
+  /,?\s*\b(?:piso|of|oficina|depto|departamento)\s*\.?\s*\d+\w*\b/gi;
+
+export function stripFloorSegments(address: string): string {
+  return address
+    .replace(FLOOR_SEGMENT_RE, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s*,\s*/g, ', ')
+    .replace(/^,\s*|,\s*$/g, '')
+    .trim();
+}
+
 export function mapUrl(location: AcademyLocation): string | null {
   const base = 'https://www.google.com/maps/search/?api=1';
 
-  const query = [location.address, location.comuna]
+  // quitar el piso: Google resuelve mejor la calle + número sin él
+  const address = location.address ? stripFloorSegments(location.address) : '';
+  const query = [address || null, location.comuna]
     .filter((value): value is string => Boolean(value))
     .join(', ');
 
