@@ -35,3 +35,38 @@ def test_house_number_extracts_first_digit_token():
     assert house_number("Lucerna 64, La Cisterna") == "64"
     assert house_number("Séptima Avenida 1114-B") == "1114"
     assert house_number("Plaza de Maipú, Maipú") is None
+
+
+from bailoteca.google_embed import EmbedResult, gate
+
+
+def _r(addr, lat=-33.52, lng=-70.66):
+    return EmbedResult(lat=lat, lng=lng, resolved_address=addr, place_id=None, category="subpremise")
+
+
+def test_gate_accepts_leading_zero_address():
+    assert gate("Lucerna 64, La Cisterna", _r("Lucerna 064, 7970329 La Cisterna, Región Metropolitana, Chile")) is None
+
+
+def test_gate_rejects_number_mismatch():
+    assert gate("Lucerna 64, La Cisterna", _r("Gran Av. José Miguel Carrera 8585, 7970672 La Cisterna, Región Metropolitana, Chile")) == "número no coincide"
+
+
+def test_gate_matches_hyphenated_number():
+    assert gate("Séptima Avenida 1114-B, San Miguel", _r("Séptima Avenida 1114-B, 8920464 San Miguel, Región Metropolitana, Chile")) is None
+
+
+def test_gate_ignores_minor_digits():
+    assert gate("Gran Avenida 5608, San Miguel", _r("JSD Academy - Gran Av. José Miguel Carrera 5608, Piso 2, 8930169 San Miguel, Región Metropolitana, Chile")) is None
+
+
+def test_gate_requires_chile():
+    assert gate("Lucerna 64, La Cisterna", _r("Lucerna 064, 7970329 La Cisterna, Región Metropolitana")) == "resolución fuera de Chile"
+
+
+def test_gate_rejects_pin_outside_chile_bbox():
+    assert gate("Lucerna 64, La Cisterna", _r("Lucerna 064, 7970329 La Cisterna, Chile", lat=40.0, lng=-3.0)) == "pin fuera de Chile continental"
+
+
+def test_gate_requires_house_number():
+    assert gate("Plaza de Maipú, Maipú", _r("Plaza de Maipú, Maipú, Región Metropolitana, Chile")) == "sin número en la dirección"
