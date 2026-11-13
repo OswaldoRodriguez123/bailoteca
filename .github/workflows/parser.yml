@@ -66,11 +66,27 @@ jobs:
           BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
         run: python -m bailoteca enrich-places
       - name: Completar coordenadas (geocode)
+        id: geocode
         if: ${{ inputs.dry_run != true && inputs.host_covers != true && inputs.missing_rating != true }}
         working-directory: parser
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: python -m bailoteca geocode --apply
+        run: python -m bailoteca geocode --apply | tee /tmp/geocode-report.txt
+      - name: Resumen geocode (google_embed)
+        if: ${{ inputs.dry_run != true && inputs.host_covers != true && inputs.missing_rating != true }}
+        run: |
+          if grep -E "\(google_embed\)" /tmp/geocode-report.txt > /tmp/geocode-embed.txt; then
+            { echo "### Pines google_embed"; echo '```'; cat /tmp/geocode-embed.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Sin pines google_embed este run" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Subir reporte geocode
+        if: ${{ inputs.dry_run != true && inputs.host_covers != true && inputs.missing_rating != true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: geocode-report
+          path: /tmp/geocode-report.txt
+          retention-days: 30
       - name: Refrescar portadas (og:image)
         if: ${{ inputs.dry_run != true && inputs.host_covers != true && inputs.missing_rating != true }}
         working-directory: parser
