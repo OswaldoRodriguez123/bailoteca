@@ -5,7 +5,7 @@ import { renderLlms } from './llms.mjs';
 
 const config = JSON.parse(readFileSync(new URL('../site.config.json', import.meta.url), 'utf8'));
 const SITE_URL = process.env.SITE_URL ?? config.siteUrl;
-const API_BASE_URL = process.env.API_BASE_URL?.replace(/\/$/, '');
+const API_BASE_URL = (process.env.API_BASE_URL ?? config.apiBaseUrl)?.replace(/\/$/, '');
 const dist = new URL('../dist/bailoteca-web/', import.meta.url).pathname;
 const routesFile = join(dist, 'prerendered-routes.json');
 const outputDir = join(dist, 'browser');
@@ -143,7 +143,7 @@ writeFileSync(join(outputDir, 'sitemap.xml'), sitemap);
 writeFileSync(join(outputDir, 'robots.txt'), robots);
 writeFileSync(
   join(outputDir, 'llms.txt'),
-  renderLlms({ siteUrl: SITE_URL, apiBaseUrl: API_BASE_URL ?? config.apiBaseUrl }),
+  renderLlms({ siteUrl: SITE_URL, apiBaseUrl: API_BASE_URL }),
 );
 console.log(
   `sitemap.xml con ${routes.length} rutas (${withLastmod} con lastmod), robots.txt, llms.txt y 404.html escritos en ${outputDir}`,
