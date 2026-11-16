@@ -6,6 +6,7 @@ import { Observable, of, throwError } from 'rxjs';
 
 import { routes } from '../../../app.routes';
 import { AcademyQuery } from '../../../core/models/academy.models';
+import { SITE_URL } from '../../../core/seo/site-url';
 import { AcademiesApiService } from '../../../core/services/academies-api';
 import { makeAcademy, makePage } from '../../../core/testing/academy.fixtures';
 import { AcademyListPage } from './academy-list';
@@ -25,6 +26,7 @@ describe('AcademyListPage', () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter(routes),
+        { provide: SITE_URL, useValue: 'https://bailoteca.test' },
         {
           provide: AcademiesApiService,
           useValue: { listAcademies, listStyles, listComunas },
@@ -292,7 +294,7 @@ describe('AcademyListPage', () => {
 
     expect(document.title).toBe('Academias de baile en Chile · Bailoteca');
     expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://bailoteca.vercel.app/',
+      'https://bailoteca.test/',
     );
     expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe(
       'index, follow',
@@ -405,19 +407,19 @@ describe('AcademyListPage', () => {
     ) as Array<Record<string, unknown>>;
     const website = jsonLd.find(item => item['@type'] === 'WebSite')!;
 
-    expect(website['url']).toBe('https://bailoteca.vercel.app/');
+    expect(website['url']).toBe('https://bailoteca.test/');
     expect(website['potentialAction']).toEqual({
       '@type': 'SearchAction',
       target: {
         '@type': 'EntryPoint',
-        urlTemplate: 'https://bailoteca.vercel.app/?q={search_term_string}',
+        urlTemplate: 'https://bailoteca.test/?q={search_term_string}',
       },
       'query-input': 'required name=search_term_string',
     });
-    expect(website['publisher']).toEqual({ '@id': 'https://bailoteca.vercel.app/#organization' });
+    expect(website['publisher']).toEqual({ '@id': 'https://bailoteca.test/#organization' });
 
     expect(document.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe(
-      'https://bailoteca.vercel.app/og-image.png',
+      'https://bailoteca.test/og-image.png',
     );
   });
 
@@ -432,10 +434,10 @@ describe('AcademyListPage', () => {
     expect(organization).toEqual({
       '@context': 'https://schema.org',
       '@type': 'Organization',
-      '@id': 'https://bailoteca.vercel.app/#organization',
+      '@id': 'https://bailoteca.test/#organization',
       name: 'Bailoteca',
-      url: 'https://bailoteca.vercel.app/',
-      logo: 'https://bailoteca.vercel.app/icon-512.png',
+      url: 'https://bailoteca.test/',
+      logo: 'https://bailoteca.test/icon-512.png',
       email: 'oswaldo_rodriguez_1@hotmail.com',
       sameAs: ['https://github.com/OswaldoRodriguez123/bailoteca'],
       description:

@@ -30,6 +30,5 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm test -- --watch=false
+      # API_BASE_URL and SITE_URL come from web/site.config.json.
       - run: npm run build
-        env:
-          API_BASE_URL: https://bailoteca-api.vercel.app

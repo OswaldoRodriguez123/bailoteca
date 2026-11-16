@@ -83,8 +83,9 @@ prerendered route. The `postbuild` script (`scripts/write-sitemap.mjs`) reads
 `dist/bailoteca-web/prerendered-routes.json` and writes `sitemap.xml` and
 `robots.txt` next to the HTML. It also reads `updated_at` from the API to add
 `<lastmod>`; if the API is unreachable at that point the sitemap is written
-without dates. `SITE_URL` overrides the default `https://bailoteca.vercel.app`
-used for absolute URLs.
+without dates. The same script writes `llms.txt`. Absolute URLs (sitemap,
+`robots.txt`, `llms.txt`, canonical tags) come from `site.config.json`, and
+`SITE_URL` / `API_BASE_URL` override it for a single build.
 
 ## SEO
 
@@ -106,8 +107,9 @@ used for absolute URLs.
   comuna, falling back to the same style. Pagination renders real `<a>` links
   with `rel="prev"`/`rel="next"` and keeps the active filters, so crawlers can
   reach every page of the list even though those URLs are `noindex`.
-- **AI discovery**: `public/llms.txt` describes the directory and links to the
-  home page, the sitemap and the public API. `robots.txt` explicitly allows
+- **AI discovery**: `llms.txt` is generated after the build from
+  `site.config.json` and describes the directory, linking to the home page, the
+  sitemap and the public API. `robots.txt` explicitly allows
   GPTBot, ChatGPT-User, ClaudeBot, PerplexityBot, Google-Extended,
   Applebot-Extended, CCBot, anthropic-ai, Bytespider, FacebookBot and Amazonbot.
 - **IndexNow**: production builds ping `api.indexnow.org` with every URL from
@@ -126,13 +128,26 @@ used for absolute URLs.
 
 ## Variables
 
-| Variable       | Where                          | Use                                   |
-| -------------- | ------------------------------ | ------------------------------------- |
-| `API_BASE_URL` | build environment / `.env`     | Base URL of the public API            |
-| `SITE_URL`     | build environment (optional)   | Absolute origin for `sitemap.xml`     |
+| Variable       | Where                        | Use                                        |
+| -------------- | ---------------------------- | ------------------------------------------ |
+| `API_BASE_URL` | build environment / `.env`   | Base URL of the public API                  |
+| `SITE_URL`     | build environment (optional) | Absolute origin of the site                 |
 
 There are no secrets in the browser. `web/.env.example` documents
 `API_BASE_URL` and the optional `SITE_URL`.
+
+## Changing the domain
+
+`web/site.config.json` holds `siteUrl` and `apiBaseUrl`, the only place where
+the domain lives. From it, `scripts/write-env.mjs` generates
+`src/environments/environment.production.ts` (the app's `SITE_URL` token) and
+`scripts/write-sitemap.mjs` writes `sitemap.xml`, `robots.txt` and `llms.txt`.
+`SITE_URL` and `API_BASE_URL` still override it per build, so nothing changes
+for a deployment that sets them.
+
+A new domain also needs its origin in the API's `CORS_ORIGINS`, or the site
+loads with no data. `web/README.md` and the root `README.md` mention the current
+production URLs; they are prose, not configuration.
 
 ## Endpoints consumed
 

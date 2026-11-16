@@ -5,6 +5,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { Subject, of, throwError } from 'rxjs';
 
 import { routes } from '../../../app.routes';
+import { SITE_URL } from '../../../core/seo/site-url';
 import { AcademiesApiService } from '../../../core/services/academies-api';
 import {
   makeAcademy,
@@ -26,6 +27,7 @@ describe('AcademyDetailPage', () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter(routes),
+        { provide: SITE_URL, useValue: 'https://bailoteca.test' },
         { provide: AcademiesApiService, useValue: { getAcademy, listAcademies } },
       ],
     });
@@ -322,7 +324,7 @@ describe('AcademyDetailPage', () => {
 
     expect(document.title).toBe('Dansón Academy — Providencia · Bailoteca');
     expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://bailoteca.vercel.app/academias/danson-academy',
+      'https://bailoteca.test/academias/danson-academy',
     );
 
     const jsonLd = JSON.parse(
@@ -379,7 +381,7 @@ describe('AcademyDetailPage', () => {
     expect(scripts).toHaveLength(1);
 
     const [jsonLd, breadcrumb] = JSON.parse(scripts[0].textContent!);
-    expect(jsonLd.image).toBe('https://bailoteca.vercel.app/og-image.png');
+    expect(jsonLd.image).toBe('https://bailoteca.test/og-image.png');
     expect(jsonLd.telephone).toBe('+56912345678');
     expect(jsonLd.hasMap).toBe('https://maps.google.com/?cid=1');
     expect(jsonLd.geo).toEqual({
@@ -407,7 +409,7 @@ describe('AcademyDetailPage', () => {
     expect(breadcrumb.itemListElement).toHaveLength(2);
 
     expect(document.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe(
-      'https://bailoteca.vercel.app/og-image.png',
+      'https://bailoteca.test/og-image.png',
     );
     expect(document.querySelector('meta[property="og:type"]')?.getAttribute('content')).toBe(
       'place',
