@@ -3,11 +3,14 @@ import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 
 import { routes } from '../../app.routes';
+import { SITE_URL } from '../../core/seo/site-url';
 import { AboutPage } from './about';
 
 describe('AboutPage', () => {
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [provideRouter(routes)] });
+    TestBed.configureTestingModule({
+      providers: [provideRouter(routes), { provide: SITE_URL, useValue: 'https://bailoteca.test' }],
+    });
   });
 
   async function open(): Promise<RouterTestingHarness> {
@@ -38,7 +41,7 @@ describe('AboutPage', () => {
 
     expect(document.title).toBe('Acerca de Bailoteca · Bailoteca');
     expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
-      'https://bailoteca.vercel.app/acerca',
+      'https://bailoteca.test/acerca',
     );
 
     const jsonLd = JSON.parse(

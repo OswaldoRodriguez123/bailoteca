@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const KEY = '2e126af20d40499e8f218b6c96ae4515';
-const SITE_URL = process.env.SITE_URL ?? 'https://bailoteca.vercel.app';
+const config = JSON.parse(readFileSync(new URL('../site.config.json', import.meta.url), 'utf8'));
+const SITE_URL = process.env.SITE_URL ?? config.siteUrl;
 const ENDPOINT = 'https://api.indexnow.org/indexnow';
 const dist = new URL('../dist/bailoteca-web/browser/', import.meta.url).pathname;
 
