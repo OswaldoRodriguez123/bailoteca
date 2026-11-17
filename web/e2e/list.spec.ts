@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { expect, test, type Page } from "@playwright/test";
 
 // E2E de la lista con la API mockeada vía interceptación de rutas:
@@ -8,7 +11,21 @@ import { expect, test, type Page } from "@playwright/test";
 // consulta de red: muestra los datos del build. Por eso cada test provoca
 // una interacción (o un deep link) que sí consulta al cliente con
 // parámetros distintos a los del build.
-const API = "https://bailoteca-api.vercel.app";
+//
+// La URL de la API sale del mismo site.config.json que alimenta el build
+// (y respeta el override API_BASE_URL de scripts/write-env.mjs).
+const config = JSON.parse(
+  readFileSync(join(__dirname, "..", "site.config.json"), "utf8"),
+);
+const baseUrl = (process.env.API_BASE_URL ?? config.apiBaseUrl).replace(
+  /\/+$/,
+  "",
+);
+const API = new URL(baseUrl);
+const apiPath = API.pathname.replace(/\/+$/, "");
+
+const apiRoute = (path: string) => (url: URL) =>
+  url.origin === API.origin && url.pathname === `${apiPath}${path}`;
 
 const STYLES = [
   { slug: "salsa", name: "Salsa", sort: 1 },
@@ -94,7 +111,7 @@ async function installApi(page: Page, options: MockOptions = {}) {
   const total = options.total ?? items.length;
 
   await page.route(
-    (url) => url.origin === API && url.pathname === "/academies",
+    apiRoute("/academies"),
     async (route) => {
       academiesUrls.push(route.request().url());
       if (failuresLeft > 0) {
@@ -122,7 +139,7 @@ async function installApi(page: Page, options: MockOptions = {}) {
   );
 
   await page.route(
-    (url) => url.origin === API && url.pathname === "/styles",
+    apiRoute("/styles"),
     (route) =>
       route.fulfill({
         status: 200,
@@ -132,7 +149,7 @@ async function installApi(page: Page, options: MockOptions = {}) {
   );
 
   await page.route(
-    (url) => url.origin === API && url.pathname === "/comunas",
+    apiRoute("/comunas"),
     (route) =>
       route.fulfill({
         status: 200,
