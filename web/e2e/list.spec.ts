@@ -13,19 +13,19 @@ import { expect, test, type Page } from "@playwright/test";
 // parámetros distintos a los del build.
 //
 // La URL de la API sale del mismo site.config.json que alimenta el build
-// (y respeta el override API_BASE_URL de scripts/write-env.mjs).
+// (y respeta el override API_BASE_URL de scripts/write-env.mjs). La
+// normalización replica la del servicio (quita UNA barra final) para que
+// el mock coincida con la app incluso con config patológica.
 const config = JSON.parse(
   readFileSync(join(__dirname, "..", "site.config.json"), "utf8"),
 );
 const baseUrl = (process.env.API_BASE_URL ?? config.apiBaseUrl).replace(
-  /\/+$/,
+  /\/$/,
   "",
 );
-const API = new URL(baseUrl);
-const apiPath = API.pathname.replace(/\/+$/, "");
 
 const apiRoute = (path: string) => (url: URL) =>
-  url.origin === API.origin && url.pathname === `${apiPath}${path}`;
+  url.href.startsWith(`${baseUrl}${path}`);
 
 const STYLES = [
   { slug: "salsa", name: "Salsa", sort: 1 },
