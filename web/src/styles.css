@@ -35,6 +35,29 @@ html {
   color-scheme: light;
 }
 
+/* Reflujo con texto escalado al 200 %: nada sin desborde horizontal. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+p,
+li,
+dt,
+dd,
+a {
+  overflow-wrap: anywhere;
+}
+
+p {
+  text-wrap: pretty;
+}
+
 body {
   @apply bg-paper font-sans text-ink antialiased;
 }
