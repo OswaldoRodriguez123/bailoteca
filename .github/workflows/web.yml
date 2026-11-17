@@ -32,3 +32,7 @@ jobs:
       - run: npm test -- --watch=false
       # API_BASE_URL and SITE_URL come from web/site.config.json.
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      # e2e rebuilds the prerendered output and serves it statically
+      # (webServer in playwright.config.ts, scripts/serve-dist.mjs).
+      - run: npm run test:e2e
