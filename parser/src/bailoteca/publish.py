@@ -318,3 +318,66 @@ def reject(conn: psycopg.Connection, proposal_id: str) -> None:
         """,
         (proposal_id,),
     )
+
+
+def unpublish(conn: psycopg.Connection, slug: str) -> dict:
+    """Despublica una academia: borra la fila (cascade a sedes/links/estilos/\n    field_rejections) y marca como rejected la(s) propuesta(s) y candidato(s)\n    que la originaron. Devuelve un resumen."""
+    row = conn.execute(
+        "select id, name, slug from academies where slug = %s", (slug,)
+    ).fetchone()
+    if row is None:
+        raise ValueError(f"academia no encontrada: {slug}")
+    academy_id = row["id"]
+
+    proposals = conn.execute(
+        """
+        select id, candidate_id from proposals
+        where academy_id = %s and status = 'approved'
+        """,
+        (academy_id,),
+    ).fetchall()
+
+    candidate_ids = [p["candidate_id"] for p in proposals if p["candidate_id"]]
+    for p in proposals:
+        conn.execute(
+            """
+            update proposals set status = 'rejected', reviewed_at = now()
+            where id = %s
+            """,
+            (p["id"],),
+        )
+    if candidate_ids:
+        conn.execute(
+            """
+            update candidates set status = 'rejected'
+            where id = any(%s::uuid[]) and status = 'published'
+            """,
+            (candidate_ids,),
+        )
+
+    conn.execute("delete from academies where id = %s", (academy_id,))
+
+    return {
+        "slug": slug,
+        "name": row["name"],
+        "academy_id": str(academy_id),
+        "proposals_rejected": len(proposals),
+        "candidates_rejected": len(candidate_ids),
+    }
+    # Get candidate_id first to mark it rejected too
+    row = conn.execute(
+        "select candidate_id from proposals where id = %s",
+        (proposal_id,),
+    ).fetchone()
+    if row and row["candidate_id"]:
+        conn.execute(
+            "update candidates set status = 'rejected' where id = %s",
+            (row["candidate_id"],),
+        )
+    conn.execute(
+        """
+        update proposals set status = 'rejected', reviewed_at = now()
+        where id = %s
+        """,
+        (proposal_id,),
+    )

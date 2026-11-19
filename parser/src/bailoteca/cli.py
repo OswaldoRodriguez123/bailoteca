@@ -201,6 +201,41 @@ def cmd_reject(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_unpublish(args: argparse.Namespace) -> int:
+    from bailoteca.publish import unpublish
+
+    slug = args.slug
+    if not getattr(args, "yes", False):
+        try:
+            answer = input(f"Despublicar '{slug}' (borra la academia y marca la propuesta/candidato como rejected)? [y/N] ")
+        except EOFError:
+            answer = ""
+        if answer.strip().lower() not in ("y", "yes", "s", "si", "sí"):
+            print("cancelado", file=sys.stderr)
+            return 1
+
+    conn = _open_conn(_load_config())
+    try:
+        result = unpublish(conn, slug)
+        conn.commit()
+        print(json.dumps(result, ensure_ascii=False))
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    finally:
+        conn.close()
+    return 0
+    from bailoteca.publish import reject
+
+    conn = _open_conn(_load_config())
+    try:
+        reject(conn, args.proposal_id)
+        conn.commit()
+    finally:
+        conn.close()
+    return 0
+
+
 def cmd_add(args: argparse.Namespace) -> int:
     from bailoteca.classify import classify
     from bailoteca.db import insert_proposal, upsert_candidate
@@ -740,6 +775,13 @@ def build_parser() -> argparse.ArgumentParser:
     reject = subparsers.add_parser("reject", help="Rechazar una propuesta")
     reject.add_argument("proposal_id")
     reject.set_defaults(handler=cmd_reject)
+
+    unpublish = subparsers.add_parser(
+        "unpublish", help="Despublicar una academia (borra la fila y marca propuesta/candidato como rejected)"
+    )
+    unpublish.add_argument("slug")
+    unpublish.add_argument("--yes", action="store_true", help="No pedir confirmación")
+    unpublish.set_defaults(handler=cmd_unpublish)
 
     add = subparsers.add_parser("add", help="Agregar una academia a mano")
     add.add_argument("target", help="Handle de Instagram, URL o nombre")
