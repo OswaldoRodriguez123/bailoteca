@@ -163,11 +163,17 @@ def _build_payload(
             if (kind, field_value_hash(kind, url)) in rejections:
                 continue
             links.append({"kind": kind, "url": url})
+    if existing is not None:
+        seen = {(link["kind"], link["url"]) for link in links}
+        for kind, url in _existing_view(existing)["links"]:
+            if (kind, url) in seen:
+                continue
+            if (kind, field_value_hash(kind, url)) in rejections:
+                continue
+            links.append({"kind": kind, "url": url})
     links.sort(key=lambda link: (link["kind"], link["url"]))
     if links:
         payload["links"] = links
-    elif existing and existing.get("links"):
-        payload["links"] = existing["links"]
 
     styles = []
     for style in style_payload(hits):
@@ -175,17 +181,27 @@ def _build_payload(
         if ("style:" + slug, field_value_hash("style:" + slug, slug)) in rejections:
             continue
         styles.append(style)
+    if existing is not None:
+        seen = {style["slug"] for style in styles}
+        existing_styles = {
+            style.get("slug"): style for style in existing.get("styles") or []
+        }
+        for slug in sorted(_existing_view(existing)["styles"]):
+            if slug in seen:
+                continue
+            if ("style:" + slug, field_value_hash("style:" + slug, slug)) in rejections:
+                continue
+            src = existing_styles.get(slug) or {}
+            styles.append(
+                {
+                    "slug": slug,
+                    "confidence": src.get("confidence"),
+                    "evidence": src.get("evidence"),
+                }
+            )
+    styles.sort(key=lambda style: style["slug"])
     if styles:
         payload["styles"] = styles
-    elif existing and existing.get("styles"):
-        payload["styles"] = [
-            {
-                "slug": style["slug"],
-                "confidence": style.get("confidence"),
-                "evidence": style.get("evidence"),
-            }
-            for style in existing["styles"]
-        ]
 
     return payload
 
