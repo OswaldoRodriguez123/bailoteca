@@ -56,6 +56,9 @@ class Enriched:
     links: dict[str, list[str]] = field(default_factory=dict)
     description: str | None = None
     evidence: dict = field(default_factory=dict)
+    # El LLM declaró ruido puro en el texto crudo: omitir la descripción del
+    # payload (o conservar la ya publicada vía _build_payload), nunca el crudo.
+    suppress_description: bool = False
 
 
 import functools

@@ -188,3 +188,34 @@ def test_build_proposal_prefers_enriched_description_over_candidate_description(
         rejections=set(),
     )
     assert draft.payload["description"] == "Descripción real de la página."
+
+
+def test_llm_noise_omits_description_for_new_academy():
+    enriched = _enriched(description=None, suppress_description=True)
+    draft = build_proposal(
+        enriched.candidate,
+        enriched,
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=None,
+        rejections=set(),
+    )
+    assert "description" not in draft.payload
+
+
+def test_llm_noise_keeps_existing_published_description():
+    enriched = _enriched(description=None, suppress_description=True)
+    existing = {
+        "id": "acad-1",
+        "name": "Academia X",
+        "description": "Descripción publicada y revisada.",
+        "locations": [],
+        "styles": [],
+    }
+    draft = build_proposal(
+        enriched.candidate,
+        enriched,
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=existing,
+        rejections=set(),
+    )
+    assert draft.payload["description"] == "Descripción publicada y revisada."

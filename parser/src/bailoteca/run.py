@@ -109,6 +109,50 @@ def _text_for_classification(enriched) -> str:
     )
 
 
+def _apply_llm_description(enriched, llm, candidate=None):
+    """Devuelve enriched con la descripción limpiada por el LLM.
+
+    Se aplica ANTES de build_proposal para que el payload, ``changes`` y
+    ``dedupe_key`` se calculen sobre la descripción ya limpia. Tolerante con
+    LLMs duck-typed y degradación silenciosa ante errores (como normalize_identity).
+    """
+    if llm is None:
+        return enriched
+    fn = getattr(llm, "normalize_description", None)
+    if fn is None:
+        return enriched
+    raw = enriched.description
+    if not (isinstance(raw, str) and raw.strip()):
+        candidate_desc = None
+        raw_obj = getattr(candidate, "raw", None) if candidate is not None else None
+        if isinstance(raw_obj, dict) and isinstance(raw_obj.get("description"), str):
+            candidate_desc = raw_obj["description"]
+        raw = candidate_desc
+    if not (isinstance(raw, str) and raw.strip()):
+        return enriched
+    try:
+        result = fn(raw)
+    except Exception:
+        return enriched
+    if isinstance(result, str):
+        # Implementaciones duck-typed que devuelven la descripción limpia.
+        cleaned = result.strip()
+        return replace(enriched, description=cleaned) if cleaned else enriched
+    status = getattr(result, "status", None)
+    if status == "ok":
+        text = getattr(result, "text", None)
+        if isinstance(text, str) and text.strip():
+            return replace(enriched, description=" ".join(text.split()))
+        return enriched
+    if status == "noise":
+        # Ruido declarado: suprimir la descripción (nunca publicar la basura
+        # ni el fallback crudo). Si había descripción publicada, _build_payload
+        # la conserva.
+        return replace(enriched, description=None, suppress_description=True)
+    # failure u desconocido: conservar el texto crudo como respaldo.
+    return enriched
+
+
 def _write_reports(
     config: Config,
     summary: RunSummary,
@@ -296,6 +340,8 @@ def run(
                             conn, existing["id"]
                         )
 
+            enriched = _apply_llm_description(enriched, llm, candidate)
+
             draft = build_proposal(candidate, enriched, hits, existing, rejections)
             if draft is None:
                 continue
@@ -410,6 +456,7 @@ def refresh(config: Config, slug: str) -> RunSummary:
             if cleaned:
                 candidate = replace(candidate, name=cleaned)
         hits = classify(_text_for_classification(enriched), llm)
+        enriched = _apply_llm_description(enriched, llm, candidate)
         draft = build_proposal(
             candidate,
             enriched,

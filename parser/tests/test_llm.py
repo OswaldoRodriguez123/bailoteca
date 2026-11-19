@@ -68,3 +68,57 @@ def test_gemini_stops_on_429():
 
 def test_gemini_returns_none_without_key():
     assert GeminiLLM("", _Http([])).classify_styles("texto", ["mambo"]) is None
+
+
+def _gemini_description_body(desc):
+    return {
+        "candidates": [
+            {"content": {"parts": [{"text": json.dumps({"description": desc})}]}}
+        ]
+    }
+
+
+def test_gemini_normalizes_description():
+    desc = (
+        "Academia de salsa y bachata en Providencia. "
+        "Clases grupales para todos los niveles."
+    )
+    http = _Http([_Response(200, _gemini_description_body(desc))])
+    llm = GeminiLLM("key", http)
+    raw = (
+        "16K Followers, 277 Following, 204 Posts - Cesár Yáñez Muñoz "
+        "(@rumbadecalle) on Instagram: Clases de Ritmos Latinos Plaza Ñuñoa"
+    )
+    result = llm.normalize_description(raw)
+    assert result.status == "ok"
+    assert result.text == desc
+
+
+def test_gemini_description_noise_on_explicit_null():
+    http = _Http([_Response(200, _gemini_description_body(None))])
+    llm = GeminiLLM("key", http)
+    assert llm.normalize_description("puro ruido, nada que ver").status == "noise"
+
+
+def test_gemini_description_noise_on_degenerate_output():
+    http = _Http([_Response(200, _gemini_description_body("ok"))])
+    llm = GeminiLLM("key", http)
+    assert llm.normalize_description("texto").status == "noise"
+
+
+def test_gemini_description_failure_without_key():
+    assert GeminiLLM("", _Http([])).normalize_description("texto").status == "failure"
+
+
+def test_gemini_description_failure_on_bad_json():
+    http = _Http([_Response(200, {"candidates": [{"content": {"parts": [{"text": "no-json"}]}}]})])
+    llm = GeminiLLM("key", http)
+    assert llm.normalize_description("texto").status == "failure"
+
+
+def test_gemini_description_accepts_short_valid():
+    http = _Http([_Response(200, _gemini_description_body("Salsa y bachata."))])
+    llm = GeminiLLM("key", http)
+    result = llm.normalize_description("texto de la academia")
+    assert result.status == "ok"
+    assert result.text == "Salsa y bachata."
