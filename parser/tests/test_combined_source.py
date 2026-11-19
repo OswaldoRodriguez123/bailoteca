@@ -36,6 +36,7 @@ def _config(**overrides) -> Config:
         database_url=None,
         gemini_api_key=None,
         serpapi_key=None,
+        google_places_api_key=None,
         brave_api_key=None,
         tinyfish_api_key=None,
         cloudflare_account_id=None,

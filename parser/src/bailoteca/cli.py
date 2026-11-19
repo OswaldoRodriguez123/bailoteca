@@ -253,12 +253,15 @@ def cmd_refresh(args: argparse.Namespace) -> int:
 def cmd_enrich_places(args: argparse.Namespace) -> int:
     from bailoteca.covers import BUCKET, download_image
     from bailoteca.db import list_published
-    from bailoteca.places import fetch_place, to_dict
+    from bailoteca.places import fetch_place, fetch_place_google, to_dict
 
     config = _load_config()
-    if not config.serpapi_key:
+    # Backend: preferir Google Places API (New) si hay key; si no, SerpApi.
+    use_google = bool(config.google_places_api_key)
+    use_serp = bool(config.serpapi_key)
+    if not use_google and not use_serp:
         print(
-            "Falta SERPAPI_KEY. Configúrala en .env o en el entorno.",
+            "Falta GOOGLE_PLACES_API_KEY o SERPAPI_KEY. Configura una en .env.",
             file=sys.stderr,
         )
         return 2
@@ -290,29 +293,58 @@ def cmd_enrich_places(args: argparse.Namespace) -> int:
                 continue
             locations = academy.get("locations") or []
             loc = locations[0] if locations else {}
-            info = fetch_place(
-                academy["name"],
-                loc.get("comuna"),
-                loc.get("address"),
-                loc.get("lat"),
-                loc.get("lng"),
-                http,
-                config.serpapi_key,
-            )
+            info = None
+            if use_google:
+                info = fetch_place_google(
+                    academy["name"],
+                    loc.get("comuna"),
+                    loc.get("address"),
+                    loc.get("lat"),
+                    loc.get("lng"),
+                    http,
+                    config.google_places_api_key,
+                )
+                # Fallback a SerpApi si Google no devuelve resultado.
+                if info is None and use_serp:
+                    info = fetch_place(
+                        academy["name"],
+                        loc.get("comuna"),
+                        loc.get("address"),
+                        loc.get("lat"),
+                        loc.get("lng"),
+                        http,
+                        config.serpapi_key,
+                    )
+            elif use_serp:
+                info = fetch_place(
+                    academy["name"],
+                    loc.get("comuna"),
+                    loc.get("address"),
+                    loc.get("lat"),
+                    loc.get("lng"),
+                    http,
+                    config.serpapi_key,
+                )
             if info is None:
                 failed += 1
                 continue
             data = to_dict(info)
             if missing_rating:
-                # Fusionar con el google existente: conservar place_id,
-                # gps_coordinates y demás datos ya guardados. Los campos que
-                # la respuesta no trae (None) no pisan lo existente.
+                # Fusionar con el google existente: conservar place_id y
+                # gps_coordinates (identidad del lugar) y solo actualizar los
+                # campos de rating que son el objetivo de este modo.
                 new_google = {
                     key: value
                     for key, value in (data.get("google") or {}).items()
                     if value is not None
+                    and key not in ("place_id", "gps_coordinates", "raw", "fetched_at")
                 }
                 data["google"] = {**google, **new_google}
+                # Asegurar que place_id y gps_coordinates no se pisen.
+                if google.get("place_id"):
+                    data["google"]["place_id"] = google["place_id"]
+                if google.get("gps_coordinates"):
+                    data["google"]["gps_coordinates"] = google["gps_coordinates"]
             cover_url = None
             if not missing_rating and info.thumbnail and not getattr(args, "dry_run", False):
                 image = download_image(info.thumbnail, client=http, timeout=20.0)
