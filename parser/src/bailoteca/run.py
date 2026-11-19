@@ -198,6 +198,7 @@ def run(
     kept: list[Candidate] = []
 
     conn = None
+    index = None
     if not dry_run:
         if not config.database_url:
             raise ValueError(
@@ -243,6 +244,18 @@ def run(
                 )
                 if cleaned:
                     candidate = replace(candidate, name=cleaned)
+
+            # Segunda pasada: la identidad limpia y los links del enriquecedor
+            # (teléfonos, FB/IG reales) también participan en el dedupe.
+            if index is not None:
+                extra_links = [
+                    {"kind": kind, "url": url}
+                    for kind, urls in enriched.links.items()
+                    for url in urls
+                ]
+                if is_duplicate(candidate, index, extra_links=extra_links):
+                    summary.duplicates += 1
+                    continue
 
             if triage is not None:
                 verdict = triage.evaluate(candidate, enriched)
