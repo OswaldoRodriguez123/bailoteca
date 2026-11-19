@@ -1,3 +1,5 @@
+import json
+
 from bailoteca.config import Config
 from bailoteca.enrich import Page
 from bailoteca.models import Candidate
@@ -211,6 +213,9 @@ def test_run_applies_gemini_identity_normalization(tmp_path):
             self.calls += 1
             return "Clean Name Academy"
 
+        def normalize_description(self, text):
+            return None
+
     summary = run(
         Config.from_env(
             {"BAILOTECA_REPORTS_DIR": str(tmp_path), "BAILOTECA_SOURCES": "fake"}
@@ -225,3 +230,33 @@ def test_run_applies_gemini_identity_normalization(tmp_path):
     candidates = (day / "candidates.json").read_text()
     assert '"name": "Clean Name Academy"' in candidates
     assert '"name": "Academia Dry"' not in candidates
+
+
+def test_run_applies_llm_description_normalization(tmp_path):
+    from bailoteca.llm import StyleHit
+
+    class _LLM:
+        def classify_styles(self, text, slugs):
+            return [StyleHit("salsa-cubana", 0.9)]
+
+        def normalize_identity(self, text, fallback_name):
+            return None
+
+        def normalize_description(self, text):
+            return "Clases de ritmos latinos en Plaza Ñuñoa. Todos los niveles."
+
+    summary = run(
+        Config.from_env(
+            {"BAILOTECA_REPORTS_DIR": str(tmp_path), "BAILOTECA_SOURCES": "fake"}
+        ),
+        dry_run=True,
+        sources=[_Source()],
+        fetcher=_Fetcher(),
+        llm=_LLM(),
+    )
+    assert summary.proposals == 1
+    day = next(p for p in tmp_path.iterdir() if p.is_dir())
+    payloads = json.loads((day / "proposals.json").read_text())
+    assert payloads[0]["payload"]["description"] == (
+        "Clases de ritmos latinos en Plaza Ñuñoa. Todos los niveles."
+    )

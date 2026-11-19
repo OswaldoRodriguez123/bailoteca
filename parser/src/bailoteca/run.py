@@ -109,6 +109,22 @@ def _text_for_classification(enriched) -> str:
     )
 
 
+def _apply_llm_description(draft, llm):
+    """Limpia la descripción del payload con el LLM, tolerante con LLMs duck-typed."""
+    if llm is None:
+        return draft
+    fn = getattr(llm, "normalize_description", None)
+    if fn is None:
+        return draft
+    raw = draft.payload.get("description")
+    if not isinstance(raw, str) or not raw.strip():
+        return draft
+    cleaned = fn(raw)
+    if not cleaned:
+        return draft
+    return replace(draft, payload={**draft.payload, "description": cleaned})
+
+
 def _write_reports(
     config: Config,
     summary: RunSummary,
@@ -299,6 +315,7 @@ def run(
             draft = build_proposal(candidate, enriched, hits, existing, rejections)
             if draft is None:
                 continue
+            draft = _apply_llm_description(draft, llm)
             if candidate_id is not None:
                 draft = replace(draft, candidate_id=candidate_id)
 
@@ -419,6 +436,7 @@ def refresh(config: Config, slug: str) -> RunSummary:
         )
         if draft is None:
             return RunSummary(discovered=1, duration_s=0.0)
+        draft = _apply_llm_description(draft, llm)
         proposal_id = insert_proposal(
             conn,
             candidate_id=None,

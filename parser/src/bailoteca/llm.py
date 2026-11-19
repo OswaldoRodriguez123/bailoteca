@@ -20,6 +20,8 @@ class StyleHit:
 
 class LLM(Protocol):
     def classify_styles(self, text: str, slugs: list[str]) -> list[StyleHit] | None: ...
+    def normalize_identity(self, text: str, fallback_name: str) -> str | None: ...
+    def normalize_description(self, text: str) -> str | None: ...
 
 
 class HttpPost(Protocol):
@@ -55,6 +57,24 @@ Reglas:
   devuelve {{"hits": []}}.
 """
 
+
+PROMPT_DESCRIPTION = """Eres un asistente que limpia la descripción pública de una academia de baile para un directorio.
+
+Texto crudo de la academia (suele venir del og:description de Instagram/Facebook, con ruido de seguidores/posts):
+---
+{text}
+---
+
+Devuelve SOLO un objeto JSON con esta forma:
+{{"description": "..."}}
+
+Reglas:
+- Máximo 2 frases, en español, tono informativo y neutro.
+- Elimina contadores ("31K seguidores", "204 Posts"), líneas de bio, emojis decorativos, hashtags, links, CTA ("reserva", "contacta ahora") y handles @usuario.
+- Conserva lo verificable: qué enseña, dónde queda, niveles, modalidad (grupales/particulares).
+- No inventes datos que no aparecen en el texto (dirección, horarios, teléfonos, estilos que no están).
+- Si el texto es puro ruido y no queda nada útil, responde {{"description": null}}.
+"""
 
 PROMPT_IDENTITY = """Eres un asistente que extrae el nombre comercial corto de una academia de baile.
 
@@ -158,5 +178,20 @@ class GeminiLLM:
             return None
         cleaned = " ".join(name.split()).strip(" -–|")
         if not 1 <= len(cleaned) <= 60:
+            return None
+        return cleaned
+
+    def normalize_description(self, text: str) -> str | None:
+        if not self.api_key:
+            return None
+        prompt = PROMPT_DESCRIPTION.format(text=(text or "")[:800])
+        data = self._query_json(prompt)
+        if not isinstance(data, dict):
+            return None
+        desc = data.get("description")
+        if not isinstance(desc, str):
+            return None
+        cleaned = " ".join(desc.split()).strip()
+        if not 20 <= len(cleaned) <= 320:
             return None
         return cleaned
