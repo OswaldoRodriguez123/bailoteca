@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import Literal
 
 import psycopg
@@ -67,47 +68,94 @@ def validate_payload(payload: dict) -> dict:
     return ProposalPayload.model_validate(payload).model_dump()
 
 
-def _flatten(payload: dict) -> dict:
+def _scalar_flat(payload: dict) -> dict:
+    """Campos de valor único: name/description. (Links y sedes se comparan
+    como multisets en ``replaced_pairs``; aplanarlos pierde rechazos.)"""
     flat: dict = {}
     for key in ("name", "description"):
         if key in payload:
             flat[key] = payload[key]
-
-    locations = payload.get("locations")
-    if locations:
-        first = locations[0]
-        for key in ("address", "comuna"):
-            if key in first:
-                flat[key] = first[key]
-    else:
-        for key in ("address", "comuna"):
-            if key in payload:
-                flat[key] = payload[key]
-
-    links = payload.get("links")
-    if links:
-        for link in links:
-            if link.get("kind"):
-                flat[link["kind"]] = link.get("url")
-    else:
-        for kind in LINK_KINDS:
-            if kind in payload:
-                flat[kind] = payload[kind]
-
     for style in payload.get("styles") or []:
         if style.get("slug"):
             flat[f"style:{style['slug']}"] = style["slug"]
-
     return flat
 
 
+def _locations(payload: dict) -> list[dict]:
+    locs = payload.get("locations")
+    if locs:
+        return list(locs)
+    if payload.get("address") or payload.get("comuna"):
+        # forma legacy: address/comuna sueltos en el payload
+        return [{"address": payload.get("address"), "comuna": payload.get("comuna")}]
+    return []
+
+
+def _location_pairs(payload: dict) -> list[tuple[str | None, str | None]]:
+    pairs = []
+    for loc in _locations(payload):
+        address, comuna = loc.get("address"), loc.get("comuna")
+        if address or comuna:
+            pairs.append((address, comuna))
+    return pairs
+
+
+def _link_counter(payload: dict) -> "Counter[tuple[str, str]]":
+    counter: Counter[tuple[str, str]] = Counter()
+    links = payload.get("links")
+    if links:
+        for link in links:
+            kind, url = link.get("kind"), link.get("url")
+            if kind and url:
+                counter[(kind, url)] += 1
+    else:
+        for kind in LINK_KINDS:
+            if payload.get(kind):
+                counter[(kind, payload[kind])] += 1
+    return counter
+
+
 def replaced_pairs(proposed: dict, approved: dict) -> list[tuple[str, str]]:
-    proposed_flat = _flatten(proposed)
-    approved_flat = _flatten(approved)
+    proposed_flat = _scalar_flat(proposed)
+    approved_flat = _scalar_flat(approved)
     pairs: list[tuple[str, str]] = []
     for field, value in proposed_flat.items():
         if approved_flat.get(field) != value:
             pairs.append((field, field_value_hash(field, value)))
+
+    # Sedes: con una sede propuesta se comparan address y comuna por separado
+    # contra la primera del payload aprobado (comportamiento previo); con varias
+    # sedes la comuna es compartida, así que solo se graba el address de cada
+    # sede descartada (evita rechazar comunas legítimas).
+    proposed_locs = _location_pairs(proposed)
+    approved_locs = _location_pairs(approved)
+    if len(proposed_locs) <= 1:
+        approved_addrs = {a for a, _ in approved_locs}
+        approved_comunas = {c for _, c in approved_locs}
+        for address, comuna in proposed_locs:
+            if address and address not in approved_addrs:
+                pairs.append(("address", field_value_hash("address", address)))
+            if comuna and comuna not in approved_comunas:
+                pairs.append(("comuna", field_value_hash("comuna", comuna)))
+    else:
+        approved_addrs = {a for a, _ in _location_pairs(approved)}
+        seen: set[str] = set()
+        for addr, _comuna in _location_pairs(proposed):
+            if addr and addr not in approved_addrs and addr not in seen:
+                pairs.append(("address", field_value_hash("address", addr)))
+                seen.add(addr)
+
+    # Links: multiset — cada link propuesto descartado/reemplazado se graba,
+    # sin importar que comparta kind con otros.
+    proposed_links = _link_counter(proposed)
+    approved_links = set(_link_counter(approved))
+    seen: set[tuple[str, str]] = set()
+    for (kind, url) in proposed_links:
+        if (kind, url) in seen:
+            continue
+        seen.add((kind, url))
+        if (kind, url) not in approved_links:
+            pairs.append((kind, field_value_hash(kind, url)))
     return pairs
 
 

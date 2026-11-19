@@ -111,3 +111,76 @@ def test_render_review_verdict_unknown_id_is_ignored():
         verdicts={"otro": CountryVerdict("chile", ("sitio .cl",))},
     )
     assert "país" not in text
+
+
+def test_replaced_pairs_records_dropped_duplicate_kind_link_only():
+    proposed = {
+        "links": [
+            {"kind": "instagram", "url": "https://instagram.com/a"},
+            {"kind": "instagram", "url": "https://instagram.com/b"},
+        ]
+    }
+    approved = {"links": [{"kind": "instagram", "url": "https://instagram.com/b"}]}
+    assert replaced_pairs(proposed, approved) == [
+        ("instagram", field_value_hash("instagram", "https://instagram.com/a"))
+    ]
+
+
+def test_replaced_pairs_records_replaced_link_not_kept():
+    proposed = {"links": [{"kind": "web", "url": "https://old.example.com"}]}
+    approved = {"links": [{"kind": "web", "url": "https://new.example.com"}]}
+    assert replaced_pairs(proposed, approved) == [
+        ("web", field_value_hash("web", "https://old.example.com"))
+    ]
+
+
+def test_replaced_pairs_no_links_nothing_recorded():
+    assert replaced_pairs({"links": []}, {"links": []}) == []
+    assert replaced_pairs({}, {}) == []
+
+
+def test_replaced_pairs_duplicate_identical_links_absent_from_approved_recorded_once():
+    proposed = {
+        "links": [
+            {"kind": "instagram", "url": "https://instagram.com/a"},
+            {"kind": "instagram", "url": "https://instagram.com/a"},
+        ]
+    }
+    approved = {"links": []}
+    assert replaced_pairs(proposed, approved) == [
+        ("instagram", field_value_hash("instagram", "https://instagram.com/a"))
+    ]
+
+
+def test_replaced_pairs_single_dropped_sede_records_address_and_comuna():
+    proposed = {
+        "locations": [{"address": "Av. X 100", "comuna": "Santiago"}],
+    }
+    approved = {"locations": []}
+    assert replaced_pairs(proposed, approved) == [
+        ("address", field_value_hash("address", "Av. X 100")),
+        ("comuna", field_value_hash("comuna", "Santiago")),
+    ]
+
+
+def test_replaced_pairs_dropped_extra_sede_records_address_but_not_shared_comuna():
+    proposed = {
+        "locations": [
+            {"address": "Av. Keep 1", "comuna": "Santiago"},
+            {"address": "Av. Drop 2", "comuna": "Santiago"},
+        ]
+    }
+    approved = {
+        "locations": [{"address": "Av. Keep 1", "comuna": "Santiago"}],
+    }
+    assert replaced_pairs(proposed, approved) == [
+        ("address", field_value_hash("address", "Av. Drop 2"))
+    ]
+
+
+def test_replaced_pairs_styles_unchanged_behavior():
+    proposed = {"styles": [{"slug": "mambo"}, {"slug": "salsa-cubana"}]}
+    approved = {"styles": [{"slug": "mambo"}]}
+    assert replaced_pairs(proposed, approved) == [
+        ("style:salsa-cubana", field_value_hash("style:salsa-cubana", "salsa-cubana"))
+    ]
