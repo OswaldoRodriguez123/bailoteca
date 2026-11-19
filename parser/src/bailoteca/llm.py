@@ -11,6 +11,20 @@ RETRYABLE_STATUS = {500, 502, 503, 504}
 
 
 @dataclass(frozen=True)
+class DescriptionResult:
+    """Resultado tri-estado de la limpieza de descripción.
+
+    ok: ``text`` es la descripción limpia. noise: el texto crudo es ruido
+    puro (o la salida degeneró) → omitir la descripción, nunca publicar la
+    basura. failure: error transitorio/contrato (sin API key, HTTP no-200,
+    JSON inválido) → el llamador conserva el texto crudo como respaldo.
+    """
+
+    status: str  # "ok" | "noise" | "failure"
+    text: str | None = None
+
+
+@dataclass(frozen=True)
 class StyleHit:
     slug: str
     confidence: float
@@ -21,7 +35,7 @@ class StyleHit:
 class LLM(Protocol):
     def classify_styles(self, text: str, slugs: list[str]) -> list[StyleHit] | None: ...
     def normalize_identity(self, text: str, fallback_name: str) -> str | None: ...
-    def normalize_description(self, text: str) -> str | None: ...
+    def normalize_description(self, text: str) -> DescriptionResult: ...
 
 
 class HttpPost(Protocol):
@@ -181,19 +195,23 @@ class GeminiLLM:
             return None
         return cleaned
 
-    def normalize_description(self, text: str) -> str | None:
+    def normalize_description(self, text: str) -> DescriptionResult:
         if not self.api_key:
-            return None
+            return DescriptionResult("failure")
         prompt = PROMPT_DESCRIPTION.format(text=(text or "")[:800])
         data = self._query_json(prompt)
         if not isinstance(data, dict):
-            return None
+            return DescriptionResult("failure")
+        if "description" in data and data["description"] is None:
+            # Null explícito: el modelo declaró ruido puro.
+            return DescriptionResult("noise")
         desc = data.get("description")
         if not isinstance(desc, str):
-            return None
+            return DescriptionResult("failure")
         cleaned = " ".join(desc.split()).strip()
-        # Sin mínimo artificial: el prompt ya descarta ruido puro (null). Solo
-        # se acota longitud para descartar salidas degeneradas o desbordadas.
+        # Sin mínimo artificial de palabras: el prompt ya descarta ruido
+        # (null). Solo se acota longitud para descartar salidas degeneradas
+        # o desbordadas — que se tratan como ruido, no como texto publicable.
         if len(cleaned) < 8 or len(cleaned) > 320:
-            return None
-        return cleaned
+            return DescriptionResult("noise")
+        return DescriptionResult("ok", cleaned)

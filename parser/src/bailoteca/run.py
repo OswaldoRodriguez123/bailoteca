@@ -131,12 +131,26 @@ def _apply_llm_description(enriched, llm, candidate=None):
     if not (isinstance(raw, str) and raw.strip()):
         return enriched
     try:
-        cleaned = fn(raw)
+        result = fn(raw)
     except Exception:
         return enriched
-    if not isinstance(cleaned, str) or not cleaned.strip():
+    if isinstance(result, str):
+        # Implementaciones duck-typed que devuelven la descripción limpia.
+        cleaned = result.strip()
+        return replace(enriched, description=cleaned) if cleaned else enriched
+    status = getattr(result, "status", None)
+    if status == "ok":
+        text = getattr(result, "text", None)
+        if isinstance(text, str) and text.strip():
+            return replace(enriched, description=" ".join(text.split()))
         return enriched
-    return replace(enriched, description=" ".join(cleaned.split()))
+    if status == "noise":
+        # Ruido declarado: suprimir la descripción (nunca publicar la basura
+        # ni el fallback crudo). Si había descripción publicada, _build_payload
+        # la conserva.
+        return replace(enriched, description=None, suppress_description=True)
+    # failure u desconocido: conservar el texto crudo como respaldo.
+    return enriched
 
 
 def _write_reports(

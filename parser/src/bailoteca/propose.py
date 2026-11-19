@@ -121,11 +121,17 @@ def _build_payload(
     if isinstance(raw, dict):
         candidate_description = raw.get("description")
 
+    suppressed = bool(getattr(enriched, "suppress_description", False))
+
     if enriched.description:
         payload["description"] = enriched.description
-    elif candidate_description:
+    elif suppressed and existing and existing.get("description"):
+        # Texto crudo declarado ruido: si ya había descripción publicada, es
+        # la mejor fuente disponible (verdadera y revisada).
+        payload["description"] = existing["description"]
+    elif not suppressed and candidate_description:
         payload["description"] = candidate_description
-    elif existing and existing.get("description"):
+    elif not suppressed and existing and existing.get("description"):
         payload["description"] = existing["description"]
 
     view = _existing_view(existing) if existing is not None else None
