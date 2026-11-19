@@ -143,7 +143,10 @@ _ACADEMY_SELECT = """
 
 
 def connect(database_url: str) -> psycopg.Connection:
-    return psycopg.connect(database_url, row_factory=dict_row)
+    # El destino es Supavisor (transaction pooling): los "named prepared
+    # statements" de psycopg (umbral por defecto) colisionan con el backend
+    # que Supavisor reasigna, y falla con DuplicatePreparedStatement.
+    return psycopg.connect(database_url, row_factory=dict_row, prepare_threshold=None)
 
 
 def _like_pattern(value: str) -> str:
