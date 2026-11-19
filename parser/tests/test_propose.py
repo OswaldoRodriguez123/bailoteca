@@ -430,3 +430,45 @@ def test_update_union_preserves_flat_shape_published_links():
         ("instagram", "https://instagram.com/x"),
         ("whatsapp", "https://wa.me/56965387513"),
     }
+
+
+def test_update_union_null_confidence_published_style_does_not_break_min():
+    """Un estilo publicado con confidence NULL no rompe min() cuando también hay estilos detectados."""
+    existing = {
+        "name": "Academia X",
+        "description": "Vieja descripción",
+        "address": "Av. X 1",
+        "comuna": "Providencia",
+        "links": [{"kind": "instagram", "url": "https://instagram.com/x"}],
+        "styles": [{"slug": "mambo", "confidence": None}],
+    }
+    draft = build_proposal(
+        _enriched().candidate,
+        _enriched(),
+        [StyleHit("salsa-cubana", 0.9)],  # detectado 0.9; publicado NULL
+        existing=existing,
+        rejections=set(),
+    )
+    assert draft is not None
+    assert draft.confidence == 0.9
+
+
+def test_update_null_confidence_everywhere_defaults_to_zero():
+    """Si todos los estilos del payload tienen confidence NULL, confidence cae a 0.0."""
+    existing = {
+        "name": "Academia X",
+        "description": "Vieja descripción",
+        "address": "Av. X 1",
+        "comuna": "Providencia",
+        "links": [{"kind": "instagram", "url": "https://instagram.com/x"}],
+        "styles": [{"slug": "mambo", "confidence": None}],
+    }
+    draft = build_proposal(
+        _enriched().candidate,
+        _enriched(),
+        [],  # nada detectado; unión conserva solo mambo (NULL)
+        existing=existing,
+        rejections=set(),
+    )
+    assert draft is not None
+    assert draft.confidence == 0.0

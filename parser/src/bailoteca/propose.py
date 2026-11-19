@@ -245,7 +245,11 @@ def build_proposal(
         f"{kind}|{destination}|{payload_hash(payload)}".encode("utf-8")
     ).hexdigest()
 
-    confidences = [style["confidence"] for style in payload.get("styles", [])]
+    confidences = [
+        style["confidence"]
+        for style in payload.get("styles", [])
+        if style.get("confidence") is not None
+    ]
     confidence = min(confidences) if confidences else 0.0
     review = enriched is None or any(needs_review(hit) for hit in hits) or not payload.get("styles")
 
