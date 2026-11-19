@@ -219,3 +219,256 @@ def test_llm_noise_keeps_existing_published_description():
         rejections=set(),
     )
     assert draft.payload["description"] == "Descripción publicada y revisada."
+
+
+def test_update_payload_union_links():
+    """El `update` conserva los links publicados que el enrich no detectó."""
+    existing = {
+        "name": "Academia X",
+        "description": "Vieja descripción",
+        "address": "Av. X 1",
+        "comuna": "Providencia",
+        "links": [
+            {"kind": "instagram", "url": "https://instagram.com/x"},
+            {"kind": "whatsapp", "url": "https://wa.me/56965387513"},
+        ],
+        "styles": [{"slug": "salsa-cubana", "confidence": 0.9}],
+    }
+    # Hay cambio de descripción (fuerza la propuesta) → el payload debe unir links
+    draft = build_proposal(
+        _enriched().candidate,  # enrich solo detecta instagram
+        _enriched(),
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=existing,
+        rejections=set(),
+    )
+    assert draft is not None
+    assert "description" in draft.changes
+    payload_links = {(l["kind"], l["url"]) for l in draft.payload["links"]}
+    assert payload_links == {
+        ("instagram", "https://instagram.com/x"),
+        ("whatsapp", "https://wa.me/56965387513"),
+    }
+
+
+def test_update_payload_union_links_respects_rejection():
+    """Un link publicado pero rechazado explícitamente no resucita."""
+    url = "https://wa.me/56965387513"
+    existing = {
+        "name": "Academia X",
+        "description": "Academia de salsa cubana.",
+        "address": "Av. X 1",
+        "comuna": "Providencia",
+        "links": [
+            {"kind": "instagram", "url": "https://instagram.com/x"},
+            {"kind": "whatsapp", "url": url},
+        ],
+        "styles": [{"slug": "salsa-cubana", "confidence": 0.9}],
+    }
+    bad = field_value_hash("whatsapp", url)
+    draft = build_proposal(
+        _enriched().candidate,
+        _enriched(),
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=existing,
+        rejections={("whatsapp", bad)},
+    )
+    assert draft is not None
+    payload_links = {(l["kind"], l["url"]) for l in draft.payload["links"]}
+    assert payload_links == {("instagram", "https://instagram.com/x")}
+
+
+def test_update_payload_union_styles():
+    """Subset de estilos detectados se une con los publicados, respetando rechazos."""
+    existing = {
+        "name": "Academia X",
+        "description": "Vieja descripción",  # fuerza una diferencia real
+        "address": "Av. X 1",
+        "comuna": "Providencia",
+        "links": [{"kind": "instagram", "url": "https://instagram.com/x"}],
+        "styles": [
+            {"slug": "salsa-cubana", "confidence": 0.9},
+            {"slug": "mambo", "confidence": 0.8, "evidence": "cita"},
+        ],
+    }
+    # Detectado solo salsa-cubana → mambo debe conservarse
+    draft = build_proposal(
+        _enriched().candidate,
+        _enriched(),
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=existing,
+        rejections=set(),
+    )
+    assert draft is not None
+    assert "description" in draft.changes
+    assert {s["slug"] for s in draft.payload["styles"]} == {"salsa-cubana", "mambo"}
+
+    # Mambo publicado pero rechazado → no resucita
+    bad = field_value_hash("style:mambo", "mambo")
+    draft = build_proposal(
+        _enriched().candidate,
+        _enriched(),
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=existing,
+        rejections={("style:mambo", bad)},
+    )
+    assert draft is not None
+    assert {s["slug"] for s in draft.payload["styles"]} == {"salsa-cubana"}
+
+
+def test_update_with_subset_of_published_links_produces_no_changes():
+    """Un refresh que detecta menos que lo publicado ya no genera propuesta dañina."""
+    existing = {
+        "name": "Academia X",
+        "description": "Academia de salsa cubana.",
+        "address": "Av. X 1",
+        "comuna": "Providencia",
+        "links": [
+            {"kind": "instagram", "url": "https://instagram.com/x"},
+            {"kind": "whatsapp", "url": "https://wa.me/56965387513"},
+        ],
+        "styles": [{"slug": "salsa-cubana", "confidence": 0.9}],
+    }
+    draft = build_proposal(
+        _enriched().candidate,  # instagram-only + salsa-cubana: ⊂ publicado
+        _enriched(),
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=existing,
+        rejections=set(),
+    )
+    assert draft is None
+
+
+def test_create_payload_unaffected_by_union():
+    """En create (existing=None) no hay unión: payload solo con lo detectado."""
+    draft = build_proposal(
+        _enriched().candidate,
+        _enriched(),
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=None,
+        rejections=set(),
+    )
+    assert draft is not None
+    assert draft.payload["links"] == [
+        {"kind": "instagram", "url": "https://instagram.com/x"}
+    ]
+
+
+def test_update_union_ignores_published_links_with_invalid_shape():
+    """Links publicados con url None/no-str no deben romper el sort ni colar basura."""
+    existing = {
+        "name": "Academia X",
+        "description": "Vieja descripción",
+        "address": "Av. X 1",
+        "comuna": "Providencia",
+        "links": [
+            {"kind": "instagram", "url": None},
+            {"kind": "whatsapp", "url": 123},
+            {"kind": "instagram", "url": "https://instagram.com/x"},
+        ],
+        "styles": [{"slug": "salsa-cubana", "confidence": 0.9}],
+    }
+    draft = build_proposal(
+        _enriched().candidate,
+        _enriched(),
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=existing,
+        rejections=set(),
+    )
+    assert draft is not None
+    assert draft.payload["links"] == [
+        {"kind": "instagram", "url": "https://instagram.com/x"}
+    ]
+
+
+def test_update_union_ignores_published_styles_without_slug():
+    """Un estilo publicado sin slug no debe romper el filtro 'style:' + slug."""
+    existing = {
+        "name": "Academia X",
+        "description": "Vieja descripción",
+        "address": "Av. X 1",
+        "comuna": "Providencia",
+        "links": [{"kind": "instagram", "url": "https://instagram.com/x"}],
+        "styles": [
+            {"slug": None, "confidence": 0.1},
+            {"slug": "salsa-cubana", "confidence": 0.9},
+        ],
+    }
+    draft = build_proposal(
+        _enriched().candidate,
+        _enriched(),
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=existing,
+        rejections=set(),
+    )
+    assert draft is not None
+    assert {s["slug"] for s in draft.payload["styles"]} == {"salsa-cubana"}
+
+
+def test_update_union_preserves_flat_shape_published_links():
+    """existing en forma plana (instagram/whatsapp sueltos, sin 'links') también se une."""
+    existing = {
+        "name": "Academia X",
+        "description": "Vieja descripción",
+        "address": "Av. X 1",
+        "comuna": "Providencia",
+        "instagram": "https://instagram.com/x",
+        "whatsapp": "https://wa.me/56965387513",
+        "styles": [{"slug": "salsa-cubana", "confidence": 0.9}],
+    }
+    draft = build_proposal(
+        _enriched().candidate,  # detecta solo instagram
+        _enriched(),
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=existing,
+        rejections=set(),
+    )
+    assert draft is not None
+    assert "description" in draft.changes
+    payload_links = {(l["kind"], l["url"]) for l in draft.payload["links"]}
+    assert payload_links == {
+        ("instagram", "https://instagram.com/x"),
+        ("whatsapp", "https://wa.me/56965387513"),
+    }
+
+
+def test_update_union_null_confidence_published_style_does_not_break_min():
+    """Un estilo publicado con confidence NULL no rompe min() cuando también hay estilos detectados."""
+    existing = {
+        "name": "Academia X",
+        "description": "Vieja descripción",
+        "address": "Av. X 1",
+        "comuna": "Providencia",
+        "links": [{"kind": "instagram", "url": "https://instagram.com/x"}],
+        "styles": [{"slug": "mambo", "confidence": None}],
+    }
+    draft = build_proposal(
+        _enriched().candidate,
+        _enriched(),
+        [StyleHit("salsa-cubana", 0.9)],  # detectado 0.9; publicado NULL
+        existing=existing,
+        rejections=set(),
+    )
+    assert draft is not None
+    assert draft.confidence == 0.9
+
+
+def test_update_null_confidence_everywhere_defaults_to_zero():
+    """Si todos los estilos del payload tienen confidence NULL, confidence cae a 0.0."""
+    existing = {
+        "name": "Academia X",
+        "description": "Vieja descripción",
+        "address": "Av. X 1",
+        "comuna": "Providencia",
+        "links": [{"kind": "instagram", "url": "https://instagram.com/x"}],
+        "styles": [{"slug": "mambo", "confidence": None}],
+    }
+    draft = build_proposal(
+        _enriched().candidate,
+        _enriched(),
+        [],  # nada detectado; unión conserva solo mambo (NULL)
+        existing=existing,
+        rejections=set(),
+    )
+    assert draft is not None
+    assert draft.confidence == 0.0

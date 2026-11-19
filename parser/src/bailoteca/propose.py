@@ -160,14 +160,28 @@ def _build_payload(
     links = []
     for kind, urls in enriched.links.items():
         for url in urls:
+            if not isinstance(kind, str) or not isinstance(url, str):
+                continue
+            if not kind or not url:
+                continue
+            if (kind, field_value_hash(kind, url)) in rejections:
+                continue
+            links.append({"kind": kind, "url": url})
+    if existing is not None:
+        seen = {(link["kind"], link["url"]) for link in links}
+        for kind, url in _existing_view(existing)["links"]:
+            if not isinstance(kind, str) or not isinstance(url, str):
+                continue
+            if not kind or not url:
+                continue
+            if (kind, url) in seen:
+                continue
             if (kind, field_value_hash(kind, url)) in rejections:
                 continue
             links.append({"kind": kind, "url": url})
     links.sort(key=lambda link: (link["kind"], link["url"]))
     if links:
         payload["links"] = links
-    elif existing and existing.get("links"):
-        payload["links"] = existing["links"]
 
     styles = []
     for style in style_payload(hits):
@@ -175,17 +189,30 @@ def _build_payload(
         if ("style:" + slug, field_value_hash("style:" + slug, slug)) in rejections:
             continue
         styles.append(style)
+    if existing is not None:
+        seen = {style["slug"] for style in styles}
+        existing_styles = {
+            style.get("slug"): style for style in existing.get("styles") or []
+        }
+        for slug in sorted(
+            s for s in _existing_view(existing)["styles"]
+            if isinstance(s, str) and s
+        ):
+            if slug in seen:
+                continue
+            if ("style:" + slug, field_value_hash("style:" + slug, slug)) in rejections:
+                continue
+            src = existing_styles.get(slug) or {}
+            styles.append(
+                {
+                    "slug": slug,
+                    "confidence": src.get("confidence"),
+                    "evidence": src.get("evidence"),
+                }
+            )
+    styles.sort(key=lambda style: style["slug"])
     if styles:
         payload["styles"] = styles
-    elif existing and existing.get("styles"):
-        payload["styles"] = [
-            {
-                "slug": style["slug"],
-                "confidence": style.get("confidence"),
-                "evidence": style.get("evidence"),
-            }
-            for style in existing["styles"]
-        ]
 
     return payload
 
@@ -218,7 +245,11 @@ def build_proposal(
         f"{kind}|{destination}|{payload_hash(payload)}".encode("utf-8")
     ).hexdigest()
 
-    confidences = [style["confidence"] for style in payload.get("styles", [])]
+    confidences = [
+        style["confidence"]
+        for style in payload.get("styles", [])
+        if style.get("confidence") is not None
+    ]
     confidence = min(confidences) if confidences else 0.0
     review = enriched is None or any(needs_review(hit) for hit in hits) or not payload.get("styles")
 
