@@ -131,3 +131,47 @@ def test_reject_marks_proposal(conn):
         "select status from proposals where id = %s", (pid,)
     ).fetchone()
     assert row["status"] == "rejected"
+
+
+def test_unpublish_deletes_academy_and_marks_proposal_rejected(conn):
+    from bailoteca.publish import unpublish
+
+    cand = Candidate("Academia Unpub", "https://unpub.cl", None, "seed")
+    cid = upsert_candidate(conn, cand)
+    pid = insert_proposal(
+        conn,
+        candidate_id=cid,
+        academy_id=None,
+        kind="create",
+        payload={"name": "Academia Unpub"},
+        evidence={},
+        confidence=0.9,
+    )
+    aid = approve(conn, pid)
+    slug = conn.execute(
+        "select slug from academies where id = %s", (aid,)
+    ).fetchone()["slug"]
+
+    result = unpublish(conn, slug)
+    assert result["slug"] == slug
+    assert result["proposals_rejected"] == 1
+    assert result["candidates_rejected"] == 1
+
+    # academy gone
+    assert conn.execute(
+        "select count(*) from academies where id = %s", (aid,)
+    ).fetchone()["count"] == 0
+    # proposal + candidate rejected
+    assert conn.execute(
+        "select status from proposals where id = %s", (pid,)
+    ).fetchone()["status"] == "rejected"
+    assert conn.execute(
+        "select status from candidates where id = %s", (cid,)
+    ).fetchone()["status"] == "rejected"
+
+
+def test_unpublish_unknown_slug_raises(conn):
+    from bailoteca.publish import unpublish
+
+    with pytest.raises(ValueError):
+        unpublish(conn, "no-existe")
