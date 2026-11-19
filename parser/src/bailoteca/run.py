@@ -109,20 +109,34 @@ def _text_for_classification(enriched) -> str:
     )
 
 
-def _apply_llm_description(draft, llm):
-    """Limpia la descripción del payload con el LLM, tolerante con LLMs duck-typed."""
+def _apply_llm_description(enriched, llm, candidate=None):
+    """Devuelve enriched con la descripción limpiada por el LLM.
+
+    Se aplica ANTES de build_proposal para que el payload, ``changes`` y
+    ``dedupe_key`` se calculen sobre la descripción ya limpia. Tolerante con
+    LLMs duck-typed y degradación silenciosa ante errores (como normalize_identity).
+    """
     if llm is None:
-        return draft
+        return enriched
     fn = getattr(llm, "normalize_description", None)
     if fn is None:
-        return draft
-    raw = draft.payload.get("description")
-    if not isinstance(raw, str) or not raw.strip():
-        return draft
-    cleaned = fn(raw)
-    if not cleaned:
-        return draft
-    return replace(draft, payload={**draft.payload, "description": cleaned})
+        return enriched
+    raw = enriched.description
+    if not (isinstance(raw, str) and raw.strip()):
+        candidate_desc = None
+        raw_obj = getattr(candidate, "raw", None) if candidate is not None else None
+        if isinstance(raw_obj, dict) and isinstance(raw_obj.get("description"), str):
+            candidate_desc = raw_obj["description"]
+        raw = candidate_desc
+    if not (isinstance(raw, str) and raw.strip()):
+        return enriched
+    try:
+        cleaned = fn(raw)
+    except Exception:
+        return enriched
+    if not isinstance(cleaned, str) or not cleaned.strip():
+        return enriched
+    return replace(enriched, description=" ".join(cleaned.split()))
 
 
 def _write_reports(
@@ -312,10 +326,11 @@ def run(
                             conn, existing["id"]
                         )
 
+            enriched = _apply_llm_description(enriched, llm, candidate)
+
             draft = build_proposal(candidate, enriched, hits, existing, rejections)
             if draft is None:
                 continue
-            draft = _apply_llm_description(draft, llm)
             if candidate_id is not None:
                 draft = replace(draft, candidate_id=candidate_id)
 
@@ -427,6 +442,7 @@ def refresh(config: Config, slug: str) -> RunSummary:
             if cleaned:
                 candidate = replace(candidate, name=cleaned)
         hits = classify(_text_for_classification(enriched), llm)
+        enriched = _apply_llm_description(enriched, llm, candidate)
         draft = build_proposal(
             candidate,
             enriched,
@@ -436,7 +452,6 @@ def refresh(config: Config, slug: str) -> RunSummary:
         )
         if draft is None:
             return RunSummary(discovered=1, duration_s=0.0)
-        draft = _apply_llm_description(draft, llm)
         proposal_id = insert_proposal(
             conn,
             candidate_id=None,

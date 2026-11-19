@@ -192,6 +192,8 @@ class GeminiLLM:
         if not isinstance(desc, str):
             return None
         cleaned = " ".join(desc.split()).strip()
-        if not 20 <= len(cleaned) <= 320:
+        # Sin mínimo artificial: el prompt ya descarta ruido puro (null). Solo
+        # se acota longitud para descartar salidas degeneradas o desbordadas.
+        if len(cleaned) < 8 or len(cleaned) > 320:
             return None
         return cleaned

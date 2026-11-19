@@ -106,3 +106,9 @@ def test_gemini_description_rejects_junk():
 
 def test_gemini_description_without_key():
     assert GeminiLLM("", _Http([])).normalize_description("texto") is None
+
+
+def test_gemini_description_accepts_short_valid():
+    http = _Http([_Response(200, _gemini_description_body("Salsa y bachata."))])
+    llm = GeminiLLM("key", http)
+    assert llm.normalize_description("texto de la academia") == "Salsa y bachata."
