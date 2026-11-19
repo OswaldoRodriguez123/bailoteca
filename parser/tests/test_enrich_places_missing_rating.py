@@ -14,6 +14,7 @@ class _MissingArgs:
 class _FakeConfig:
     database_url = "postgresql://noop"
     serpapi_key = "serpapi-key"
+    google_places_api_key = None
     supabase_url = "https://proj.supabase.co"
     supabase_service_role_key = "secret"
 
