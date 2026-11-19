@@ -352,3 +352,81 @@ def test_create_payload_unaffected_by_union():
     assert draft.payload["links"] == [
         {"kind": "instagram", "url": "https://instagram.com/x"}
     ]
+
+
+def test_update_union_ignores_published_links_with_invalid_shape():
+    """Links publicados con url None/no-str no deben romper el sort ni colar basura."""
+    existing = {
+        "name": "Academia X",
+        "description": "Vieja descripción",
+        "address": "Av. X 1",
+        "comuna": "Providencia",
+        "links": [
+            {"kind": "instagram", "url": None},
+            {"kind": "whatsapp", "url": 123},
+            {"kind": "instagram", "url": "https://instagram.com/x"},
+        ],
+        "styles": [{"slug": "salsa-cubana", "confidence": 0.9}],
+    }
+    draft = build_proposal(
+        _enriched().candidate,
+        _enriched(),
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=existing,
+        rejections=set(),
+    )
+    assert draft is not None
+    assert draft.payload["links"] == [
+        {"kind": "instagram", "url": "https://instagram.com/x"}
+    ]
+
+
+def test_update_union_ignores_published_styles_without_slug():
+    """Un estilo publicado sin slug no debe romper el filtro 'style:' + slug."""
+    existing = {
+        "name": "Academia X",
+        "description": "Vieja descripción",
+        "address": "Av. X 1",
+        "comuna": "Providencia",
+        "links": [{"kind": "instagram", "url": "https://instagram.com/x"}],
+        "styles": [
+            {"slug": None, "confidence": 0.1},
+            {"slug": "salsa-cubana", "confidence": 0.9},
+        ],
+    }
+    draft = build_proposal(
+        _enriched().candidate,
+        _enriched(),
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=existing,
+        rejections=set(),
+    )
+    assert draft is not None
+    assert {s["slug"] for s in draft.payload["styles"]} == {"salsa-cubana"}
+
+
+def test_update_union_preserves_flat_shape_published_links():
+    """existing en forma plana (instagram/whatsapp sueltos, sin 'links') también se une."""
+    existing = {
+        "name": "Academia X",
+        "description": "Vieja descripción",
+        "address": "Av. X 1",
+        "comuna": "Providencia",
+        "instagram": "https://instagram.com/x",
+        "whatsapp": "https://wa.me/56965387513",
+        "styles": [{"slug": "salsa-cubana", "confidence": 0.9}],
+    }
+    draft = build_proposal(
+        _enriched().candidate,  # detecta solo instagram
+        _enriched(),
+        [StyleHit("salsa-cubana", 0.9)],
+        existing=existing,
+        rejections=set(),
+    )
+    assert draft is not None
+    assert "description" in draft.changes
+    payload_links = {(l["kind"], l["url"]) for l in draft.payload["links"]}
+    assert payload_links == {
+        ("instagram", "https://instagram.com/x"),
+        ("whatsapp", "https://wa.me/56965387513"),
+    }

@@ -160,12 +160,20 @@ def _build_payload(
     links = []
     for kind, urls in enriched.links.items():
         for url in urls:
+            if not isinstance(kind, str) or not isinstance(url, str):
+                continue
+            if not kind or not url:
+                continue
             if (kind, field_value_hash(kind, url)) in rejections:
                 continue
             links.append({"kind": kind, "url": url})
     if existing is not None:
         seen = {(link["kind"], link["url"]) for link in links}
         for kind, url in _existing_view(existing)["links"]:
+            if not isinstance(kind, str) or not isinstance(url, str):
+                continue
+            if not kind or not url:
+                continue
             if (kind, url) in seen:
                 continue
             if (kind, field_value_hash(kind, url)) in rejections:
@@ -186,7 +194,10 @@ def _build_payload(
         existing_styles = {
             style.get("slug"): style for style in existing.get("styles") or []
         }
-        for slug in sorted(_existing_view(existing)["styles"]):
+        for slug in sorted(
+            s for s in _existing_view(existing)["styles"]
+            if isinstance(s, str) and s
+        ):
             if slug in seen:
                 continue
             if ("style:" + slug, field_value_hash("style:" + slug, slug)) in rejections:
