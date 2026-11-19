@@ -79,6 +79,9 @@ cd parser
 ../.venv/bin/python -m bailoteca run             # writes proposals
 ../.venv/bin/python -m bailoteca review          # list pending
 ../.venv/bin/python -m bailoteca approve <id>    # publish
+../.venv/bin/python -m bailoteca reject <id>     # reject a proposal
+../.venv/bin/python -m bailoteca unpublish <slug> # unpublish an academy
+../.venv/bin/python -m bailoteca enrich-places   # Google Maps data (optional key)
 ```
 
 Pipeline details, noise filter, sources and SerpApi quota live in
@@ -128,7 +131,7 @@ No `.env` is committed. Each component has its own `.env.example`:
 
 | Component | Variables |
 | --- | --- |
-| Parser | `DATABASE_URL` (write), `GEMINI_API_KEY`, `SERPAPI_KEY`, `BRAVE_API_KEY`, `TINYFISH_API_KEY`, `CLOUDFLARE_*` |
+| Parser | `DATABASE_URL` (write), `GEMINI_API_KEY`, `SERPAPI_KEY`, `GOOGLE_PLACES_API_KEY`, `BRAVE_API_KEY`, `TINYFISH_API_KEY`, `CLOUDFLARE_*` |
 | API | `DATABASE_URL_READONLY`, `CORS_ORIGINS`, `RATE_LIMIT`, `DB_POOL_MAX_SIZE` |
 | Web | `API_BASE_URL` |
 
