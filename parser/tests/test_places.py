@@ -81,3 +81,49 @@ def test_parse_place_google_picks_matching_result():
 def test_parse_place_google_returns_none_without_results():
     assert parse_place_google({"places": []}, "X", None) is None
     assert parse_place_google({}, "X", None) is None
+
+
+def test_fetch_place_google_requests_spanish():
+    from bailoteca.places import fetch_place_google
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return GOOGLE_SAMPLE
+
+    class FakeHttp:
+        def __init__(self):
+            self.bodies = []
+
+        def post(self, url, headers=None, json=None, timeout=None):
+            self.bodies.append(json)
+            return FakeResponse()
+
+    http = FakeHttp()
+    fetch_place_google("Bachata Sun", "Maipú", None, None, None, http, "key")
+
+    assert http.bodies[0]["languageCode"] == "es"
+
+
+def test_parse_place_google_keeps_spanish_weekday_descriptions():
+    data = {
+        "places": [
+            {
+                "id": "ChIJxyz",
+                "displayName": {"text": "Bachata Sun", "languageCode": "es"},
+                "formattedAddress": "Primera Transversal 3045, Maipú, Chile",
+                "regularOpeningHours": {
+                    "weekdayDescriptions": [
+                        "lunes: 9:00–19:00",
+                        "martes: Cerrado",
+                    ],
+                },
+            }
+        ]
+    }
+
+    info = parse_place_google(data, "Bachata Sun", "Maipú")
+
+    assert info is not None
+    assert info.hours == {"lunes": "9:00–19:00", "martes": "Cerrado"}
