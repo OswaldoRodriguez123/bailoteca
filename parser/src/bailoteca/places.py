@@ -503,7 +503,7 @@ def fetch_place_google(
         "places.websiteUri,places.primaryType,places.location"
     )
     for query in variants:
-        body: dict[str, Any] = {"textQuery": query}
+        body: dict[str, Any] = {"textQuery": query, "languageCode": "es"}
         if lat is not None and lng is not None:
             body["locationBias"] = {
                 "circle": {
